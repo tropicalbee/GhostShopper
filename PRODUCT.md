@@ -34,7 +34,7 @@ The merchant (or the presenter in the video) starts a run, watches the agent's s
 ## Brand Commitments
 
 - Name: GhostShopper. Tagline: "See your store through an AI shopper's eyes."
-- Light, monochrome bento look with shadcn/ui and Geist, with colour only for status. No logo yet. See docs/UI_SPEC.md.
+- "Ledger": white, square, hairline rules, soft ink, Geist and Geist Mono, colour only for status, with a framed G mark. See docs/UI_SPEC.md.
 - PayPal appears only as the payment integration. Never imitate PayPal's branding or imply GhostShopper is a PayPal product.
 
 ## Evidence on Hand

@@ -38,4 +38,5 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - Advanced view for judges and developers: score gauge, score across runs, points by stage, payment check with PayPal fee and net, failures table, agent steps with screenshots, market check.
 - Works on phones (Simple view) and desktop (Advanced view). Practice runs, mock PayPal and sample market data are labelled on screen.
 - Checks are private to the browser that ran them, with "My checks", delete, and a 30-day retention. Before and after compares your own previous check of the same store.
+- The Ledger redesign: white, square and ruled, soft ink, Geist and Geist Mono, colour only for status. The shopper's path shows where an AI shopper got stuck and fills live during a check. A sidebar on desktop and a menu on phones, from 360px phones to wide screens.
 - Hardening for a public server: developer options and the demo store settings locked, rate limits, security headers and CSP, server-side request forgery checks on every request, and the dashboard served by FastAPI.

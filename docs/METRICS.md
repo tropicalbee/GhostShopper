@@ -97,6 +97,7 @@ Not valid until run live. These came from replayed cassettes, so they test the h
 | 2026-11-05 after tasks 8-11 | 142 (about 30 in a real browser) | all passed | 338 s |
 | 2026-11-06 dashboard | 168 | all passed | 187 s |
 | 2026-11-06 checks per browser | 189 (21 access tests) | all passed | 177 s |
+| 2026-11-06 Ledger redesign | 190 | all passed | 178 s |
 
 ## Frontend build (2026-11-06)
 

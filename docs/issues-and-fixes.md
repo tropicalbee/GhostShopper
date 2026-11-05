@@ -2,6 +2,20 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-06 (the Ledger redesign)
+
+### The failures table hid the evidence
+Seven columns with minimum widths of about 1,245px sat in a 1,120px space, so every text cell was cut off and the Evidence column was off screen. The selector moved into the technical fix's tooltip and the developer report, and the table lists only real store issues, so its count matches the tab.
+
+### "What the shopper did" ended before the purchase
+It kept the first seven lines that weren't neutral, and four problem lines at the same step pushed out the payment. It now keeps the key moments and always the last line.
+
+### The Live screen screenshot showed an empty feed
+The capture ran before the first feed line arrived. Captures now wait for at least four lines.
+
+### A favicon 404 on every page
+The browser asks for `/favicon.ico`. The page now carries an inline SVG icon.
+
 ## 2026-11-06 (checks belong to a browser)
 
 ### Anyone could open anyone's check

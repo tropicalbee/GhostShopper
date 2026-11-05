@@ -6,12 +6,21 @@ The developer or web agency never logs in. They get the "Send to my developer" r
 
 ## Look
 
-Light and monochrome, in a bento layout: white cards on a light grey page, black and grey for data, Geist, shadcn/ui components. No dark mode. Reference: the "Channel performance" dashboard shot the user picked (segmented gauge, hatched bars, small uppercase card titles, one big number per card).
+"Ledger": a calm working screen in the spirit of ui.shadcn.com and the user's Razorpay Buildathon dashboard. No dark mode.
 
-- Colour carries meaning only. Green, amber and red appear in the status pill and the score change, and red only for failures the store caused. Everything else is black, grey or white.
-- Cards: white, 1px border, 12px radius, no shadows. Card titles in small uppercase grey with an icon.
-- Charts use Recharts. AG Grid Community is used for the failures table and nothing else.
+- White ground, hairline cool-grey rules, square corners. A 1.5px dark rule closes each page head and table head.
+- Soft ink (#18181b) instead of pure black. The only dark fill on a screen is its one primary button. The score sits on a pale panel, never in a black block.
+- Geist for text. Geist Mono only for data: the score, points, money, order ids and selectors.
+- Colour carries meaning only: red for failures the store caused, green for good, amber for "some fixes needed". Status colour always comes with words.
+- Region titles are small, muted and in sentence case. No all-caps labels.
+- The signature is the shopper's path: the five stages as one strip, each as wide as the points it's worth, grey for points earned, hatched for points lost, and the plain reason in red under the stage where the shopper got stuck.
+- Charts use Recharts (score history, market check). AG Grid Community is used for the failures table and nothing else.
 - Keep it calm. A screen shows what the user needs for the next step and puts the rest behind a tab, a dialog or the Advanced view.
+
+## Navigation
+
+- Desktop: a left sidebar with New check, My checks, and the browser's six most recent checks (store, check number, date, score). When the demo store's settings are unlocked, a link to them sits at the bottom.
+- Phone: a top bar with the GhostShopper mark and a menu button. The menu opens the same sidebar as a sheet from the left.
 
 ## Rules for every screen
 
@@ -20,7 +29,7 @@ Light and monochrome, in a bento layout: white cards on a light grey page, black
 - Status colour always comes with words: "Ready for AI shoppers", "Some fixes needed", "AI shoppers will struggle to buy".
 - The score label says what it's out of: "How easily AI shoppers can buy from your store", then "49% of what your store controls".
 - Mock and fixture data always carries a visible label: "Practice run (scripted shopper, not AI)", "Mock PayPal", "Sample market data".
-- Simple view works at 375px with tap targets of at least 44px and no tables. The Advanced view is desktop only (1024px and up). On a phone the Advanced toggle is hidden.
+- Every screen works from 360px phones to 1920px screens with no sideways scrolling. Tap targets are at least 44px. The Advanced view opens from tablet width (768px); below that the toggle is hidden and its grid stacks.
 - Motion in two places only: the score counting up from before to after, and new lines arriving in the step feed. Both turn off under `prefers-reduced-motion`.
 
 ## Screens
@@ -35,6 +44,7 @@ Light and monochrome, in a bento layout: white cards on a light grey page, black
 
 ### 2. Live check
 - Heading: "Checking your store…" with the store's address.
+- The shopper's path above the feed, filling stage by stage from the checks logged so far (stage points from `GET /api/rubric`).
 - The step feed from `run.feed`, polled every second. Good lines get a check mark, problems a warning sign, things that aren't the store's fault an info sign, always with words.
 - The awaiting-human banner (demo store only) says what PayPal is asking for and where to do it.
 - When the run finishes, the screen moves to Results.
@@ -42,7 +52,7 @@ Light and monochrome, in a bento layout: white cards on a light grey page, black
 
 ### 3. Results, Simple view (the default)
 One score, three fixes, one main button.
-- The segmented gauge with the score, its label and the status pill.
+- The score panel: its label, the big number out of 100, the status line, and a compact shopper's path. On desktop it sits beside the fixes; on a phone it comes first.
 - Platform line when known: "Your store runs on Shopify".
 - For live stores: "We checked up to your PayPal button and stopped. We never pay on real stores."
 - The top 3 fixes as cards: what's wrong, why it costs sales, how to fix it (platform steps when known), and a "Show me" button that opens the screenshot.
@@ -63,12 +73,12 @@ One score, three fixes, one main button.
 - Data: `GET /api/runs/{id}/compare` (this check against the previous one of the same store from the same browser).
 
 ### 6. Advanced view (desktop, toggle on Results)
-A bento overview on top, tabs underneath.
-- Overview cards: score gauge; score across runs (line chart, `GET /api/runs`); points by stage (hatched bars, earned out of possible); payment check (order, capture, amount, PayPal fee and net, each with a status dot).
-- Tabs: Failures (AG Grid: check, cause, points, evidence, selector, technical fix), Agent steps (screenshot, tool, thought), Market (Channel3 results, "Sample market data" when `source` is `recorded`), Not the store's fault (plus "Not checked on live stores" for live runs).
-- The rules version and points the store controls sit in small text under the gauge.
+A ruled grid on top, tabs underneath.
+- The grid: the score panel; the shopper's path with points per stage; what the shopper did (the feed's key lines); the payment check as a small ledger ending in "You receive", marked Verified or Not verified.
+- Tabs: Failures (AG Grid: check, cause, points, evidence, selector, technical fix), Agent steps (screenshot, tool, thought), History (score across this store's checks, `GET /api/runs`), Market (Channel3 results, "Sample market data" when `source` is `recorded`), Not the store's fault (plus "Not checked on live stores" for live runs).
+- The points the store controls sit under the score; the rules version sits at the foot of the page.
 
-### 7. My checks (header link)
+### 7. My checks (in the sidebar and the phone menu)
 - This browser's checks, newest first: score, store, date. Tapping one opens its results.
 - Each row has a Delete button with a confirm dialog ("Delete this check?", "Keep it" or "Delete").
 - One line explains it: "Saved in this browser only. Other people can't see them." Under the list: how many days checks are kept, and that clearing cookies removes them from the list.

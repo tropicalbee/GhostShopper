@@ -126,3 +126,11 @@ Rules `2026-11-05.3`, 100 points in total.
 - Retention: owned checks older than 30 days are deleted at startup and before each new check, screenshots included. Delete removes the results and screenshots but keeps any sandbox order record, unlinked, because that belongs to the demo store.
 - SSRF: every request the live-store browser makes must go to a public host (checked once per host per run), and the server's own fetches check each redirect hop before sending it. DNS rebinding between our check and the browser's own lookup stays open; closing it needs a pinning proxy, which is more than a demo needs.
 - The dashboard's CSP allows inline styles only (AG Grid and Recharts set them); scripts are `'self'` only.
+
+## 2026-11-06: The Ledger look
+
+- The user rejected the first build as blank and raw, and named two references: ui.shadcn.com and their Razorpay Buildathon dashboard. Two static mocks came first: A, Ledger (square, ruled, mono figures) and B, Studio (soft cards, a ring chart). The user chose A and asked for less black, so impeccable's quieter pass removed the inverted score block, thinned the path bars to grey, and softened rules and ink.
+- What we kept from Razorpay: the white ground, hairline borders, a dark rule under page and table heads, square corners, mono figures, tabular data. What we left out: all-caps tracked labels (hallmark and impeccable both treat them as an AI tell) and the big black blocks.
+- The shopper's path replaced the gauge and the stage bars. It shows the same numbers, but as the route a shopper takes, with the reason written where it got stuck. A gauge only says "how much".
+- Navigation is a left sidebar on desktop and a hamburger sheet on phones, at the user's request. It earns its place by listing the browser's recent checks, so a merchant can get back to a store in one click.
+- ui-ux-pro-max suggested Swiss minimalism for this kind of product (kept) with a navy palette and Fira fonts (declined: the user pinned monochrome and the shadcn look).

@@ -54,8 +54,9 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] "Send to my developer" summary, plain step feed, screenshot endpoint
 - [x] Dashboard design agreed with the user (light monochrome bento, shadcn, Recharts)
 - [x] Dashboard built: Home, Live check, Results, Before/after, Advanced (AG Grid Community)
-- [ ] Impeccable critique and polish pass on the built dashboard
+- [x] Impeccable critique and polish pass on the built dashboard (finish review, fix batch)
 - [x] Checks private per browser, per-store before and after, hardening for a public server
+- [x] Ledger redesign (user-picked from two mocks), sidebar and phone menu, every screen size
 - [ ] Decide how live-store payment checks count (default in code: excluded)
 
 ## Evaluation (added Nov 5, between D4 and D5)

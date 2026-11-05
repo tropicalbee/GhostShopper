@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-11-06 (Day 5, third session: the Ledger redesign)
+
+### Done
+- You rejected the first dashboard as blank and raw and pointed at ui.shadcn.com and your Razorpay Buildathon dashboard. Two static mocks came first; you picked A (Ledger) and asked for less black. impeccable's quieter pass took out the black blocks.
+- Every screen rebuilt in that style: Home, Live check, Results, Advanced, Before and after, My checks, and the dialogs. The shopper's path (five stages, each as wide as its points) replaced the gauge and the stage bars, and it fills stage by stage on the Live screen.
+- Navigation: a sidebar on desktop with recent checks, and a hamburger menu on phones.
+- Works from 360px phones to 1920px screens with no sideways scrolling; the Advanced view now opens from tablet width (768px).
+- New `GET /api/rubric` (points per stage from the scoring rules), with a test. 190 backend tests pass. The build is clean.
+- Design checks: impeccable's detector found nothing; hallmark's sloplint has 0 FAIL. A fresh-context finish review asked for eight fixes; they're in.
+
+### Not done
+- The interactive walkthrough on Home: built, then set aside at your request. `components/Walkthrough.tsx` and `src/assets/walkthrough/` are unused; delete them or keep them for later.
+- The PayPal "needs a person" banner still hasn't been seen on screen.
+
+### Next
+1. Your review of the new look.
+2. Deploy (D6) with `DEMO_ADMIN_TOKEN` set.
+
 ## 2026-11-06 (Day 5, second session: checks belong to a browser)
 
 ### Why
