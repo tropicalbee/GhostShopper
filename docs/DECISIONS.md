@@ -104,3 +104,25 @@ Rules `2026-11-05.3`, 100 points in total.
 ### Deploy prep
 
 - The Docker image includes Chromium for local runs, but the Render blueprint sets `BROWSER_PROVIDER=kernel` because the free tier has 512 MB of RAM. `.dockerignore` keeps `.env` out of the image. CI installs browsers with `PLAYWRIGHT_BROWSERS_PATH=0`. I haven't checked that the Actions versions we pin (checkout@v4, setup-python@v5, setup-node@v4) are still the current majors.
+
+## 2026-11-06: Dashboard
+
+- The look is light and monochrome: white cards on a light grey page, black and grey data, a segmented gauge and hatched bars, Geist and shadcn/ui. We turned down the dark zinc style from the first spec and the orange fintech references. Colour only means something here: green, amber and red for status and score change, red only for failures the store caused.
+- The Simple view is the default on every screen size. The Advanced toggle only shows at 1024px and up. AG Grid and the bento grid don't work at phone width, and shopkeepers on phones need the three fixes, not the evidence table.
+- Recharts draws the gauge, the stage bars, the score history and the market bars. AG Grid Community is used only for the failures table. Failure cells are one line with a tooltip, since wrapped rows with auto height broke the layout.
+- "Send to my developer" is Copy, Download (`.md`) and a `mailto:` link. GhostShopper doesn't send email, so there's no mail service or key to manage. Mail bodies are cut at 1,800 characters because some mail apps drop longer `mailto:` links.
+- Without a Groq key, the UI starts runs with the scripted navigator and labels them "Practice run (scripted shopper, not AI)". The demo store run also does the PayPal purchase in whatever mode the server is in (mock or sandbox).
+- The two motion moments (score count-up, feed lines sliding in) are a small hook and a CSS animation, both off under `prefers-reduced-motion`. We didn't add Vengeance UI for two effects this small.
+- Routes are hash based (`#/run/3`, `#/compare`), so a reload or shared link opens the same screen without a router dependency or server rewrites.
+
+## 2026-11-06: Who can see a check
+
+- Checks belong to a browser, not an account (the scope lock rules out accounts). The browser gets a random 256-bit token in an httpOnly, SameSite=Lax cookie, Secure on https, for 180 days. The database stores only its SHA-256, so a copied database can't be used to pose as a browser. We turned down unguessable share links: a merchant expects "my checks" to stay theirs, and a link pasted into a chat would expose them.
+- A run you can't see answers 404, the same as a run that doesn't exist, so ids can't be probed.
+- Runs with no owner (CLI and seed) are shared examples, readable by all and never deletable from the web. Runs made before this change are `unclaimed`: hidden from the web, kept for the CLI and metrics, never purged.
+- Before and after only pairs checks of the same store from the same browser. The two-id endpoint stays, limited to your own checks of one store.
+- Deployed servers refuse developer options and lock `/store/admin`, because the demo store is shared by every visitor and one person's toggles would change everyone's results. `DEMO_ADMIN_TOKEN` unlocks it for the presenter. "Deployed" means `APP_BASE_URL` isn't localhost, and `DEV_OPTIONS` overrides that.
+- Rate limits are in memory, per client IP and per browser, and count failed attempts too (a failed start still costs a fetch of someone's site). This needs a single process, which the Dockerfile already uses. Uvicorn trusts Render's forwarded IP headers because the proxy is the only way in.
+- Retention: owned checks older than 30 days are deleted at startup and before each new check, screenshots included. Delete removes the results and screenshots but keeps any sandbox order record, unlinked, because that belongs to the demo store.
+- SSRF: every request the live-store browser makes must go to a public host (checked once per host per run), and the server's own fetches check each redirect hop before sending it. DNS rebinding between our check and the browser's own lookup stays open; closing it needs a pinning proxy, which is more than a demo needs.
+- The dashboard's CSP allows inline styles only (AG Grid and Recharts set them); scripts are `'self'` only.

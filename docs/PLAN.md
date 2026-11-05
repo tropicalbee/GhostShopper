@@ -52,8 +52,10 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] Real-world behaviour: any store link, browse-only live stores, robots.txt and rate limit, bot checks reported as not the store's fault
 - [x] Platform detection (Shopify, Wix, WooCommerce) and plain-English fixes with platform steps
 - [x] "Send to my developer" summary, plain step feed, screenshot endpoint
-- [ ] Dashboard design agreed with the user (two Impeccable rounds and a shadcn mock so far, none approved)
-- [ ] Dashboard built: Home, Live check, Results, Before/after, Advanced (AG Grid Community)
+- [x] Dashboard design agreed with the user (light monochrome bento, shadcn, Recharts)
+- [x] Dashboard built: Home, Live check, Results, Before/after, Advanced (AG Grid Community)
+- [ ] Impeccable critique and polish pass on the built dashboard
+- [x] Checks private per browser, per-store before and after, hardening for a public server
 - [ ] Decide how live-store payment checks count (default in code: excluded)
 
 ## Evaluation (added Nov 5, between D4 and D5)
@@ -63,7 +65,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [ ] Judge and saboteur proposals with live Groq (user)
 
 ## D6 (Nov 10): deploy and README
-- [ ] Serve the frontend build from FastAPI
+- [x] Serve the frontend build from FastAPI
 - [x] Prep: setup scripts, Dockerfile, .dockerignore, render.yaml, GitHub Actions workflow
 - [x] README draft: problem, audience, how it works, setup, run, tools, built-during-hackathon
 - [ ] Render free tier deploy, env vars set, sandbox purchase on the hosted URL

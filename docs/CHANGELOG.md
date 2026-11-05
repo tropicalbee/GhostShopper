@@ -31,3 +31,11 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - Saboteur benchmark with ground-truth labels: precision and recall per flaw, over all 16 combinations of the original flaws and 30 random combinations.
 - LLM-as-judge for fix explanations, kept apart from the score.
 - One-command setup scripts, Dockerfile, Render blueprint, GitHub Actions workflow, README draft, video script, and a seed command for the demo.
+
+## 2026-11-06 (Day 5: dashboard)
+- Merchant dashboard in React with shadcn/ui, Recharts and AG Grid Community: paste a store link, watch the shopper's steps in plain words, get a score with the top three fixes, and send the technical report to a developer.
+- Before and after screen: the score counts up from the old run to the new one, with fixed and remaining problems in plain words.
+- Advanced view for judges and developers: score gauge, score across runs, points by stage, payment check with PayPal fee and net, failures table, agent steps with screenshots, market check.
+- Works on phones (Simple view) and desktop (Advanced view). Practice runs, mock PayPal and sample market data are labelled on screen.
+- Checks are private to the browser that ran them, with "My checks", delete, and a 30-day retention. Before and after compares your own previous check of the same store.
+- Hardening for a public server: developer options and the demo store settings locked, rate limits, security headers and CSP, server-side request forgery checks on every request, and the dashboard served by FastAPI.

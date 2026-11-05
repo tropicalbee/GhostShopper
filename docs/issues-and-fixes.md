@@ -2,6 +2,40 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-06 (checks belong to a browser)
+
+### Anyone could open anyone's check
+Run ids count up from 1 and every run endpoint answered for any id, so changing the number in the link showed another store's results, screenshots and developer report. Runs now carry the hash of the starting browser's cookie token, and every endpoint returns 404 for a run that isn't yours or a shared example.
+
+### "Before and after" showed the demo store to everyone
+It compared the last two finished runs in the whole database, whoever ran them. It now compares a check with the previous check of the same store from the same browser.
+
+### Public callers could change server state through developer options
+`POST /api/runs` accepted `record` (writes a file on the server), `flaws` (changes the shared demo store) and the rest. A deployed server now refuses everything except `store_url`.
+
+### Iframes and images on a checked page could reach internal addresses
+The browser guard only checked main-page loads, so a hostile page could frame an internal address and our screenshot would show it. Every request's host is checked now, and every redirect hop of the server's own fetches too.
+
+### Old runs would have turned public after the migration
+A NULL owner means "shared example", and the new column starts as NULL. The migration marks existing runs `unclaimed` instead, which hides them from the web and keeps them out of the retention purge.
+
+### The not-found screen said the server was down
+The frontend matched the old error wording ("No such run"). It now checks the HTTP status.
+
+## 2026-11-06 (dashboard)
+
+### The stage bars showed full marks on a 49 run
+The scorecard only sent points earned per stage, so the chart had nothing to compare them with and fell back to earned as the maximum. The scorecard now sends `stage_possible` (stage total minus excluded points).
+
+### AG Grid rows didn't wrap and left a gap under the table
+With `wrapText` and `autoHeight`, the grid measured row heights before the flex columns reached their final widths. Rows stayed short and the page kept the extra height. Cells are now one line at 44px with the full text in a tooltip.
+
+### "Check my store again" shrank to a thin bar on phones
+`flex-1` in a column layout sets the height basis to 0. It's `sm:flex-1` now, so it only grows in the desktop row.
+
+### The gauge caption sat on top of the arc
+The caption was positioned inside the half ring. It sits under the gauge now, and only the number stays inside.
+
 ## 2026-11-05 (Day 5 session)
 
 ### Cart detection swallowed the demo store's extra step

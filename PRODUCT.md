@@ -26,7 +26,7 @@ The merchant (or the presenter in the video) starts a run, watches the agent's s
 
 - Data comes from the existing FastAPI API: `/api/runs`, `/api/runs/{id}`, `/api/runs/compare`, `/api/runs/{id}/explain`, `/api/market/{sku}`, `/api/health`, `/store/admin/flaws.json`.
 - React + Vite + TypeScript. Tables use AG Grid Community only (no Enterprise features).
-- Desktop only, 1280px and up. Mobile is out of scope.
+- The Simple view works on phones (375px and up). The Advanced view is desktop only (1024px and up).
 - Mock or fixture data (mock LLM, mock PayPal, scripted navigator, recorded Channel3 fixtures) must always carry a visible label.
 - Scope lock: one store, one product flow, one score. No accounts.
 - The scoring rubric (rules `2026-11-05.3`) is frozen after Day 5; the numbers in the video script depend on it.
@@ -34,7 +34,7 @@ The merchant (or the presenter in the video) starts a run, watches the agent's s
 ## Brand Commitments
 
 - Name: GhostShopper. Tagline: "See your store through an AI shopper's eyes."
-- No logo, palette or fonts exist yet; the identity is designed from scratch, restrained and professional (the user asked for "professional, minimalistic").
+- Light, monochrome bento look with shadcn/ui and Geist, with colour only for status. No logo yet. See docs/UI_SPEC.md.
 - PayPal appears only as the payment integration. Never imitate PayPal's branding or imply GhostShopper is a PayPal product.
 
 ## Evidence on Hand

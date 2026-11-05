@@ -2,67 +2,88 @@
 
 Two audiences. Small shopkeepers with little tech knowledge come first: they paste a link and want to know what to fix. Judges and technical users come second: they open the Advanced view for the evidence.
 
-Style: the shadcn/ui look (ui.shadcn.com). Dark mode, zinc neutrals, rounded cards with subtle borders, Geist, generous spacing. One accent colour, used for score changes. Red only for failures the store caused. The demo store keeps its own plain look.
+The developer or web agency never logs in. They get the "Send to my developer" report. Checking many client stores in one place is a "what's next" line in the README. PayPal's platform view (how many merchants AI shoppers can't buy from, and the most common reason) is part of the pitch only: aggregated, opt-in, and not built.
+
+## Look
+
+Light and monochrome, in a bento layout: white cards on a light grey page, black and grey for data, Geist, shadcn/ui components. No dark mode. Reference: the "Channel performance" dashboard shot the user picked (segmented gauge, hatched bars, small uppercase card titles, one big number per card).
+
+- Colour carries meaning only. Green, amber and red appear in the status pill and the score change, and red only for failures the store caused. Everything else is black, grey or white.
+- Cards: white, 1px border, 12px radius, no shadows. Card titles in small uppercase grey with an icon.
+- Charts use Recharts. AG Grid Community is used for the failures table and nothing else.
+- Keep it calm. A screen shows what the user needs for the next step and puts the rest behind a tab, a dialog or the Advanced view.
 
 ## Rules for every screen
 
-- The Simple view has no jargon. It never says JSON-LD, selector, DOM or schema. Short sentences.
+- Written for someone who doesn't read much. Short sentences, everyday words, one idea per line. Every icon has a word next to it.
+- The Simple view never says JSON-LD, selector, DOM or schema.
 - Status colour always comes with words: "Ready for AI shoppers", "Some fixes needed", "AI shoppers will struggle to buy".
-- The score label always says what it's out of: "How easily AI shoppers can buy from your store: 84% of what your store controls".
+- The score label says what it's out of: "How easily AI shoppers can buy from your store", then "49% of what your store controls".
 - Mock and fixture data always carries a visible label: "Practice run (scripted shopper, not AI)", "Mock PayPal", "Sample market data".
-- Simple view: mobile first, works at 375px, tap targets at least 44px, no tables. Advanced view: desktop first (1280px and up); on a phone its failures become cards.
-- Motion appears in two places only: the score counting from before to after, and new lines arriving in the step feed. Both turn off under `prefers-reduced-motion`.
+- Simple view works at 375px with tap targets of at least 44px and no tables. The Advanced view is desktop only (1024px and up). On a phone the Advanced toggle is hidden.
+- Motion in two places only: the score counting up from before to after, and new lines arriving in the step feed. Both turn off under `prefers-reduced-motion`.
 
 ## Screens
 
 ### 1. Home
-- One question as the heading: "Can AI shoppers buy from your store?"
+- Heading: "Can AI shoppers buy from your store?"
 - One link box ("Your store's web address") and one button: "Check my store".
-- A small text link under it: "Or try our demo store". That runs the demo store, which is the only place a real (sandbox) PayPal purchase happens.
+- A small link under it: "Or try our demo store". The demo store is the only place a sandbox PayPal purchase happens.
 - One line about safety: "We look around like a shopper. On your store we never buy anything or log in."
-- Errors from `POST /api/runs` (400) appear under the box in plain words, e.g. "We couldn't find that website. Check the address for typos."
-- Data: `POST /api/runs {store_url}` and `GET /api/health` (agent type and mock labels).
+- Errors from `POST /api/runs` (400) show under the box in plain words, and the box keeps its text.
+- Data: `POST /api/runs {store_url}`, `GET /api/health`.
 
 ### 2. Live check
 - Heading: "Checking your store…" with the store's address.
-- A plain-language step feed from `run.feed`, polled every second: "Opened your home page", "Found your Speckled Stoneware Mug", "Couldn't read the price". Good lines get a check mark, problems a warning sign, and notes for things that aren't the store's fault an info sign, always with words.
-- New lines slide in (the signature motion). Under reduced motion they just appear.
-- The awaiting-human banner (demo store only) explains what PayPal is asking for and where to do it.
-- When the run finishes, the screen moves to Results on its own.
+- The step feed from `run.feed`, polled every second. Good lines get a check mark, problems a warning sign, things that aren't the store's fault an info sign, always with words.
+- The awaiting-human banner (demo store only) says what PayPal is asking for and where to do it.
+- When the run finishes, the screen moves to Results.
 - Data: `GET /api/runs/{id}` (`status`, `feed`, `awaiting`).
 
-### 3. Results (Simple view, the default)
-- The big score with its label and status, from `scorecard.simple`.
-- Platform line when known: "Your store runs on Shopify", so the fixes make sense.
-- For live stores, a note: "We checked up to your PayPal button and stopped. We never pay on real stores."
-- The top 3 fixes as cards. Each has what's wrong, why it costs sales (one sentence), how to fix it (platform steps when we know the platform), and a "Show me" button that opens the screenshot in a dialog.
-- "+ N more fixes" opens the Advanced view.
-- Buttons: "Send to my developer" (a dialog with the copyable summary from `GET /api/runs/{id}/developer-summary`) and "Check my store again".
-- "Not your store's fault" appears as a short note when there is something to say (e.g. the site's security check blocked us).
-- Data: `GET /api/runs/{id}`.
+### 3. Results, Simple view (the default)
+One score, three fixes, one main button.
+- The segmented gauge with the score, its label and the status pill.
+- Platform line when known: "Your store runs on Shopify".
+- For live stores: "We checked up to your PayPal button and stopped. We never pay on real stores."
+- The top 3 fixes as cards: what's wrong, why it costs sales, how to fix it (platform steps when known), and a "Show me" button that opens the screenshot.
+- "+ N more fixes" opens the Advanced view on desktop.
+- Main button: "Check my store again". Secondary: "Send to my developer".
+- "Not your store's fault" is a short note, only when there is something to say.
 
-### 4. Before and after (the demo centrepiece)
-- The old score and the new score side by side. The new one counts up from the old one (the signature motion).
-- "+51" in the accent colour.
-- Two lists: "Fixed" (struck through, with a check mark) and "Still to fix" (each with its plain fix).
-- The store changes and whether a purchase went through.
-- Data: `GET /api/runs/compare?before=&after=` (defaults to the last two runs).
+### 4. Send to my developer (dialog)
+- The Markdown from `GET /api/runs/{id}/developer-summary` in a scroll box.
+- Three buttons: "Copy", "Download" (a `.md` file) and "Email" (a `mailto:` link with the report in the body). No email is sent by GhostShopper.
 
-### 5. Advanced view (a toggle on Results)
-- Tabs: Failures, Agent steps, Market, Not the store's fault.
-- Failures: an AG Grid Community table (check, cause, points, evidence thumbnail, selector, technical fix), themed dark to match. On a phone it becomes cards.
-- Agent steps: each step with its screenshot, tool, thought and observation.
-- Market: Channel3 results with the "Sample market data" label when `source` is `recorded`.
-- Not the store's fault, plus "Not checked on live stores" for live runs.
-- Scoring details: the stage bars, the rules version, and the points the store controls.
+### 5. Before and after (the demo centrepiece)
+- Old score and new score side by side. The new one counts up from the old one.
+- The change ("+51") in green.
+- Two lists: "Fixed" with a check mark and "Still to fix" with its plain fix.
+- Whether a purchase went through.
+- Reached from a result's "See before and after", only when this browser has an earlier check of the same store. A demo store visitor who can't change the demo store gets "See an example before and after" instead.
+- Data: `GET /api/runs/{id}/compare` (this check against the previous one of the same store from the same browser).
+
+### 6. Advanced view (desktop, toggle on Results)
+A bento overview on top, tabs underneath.
+- Overview cards: score gauge; score across runs (line chart, `GET /api/runs`); points by stage (hatched bars, earned out of possible); payment check (order, capture, amount, PayPal fee and net, each with a status dot).
+- Tabs: Failures (AG Grid: check, cause, points, evidence, selector, technical fix), Agent steps (screenshot, tool, thought), Market (Channel3 results, "Sample market data" when `source` is `recorded`), Not the store's fault (plus "Not checked on live stores" for live runs).
+- The rules version and points the store controls sit in small text under the gauge.
+
+### 7. My checks (header link)
+- This browser's checks, newest first: score, store, date. Tapping one opens its results.
+- Each row has a Delete button with a confirm dialog ("Delete this check?", "Keep it" or "Delete").
+- One line explains it: "Saved in this browser only. Other people can't see them." Under the list: how many days checks are kept, and that clearing cookies removes them from the list.
+- Empty: "You haven't checked a store yet." with a "Check my store" button.
+- Shared example checks show the label "Example check (shared demo, not yours)" and are never listed here.
 
 ## States
 
 | State | What shows |
 |---|---|
 | Loading | Skeleton cards in the final layout |
-| Link can't be checked | The plain 400 message under the link box; the box keeps its text |
+| Link can't be checked | The plain 400 message under the link box |
 | Check already running | "A check is already running. Try again when it finishes." |
 | Site blocked us | Results with "We couldn't check your store this time" and why. Not the store's fault. |
 | No runs yet (Before/after) | "Run a check, make your fixes, and check again to see the difference." |
 | API down | "GhostShopper isn't responding" with a Retry button |
+| Someone else's check, or a deleted one | "We couldn't find that check." and a link to My checks |
+| Too many requests | "That's a lot of requests in a short time. Please wait a few minutes and try again." |

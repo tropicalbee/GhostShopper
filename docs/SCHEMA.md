@@ -42,6 +42,7 @@ Everything is redacted for secrets before it's written (`agent/recorder.py`). Co
 | order_id | TEXT | the linked order |
 | awaiting | TEXT | JSON while waiting for a human: stage, reason, since, timeout, Kernel live view URL |
 | error | TEXT | |
+| owner_hash | TEXT | SHA-256 of the browser's owner token. NULL = shared example (made by the CLI or seed). `unclaimed` = made before checks had owners; hidden from the web, kept for the CLI. |
 
 ## steps
 | field | type | notes |

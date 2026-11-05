@@ -1,5 +1,49 @@
 # Progress
 
+## 2026-11-06 (Day 5, second session: checks belong to a browser)
+
+### Why
+You found the product broken: anyone could open anyone's check by changing the number in the link, and "Before and after" compared the last two runs in the whole database, which showed the demo store to everyone.
+
+### Done
+- Every check belongs to the browser that started it: a random token in an httpOnly cookie, stored only as a hash. Someone else's check, or a deleted one, answers 404 everywhere (results, screenshots, developer report, explain, compare, delete). CLI and seed runs are the shared examples and are labelled so.
+- Before and after compares a check with the previous check of the same store from the same browser. The global "last two runs" is gone.
+- "My checks" in the header lists your checks, with delete. Checks older than `RETENTION_DAYS` (30) are deleted automatically; examples are kept.
+- A deployed server refuses the developer options on `POST /api/runs` (only the store link can be set) and locks `/store/admin` unless `DEMO_ADMIN_TOKEN` is given. Locally both stay open.
+- Rate limits on starting checks, explain, market and PayPal order creation, per client IP and per browser (off locally).
+- Two SSRF gaps closed: the live-store browser now checks the host of every request (frames, images, scripts), and every redirect hop of the robots.txt and preflight fetches is checked before it's sent.
+- Security headers on every response, a strict CSP on the dashboard, and FastAPI now serves the built dashboard at `/` (an explicit 503 if it isn't built).
+- Old runs from before ownership are hidden (`unclaimed`), not made public, and never purged.
+- Tests: 21 new access tests, 189 passing in total. `npm audit --omit=dev`: 0 vulnerabilities. Checked end to end in production mode with two browsers.
+
+### Not done
+- Python dependencies weren't audited: `pip-audit` isn't installed in `.venv` (command in the summary).
+- DNS rebinding is still possible in theory: we check a host's address, then the browser resolves it again. Pinning addresses needs a proxy in front of the browser.
+
+### Next
+1. Your review, then the impeccable polish pass.
+2. Deploy with `DEMO_ADMIN_TOKEN` set, then the live checks.
+
+## 2026-11-06 (Day 5 session: dashboard built)
+
+### Done
+- Design agreed: light, monochrome bento in the style of the "Channel performance" reference, with shadcn/ui components, Recharts and Geist. No dark mode. UI_SPEC.md is updated to match.
+- Frontend built on the existing API: Home, Live check, Results (Simple view), Send to my developer, Before and after, and the Advanced view (score gauge, score across runs, hatched points by stage, payment check, then tabs for the AG Grid failures table, agent steps, market check and not the store's fault).
+- Simple view works at 375px. The Advanced view is desktop only (1024px and up) and loads separately, so phones never download AG Grid.
+- Backend: the scorecard now includes `stage_possible`, the points each stage can earn, for the stage bars. One test assertion added.
+- Checked with headless screenshots against a mock server at 1440px and 375px, and the full demo flow from Home to results, the developer report and a screenshot dialog. No console errors.
+- Tests: 168 passing. `npm run build` is clean.
+
+### Not done
+- The awaiting-human banner hasn't been seen on screen. It only shows when PayPal pauses a run, which the mock flow here didn't trigger.
+- A live store link hasn't been checked through the UI yet (Groq isn't configured here, so the UI would use the labelled scripted shopper).
+- The frontend build isn't served from FastAPI yet (D6).
+
+### Next
+1. Review the screens yourself (`npm run dev` in `frontend/`), then an impeccable critique and polish pass.
+2. Serve `frontend/dist` from FastAPI, then deploy.
+3. Confirm the live-store scoring (default: payment steps after the PayPal button are excluded).
+
 ## 2026-11-05 (Day 5 session: real-world behaviour, design not settled)
 
 ### Done

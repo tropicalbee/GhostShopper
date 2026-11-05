@@ -95,3 +95,12 @@ Not valid until run live. These came from replayed cassettes, so they test the h
 | 2026-11-05 Day 3 | 65 (12 in a real browser) | all passed | 217 s |
 | 2026-11-05 after tasks 1-7 | 111 | all passed | 381 s |
 | 2026-11-05 after tasks 8-11 | 142 (about 30 in a real browser) | all passed | 338 s |
+| 2026-11-06 dashboard | 168 | all passed | 187 s |
+| 2026-11-06 checks per browser | 189 (21 access tests) | all passed | 177 s |
+
+## Frontend build (2026-11-06)
+
+| Chunk | Size | Gzipped |
+|---|---|---|
+| Main (Home, Live, Results, Before and after) | 625 kB | 195 kB |
+| Advanced view (AG Grid, charts), loaded on demand | 1,343 kB | 374 kB |

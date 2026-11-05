@@ -52,7 +52,7 @@ Everything also runs without keys, on mocks: `PAYPAL_MODE=mock` gives you a fake
 ## Run
 
 ```bash
-.venv\Scripts\python -m uvicorn backend.app.main:app --port 8000       # store at http://localhost:8000/store/
+.venv\Scripts\python -m uvicorn backend.app.main:app --port 8000       # dashboard at http://localhost:8000/ (after npm run build), store at /store/
 .venv\Scripts\python -m backend.app.seed                               # demo state: the 4 classic flaws on
 
 # bad store, then fixes, then rerun and compare
@@ -66,7 +66,8 @@ Other commands:
 - Reword a run's fixes: `python -m backend.app.agent.explain <run>`
 - Market check: `python -m backend.app.market FH-MUG-01`
 - Detection benchmark: `python -m backend.app.eval benchmark --matrix classic`
-- API: `POST /api/runs`, `GET /api/runs/{id}`, `GET /api/runs/compare`, `POST /api/runs/{id}/explain`, `GET /api/market/{sku}`, `GET /api/paypal/orders/{id}/verify`
+- API: `POST /api/runs`, `GET /api/runs`, `GET /api/runs/{id}`, `GET /api/runs/{id}/compare`, `DELETE /api/runs/{id}`, `POST /api/runs/{id}/explain`, `GET /api/market/{sku}`, `GET /api/paypal/orders/{id}/verify`. Each browser only sees its own checks plus the shared examples from the CLI and seed command.
+- On a deployed server (`APP_BASE_URL` not localhost) the developer options on `POST /api/runs` are refused and `/store/admin` is locked. Set `DEMO_ADMIN_TOKEN` and open `/store/admin?token=...` once to change the demo store's flaws. See `.env.example`.
 - Tests: `.venv\Scripts\python -m pytest`
 
 ## Tools we used, and how

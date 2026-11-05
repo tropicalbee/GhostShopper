@@ -2,13 +2,13 @@
 
 ## What the merchant does
 
-1. Open the dashboard (Day 5). The demo store URL is already filled in, since the scope is one store.
-2. Click "Run mystery shopper". Steps appear as they happen: the page, the action, what the agent saw.
+1. Open the dashboard at `/`, paste the store's link and press "Check my store" (or try the demo store).
+2. Steps appear in plain words as they happen.
 3. When the run ends, the dashboard shows the score and sub-scores, the failures with their evidence, the fix list (most points first), what wasn't the store's fault, the payment verification and the market check.
-4. Apply the fixes. In the demo that means switching flaws off at `/store/admin`.
-5. Run again and compare: the score goes up, the failures go away, and the purchase is captured.
+4. Apply the fixes. In the demo that means switching flaws off at `/store/admin` (open locally, or with `?token=` on a deployed server).
+5. Check again and open "See before and after": the score goes up, the failures go away, and the purchase is captured.
 
-Until the dashboard exists, runs start from the CLI (`python -m backend.app.agent`) or `POST /api/runs`, and comparisons from `python -m backend.app.agent.compare` or `GET /api/runs/compare`.
+Checks belong to the browser that started them (an httpOnly cookie, no accounts). "My checks" lists them, and nobody else can open them. Runs from the CLI or the seed command have no owner and are the shared examples everyone can read.
 
 ## Manual checkout (Day 1)
 
@@ -42,6 +42,6 @@ Modes: with `PAYPAL_MODE=mock` the server serves a mock SDK and popup (using Pay
 ## After a run
 
 - Reword the fixes with `POST /api/runs/{id}/explain` (LLM, text only; the deterministic fix stays next to it).
-- Compare two runs with `GET /api/runs/compare?before=&after=`.
+- Compare a check with the previous check of the same store from the same browser: `GET /api/runs/{id}/compare`. `GET /api/runs/compare?before=&after=` takes two of your own checks of the same store.
 - Market check with `GET /api/market/{sku}` (Channel3, or recorded fixtures).
 - Rate the explanations with `python -m backend.app.eval judge <run>` (a separate metric).
