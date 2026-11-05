@@ -1,0 +1,50 @@
+[
+  {
+    "sku": "FH-MUG-01",
+    "slug": "speckled-stoneware-mug",
+    "name": "Speckled Stoneware Mug",
+    "price": "24.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "mug.svg",
+    "summary": "Wheel-thrown 12 oz mug in our oatmeal speckle glaze.",
+    "description": "Each mug is thrown by hand in our studio, trimmed, and glazed in a soft oatmeal speckle. Holds about 12 oz. Dishwasher and microwave safe. Because every piece is handmade, size and glaze will vary slightly.",
+    "details": ["Capacity: 12 oz (355 ml)", "Height: 3.75 in", "Stoneware, lead-free glaze", "Dishwasher and microwave safe"]
+  },
+  {
+    "sku": "FH-DRP-02",
+    "slug": "pour-over-coffee-dripper",
+    "name": "Pour-Over Coffee Dripper",
+    "price": "38.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "dripper.svg",
+    "summary": "Single-cup ceramic dripper, fits #2 cone filters.",
+    "description": "A ceramic cone dripper with spiral ribs for an even pour. Sits on most mugs and carafes. Fits standard #2 paper filters (not included). Glazed matte charcoal outside, gloss white inside.",
+    "details": ["Fits #2 cone filters", "Base diameter: 4 in", "Stoneware", "Hand wash recommended"]
+  },
+  {
+    "sku": "FH-BWL-03",
+    "slug": "ash-glaze-serving-bowl",
+    "name": "Ash Glaze Serving Bowl",
+    "price": "52.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "bowl.svg",
+    "summary": "Wide 10 in serving bowl with a runny ash glaze.",
+    "description": "Our largest bowl, made for salads, pasta and fruit. The wood-ash glaze pools and runs during firing, so no two are the same. About 10 inches across and 3 inches deep.",
+    "details": ["Diameter: 10 in", "Depth: 3 in", "Stoneware, food safe", "Dishwasher safe"]
+  },
+  {
+    "sku": "FH-ESP-04",
+    "slug": "espresso-cup-set",
+    "name": "Espresso Cup Set (4)",
+    "price": "44.00",
+    "currency": "USD",
+    "in_stock": false,
+    "image": "espresso.svg",
+    "summary": "Four 3 oz cups in mixed glazes. Back in stock soon.",
+    "description": "A set of four small cups for espresso or cortado, each in a different glaze from our seasonal range. About 3 oz each. Colors vary from set to set.",
+    "details": ["Set of 4", "Capacity: 3 oz each", "Stoneware", "Dishwasher safe"]
+  }
+]

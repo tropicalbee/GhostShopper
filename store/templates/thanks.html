@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Thank you | {{ store_name }}{% endblock %}
+{% block content %}
+<h1>Thank you for your order!</h1>
+{% if order_id %}
+<p>Your payment went through. We'll email you when it ships.</p>
+<p>Order number: <span id="order-id">{{ order_id }}</span></p>
+{% if capture_id %}<p>Payment reference: <span id="capture-id">{{ capture_id }}</span></p>{% endif %}
+{% else %}
+<p>We couldn't find an order number for this page.</p>
+{% endif %}
+<p><a href="{{ base }}/">Continue shopping</a></p>
+{% endblock %}

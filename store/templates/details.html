@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Your details | {{ store_name }}{% endblock %}
+{% block content %}
+<h1>Your details</h1>
+<p>Step 1 of 2. We need a few things before you can pay.</p>
+{% if errors %}
+<div class="errors">
+  {% for e in errors %}<p>{{ e }}</p>{% endfor %}
+</div>
+{% endif %}
+<form class="details-form" method="post" action="{{ base }}/checkout/details">
+  <input type="hidden" name="sku" value="{{ product.sku }}">
+  <p>Item: {{ product.name }}</p>
+  <label>Email for order updates
+    <input type="email" name="email" value="{{ form.email or '' }}">
+  </label>
+  <label>How did you hear about us?
+    <select name="referral">
+      <option value="">-- choose one --</option>
+      {% for opt in referral_options %}
+      <option value="{{ opt }}" {% if form.referral == opt %}selected{% endif %}>{{ opt }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="check"><input type="checkbox" name="agree" value="yes"> I agree to the store policies</label>
+  <button type="submit">Next</button>
+</form>
+{% endblock %}

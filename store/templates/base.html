@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ store_name }}{% endblock %}</title>
+{% if not flaws.no_structured_data %}{% block meta %}<meta name="description" content="Handmade stoneware mugs, bowls and coffee gear from {{ store_name }}.">{% endblock %}{% endif %}
+<link rel="stylesheet" href="{{ base }}/static/style.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<div class="topbar">Free US shipping on orders over $50 &middot; Studio closed Mondays</div>
+<header class="site-header">
+  <a class="logo" href="{{ base }}/">{{ store_name }}</a>
+  <nav>
+    <a href="{{ base }}/">Shop</a>
+    <a href="{{ base }}/newsletter">Newsletter</a>
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+  <p>&copy; 2026 {{ store_name }} &middot; Small-batch pottery from Asheville, NC</p>
+  <p>Questions? hello@fernhill.example</p>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import price with context %}
+{% block title %}Checkout | {{ store_name }}{% endblock %}
+{% block content %}
+<h1>Checkout</h1>
+<table class="summary">
+  <tr><th>Item</th><th>Qty</th><th>Price</th></tr>
+  <tr><td>{{ product.name }}</td><td>1</td><td>{{ price(product) }}</td></tr>
+  <tr><td colspan="2">Shipping</td><td>Free</td></tr>
+  <tr class="total"><td colspan="2">Total</td><td>{{ price(product) }}</td></tr>
+</table>
+
+{% if not product.in_stock %}
+  <p class="soldout">Sorry, this item is sold out.</p>
+{% elif not paypal_client_id %}
+  <p class="errors" id="paypal-unavailable">Payment is unavailable: PayPal is not configured on this store (PAYPAL_CLIENT_ID is missing).</p>
+{% else %}
+  <p>Pay securely with PayPal.</p>
+  <div id="checkout"
+       data-sku="{{ product.sku }}"
+       data-client-id="{{ paypal_client_id }}"
+       data-thanks-url="{{ base }}/thanks">
+    <paypal-button id="paypal-button" type="pay" hidden></paypal-button>
+    <p id="checkout-status" class="status" role="status"></p>
+  </div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if product.in_stock and paypal_client_id %}
+<script src="{{ base }}/static/checkout.js"></script>
+<script async src="{{ paypal_sdk_url }}" onload="onPayPalLoaded()" onerror="onPayPalFailed()"></script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Newsletter | {{ store_name }}{% endblock %}
+{% block content %}
+<h1>Join our list</h1>
+<p>Kiln openings, seconds sales and restocks, about once a month.</p>
+<form class="details-form" onsubmit="event.preventDefault(); this.innerHTML = '<p>Thanks! You are on the list.</p>';">
+  <label>Email <input type="email" name="email" required></label>
+  <button type="submit">Sign up</button>
+</form>
+{% endblock %}
