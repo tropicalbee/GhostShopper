@@ -1,0 +1,36 @@
+# Render blueprint (free tier). Not deployed yet: Day 6. Secrets are set in the Render dashboard (sync: false).
+# Notes:
+# - Free tier: 512 MB RAM, sleeps when idle (first request is slow), disk is ephemeral (SQLite resets on deploy).
+# - Chromium inside 512 MB is tight; BROWSER_PROVIDER=kernel runs the shopper's browser on Kernel instead.
+#   Kernel's browser must reach the store over the internet, which works here because the store is public.
+services:
+  - type: web
+    name: ghostshopper
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: PAYPAL_MODE
+        value: sandbox
+      - key: APP_BASE_URL
+        value: https://ghostshopper.onrender.com   # replace with the service URL Render assigns
+      - key: BROWSER_PROVIDER
+        value: kernel
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: SANDBOX_BUYER_EMAIL
+        sync: false
+      - key: SANDBOX_BUYER_PASSWORD
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        sync: false
+      - key: KERNEL_API_KEY
+        sync: false
+      - key: CHANNEL3_API_KEY
+        sync: false
