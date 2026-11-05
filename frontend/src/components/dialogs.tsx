@@ -4,11 +4,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // mailto bodies past ~1800 characters get cut off by some mail apps, so long reports point to Copy or Download.
 const MAILTO_LIMIT = 1800;
 
-export function DeveloperDialog({ runId }: { runId: number }) {
+export function DeveloperDialog({ runId, className }: { runId: number; className?: string }) {
   const [markdown, setMarkdown] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -47,33 +48,33 @@ export function DeveloperDialog({ runId }: { runId: number }) {
   return (
     <Dialog onOpenChange={load}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="h-12 w-full text-base sm:w-auto">
+        <Button variant="outline" className={cn("h-10 border-line", className)}>
           <Send aria-hidden />
           Send to my developer
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="gap-5 sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Send to my developer</DialogTitle>
+          <DialogTitle className="text-lg tracking-[-0.01em]">Send to my developer</DialogTitle>
           <DialogDescription>
-            This report has the technical details your developer or web agency needs. Copy it, download it, or email it.
+            The technical details your developer or web agency needs. Copy it, download it, or email it.
           </DialogDescription>
         </DialogHeader>
-        {error && <p className="text-sm text-bad" role="alert">{error}</p>}
-        <pre className="max-h-80 overflow-auto rounded-lg border bg-muted/50 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+        {error && <p role="alert" className="text-sm text-bad">{error}</p>}
+        <pre className="max-h-80 overflow-auto border bg-panel p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
           {markdown ?? "Loading the report…"}
         </pre>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button className="h-11" onClick={copy} disabled={!markdown}>
+          <Button className="h-10" onClick={copy} disabled={!markdown}>
             {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
             {copied ? "Copied" : "Copy"}
           </Button>
-          <Button variant="outline" className="h-11" onClick={download} disabled={!markdown}>
+          <Button variant="outline" className="h-10 border-line" onClick={download} disabled={!markdown}>
             <Download aria-hidden />
             Download
           </Button>
-          <Button variant="outline" className="h-11" asChild disabled={!markdown}>
-            <a href={markdown ? mailto : undefined}>
+          <Button variant="outline" className="h-10 border-line" asChild disabled={!markdown}>
+            <a href={markdown ? mailto : undefined} className="no-underline">
               <Mail aria-hidden />
               Email
             </a>
@@ -88,17 +89,20 @@ export function ShowMeDialog({ src, title }: { src: string; title: string }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" className="h-11">
-          <ImageIcon aria-hidden />
-          Show me
-        </Button>
+        <button
+          type="button"
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium underline decoration-line underline-offset-4 hover:decoration-foreground"
+        >
+          <ImageIcon className="size-4" aria-hidden />
+          Show me what the shopper saw
+        </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="text-lg tracking-[-0.01em]">{title}</DialogTitle>
           <DialogDescription>What the AI shopper saw on your store.</DialogDescription>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-auto rounded-lg border">
+        <div className="max-h-[70vh] overflow-auto border">
           <img src={src} alt={`Screenshot: ${title}`} className="w-full" />
         </div>
       </DialogContent>

@@ -276,3 +276,11 @@ def test_runs_from_before_ownership_are_hidden_not_made_public(tmp_path):
     with dbm.connect(db) as conn:
         conn.execute("UPDATE runs SET started_at = ?", (long_ago,))
     assert dbm.purge_old_runs(db, tmp_path / "runs", days=1) == []  # and never purged as someone's check
+
+
+def test_rubric_lists_points_per_stage_from_the_scoring_rules(app):
+    with client_for(app, None) as c:
+        body = c.get("/api/rubric").json()
+    assert [s["key"] for s in body["stages"]] == ["discover", "details", "checkout", "payment", "outcome"]
+    assert sum(s["points"] for s in body["stages"]) == 100
+    assert sum(s["checks"] for s in body["stages"]) == len(CHECKS)

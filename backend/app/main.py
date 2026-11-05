@@ -21,6 +21,7 @@ from .paypal import PayPalClient
 from .paypal_mock import MOCK_CLIENT_ID, MOCK_SDK_PATH, FakePayPalClient, mock_router
 from .ratelimit import RateLimiter, rate_limit
 from .runs import router as runs_router
+from .scoring import CHECKS, RULES_VERSION, STAGES
 
 log = logging.getLogger(__name__)
 
@@ -95,6 +96,13 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
             "demo_admin_open": settings.dev_options,
             "retention_days": settings.retention_days,
         }
+
+    @app.get("/api/rubric")
+    def rubric():
+        """Points per stage of the shopper's path, straight from the scoring rules (the Home walkthrough)."""
+        return {"rules_version": RULES_VERSION, "stages": [
+            {"key": s, "points": sum(c.points for c in CHECKS.values() if c.stage == s),
+             "checks": sum(1 for c in CHECKS.values() if c.stage == s)} for s in STAGES]}
 
     @app.get("/api/market/{sku}")
     async def market(sku: str, request: Request):

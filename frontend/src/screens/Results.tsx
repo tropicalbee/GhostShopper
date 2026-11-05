@@ -1,34 +1,33 @@
-import { ArrowRight, Info, RotateCw, Settings2, Store } from "lucide-react";
+import { ArrowRight, Info, RotateCw } from "lucide-react";
 import { useState } from "react";
 
-import { hostOf, ModeLabels, Panel, platformName, ScoreGauge, StatusPill } from "@/components/bits";
+import { platformName, ScoreFigure, ShopperPath, StatusLine } from "@/components/bits";
 import { DeveloperDialog, ShowMeDialog } from "@/components/dialogs";
+import { RunHead, ViewSwitch } from "@/components/RunHead";
 import { Button } from "@/components/ui/button";
 import { sameSeries, startCheck, type Health, type PlainFix, type Run, type RunSummary } from "@/lib/api";
 import { go, useCountUp } from "@/lib/hooks";
 
-function FixCard({ fix, n }: { fix: PlainFix; n: number }) {
+function FixItem({ fix, n }: { fix: PlainFix; n: number }) {
   return (
-    <Panel className="flex flex-col gap-3">
-      <div className="flex items-start gap-3">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-foreground text-sm font-semibold text-background">
-          {n}
-        </span>
-        <div>
-          <h3 className="text-lg leading-snug font-semibold">{fix.title}</h3>
-          <p className="mt-1 text-muted-foreground">{fix.why}</p>
+    <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 border-b py-6 last:border-b-0">
+      <span className="num grid size-7 place-items-center border border-line text-[13px] text-foreground/80" aria-hidden>
+        {n}
+      </span>
+      <div>
+        <h3 className="text-[17px] leading-snug font-semibold tracking-[-0.01em]">{fix.title}</h3>
+        <p className="mt-1 text-muted-foreground">{fix.why}</p>
+        <div className="mt-4 border bg-panel px-4 py-3">
+          <p className="text-[13px] font-semibold">How to fix it</p>
+          <p className="mt-0.5">{fix.steps ?? fix.how}</p>
         </div>
+        {fix.screenshot_url && (
+          <div className="mt-2">
+            <ShowMeDialog src={fix.screenshot_url} title={fix.title} />
+          </div>
+        )}
       </div>
-      <div className="rounded-lg bg-muted/60 p-4 sm:ml-10">
-        <p className="text-sm font-medium">How to fix it</p>
-        <p className="mt-1">{fix.steps ?? fix.how}</p>
-      </div>
-      {fix.screenshot_url && (
-        <div className="sm:ml-10">
-          <ShowMeDialog src={fix.screenshot_url} title={fix.title} />
-        </div>
-      )}
-    </Panel>
+    </li>
   );
 }
 
@@ -53,111 +52,129 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
   const earlier = runs.find((r) => r.id < run.id && sameSeries(run, r) && r.score != null);
   // Visitors can't change the shared demo store, so its before and after comes from the shared example pair.
   const scored = (r: RunSummary) => r.example && !r.live && r.score != null;
-  const example = !run.live && !earlier && !health.demo_admin_open
-    ? runs.find((r) => scored(r) && runs.some((p) => scored(p) && p.id < r.id))
-    : undefined;
+  const example =
+    !run.live && !earlier && !health.demo_admin_open
+      ? runs.find((r) => scored(r) && runs.some((p) => scored(p) && p.id < r.id))
+      : undefined;
   const platform = platformName(card?.platform);
+  const againLabel = busy ? "Starting…" : "Check my store again";
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="flex items-center gap-2 text-muted-foreground">
-          <Store className="size-4" aria-hidden />
-          {run.live ? hostOf(run.store_url) : "Demo store (Fernhill Ceramics)"}
-        </p>
-        {wide && card && (
-          <Button variant="ghost" onClick={() => go(`/run/${run.id}/advanced`)}>
-            <Settings2 aria-hidden />
-            Advanced view
-          </Button>
-        )}
-      </div>
-      <ModeLabels run={run} health={health} />
+    <div>
+      <RunHead
+        run={run}
+        health={health}
+        actionsClassName="hidden sm:flex"
+        actions={
+          <>
+            {wide && card && <ViewSwitch runId={run.id} advanced={false} />}
+            {card && <DeveloperDialog runId={run.id} className="hidden sm:inline-flex" />}
+            <Button onClick={again} disabled={busy} className="hidden h-10 sm:inline-flex">
+              <RotateCw aria-hidden />
+              {busy ? "Starting…" : "Check again"}
+            </Button>
+          </>
+        }
+      />
+      {error && <p role="alert" className="mt-4 text-sm text-bad">{error}</p>}
 
-      {card ? (
-        <Panel className="flex flex-col items-center gap-4 py-8 text-center">
-          <h1 className="text-lg font-medium text-balance">{card.simple.label}</h1>
-          <ScoreGauge score={score} caption={`${card.simple.score}% ${card.simple.of_what}`} />
-          <StatusPill level={card.simple.status} text={card.simple.status_text} />
-          {platform && <p className="text-sm text-muted-foreground">Your store runs on {platform}.</p>}
-          {run.live && (
-            <p className="max-w-md text-sm text-muted-foreground">
-              We checked up to your PayPal button and stopped. We never pay on real stores.
+      <div className="mt-6 grid gap-8 lg:grid-cols-12 lg:gap-12">
+        <aside className="lg:col-span-5">
+          {card ? (
+            <section className="border bg-panel p-6 lg:sticky lg:top-20">
+              <h2 className="text-[15px] text-muted-foreground">{card.simple.label}</h2>
+              <ScoreFigure score={score} className="mt-4 text-[5.5rem]" />
+              <StatusLine level={card.simple.status} text={card.simple.status_text} className="mt-5" />
+              <div className="mt-6">
+                <ShopperPath card={card} compact />
+              </div>
+              <p className="mt-4 text-[13px] text-muted-foreground">
+                {card.simple.score}% {card.simple.of_what}
+              </p>
+              {(platform || run.live) && (
+                <div className="mt-5 space-y-1 border-t pt-4 text-sm text-muted-foreground">
+                  {platform && <p>Your store runs on {platform}.</p>}
+                  {run.live && <p>We checked up to your PayPal button and stopped. We never pay on real stores.</p>}
+                </div>
+              )}
+            </section>
+          ) : (
+            <section className="border bg-panel p-6">
+              <StatusLine level="unknown" text="We couldn't check your store this time" />
+              <p className="mt-2 text-muted-foreground">Something went wrong on our side. Please try again.</p>
+            </section>
+          )}
+          {card && card.not_store_fault.length > 0 && (
+            <p className="mt-4 flex items-start gap-2 border px-4 py-3 text-sm">
+              <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span>
+                <span className="font-medium">Not your store's fault. </span>
+                {card.not_store_fault[0].plain}
+              </span>
             </p>
           )}
-        </Panel>
-      ) : (
-        <Panel className="py-8 text-center">
-          <StatusPill level="unknown" text="We couldn't check your store this time" />
-          <p className="mt-4 text-muted-foreground">Something went wrong on our side. Please try again.</p>
-        </Panel>
-      )}
+        </aside>
 
-      {card && card.not_store_fault.length > 0 && (
-        <p className="flex items-start gap-2 rounded-lg border bg-card p-4 text-sm">
-          <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span>
-            <span className="font-medium">Not your store's fault: </span>
-            {card.not_store_fault[0].plain}
-          </span>
-        </p>
-      )}
+        <section className="lg:col-span-7" aria-labelledby="fix-first">
+          {card && card.simple.top_fixes.length > 0 && (
+            <>
+              <h2 id="fix-first" className="border-b-[1.5px] border-rule pb-3 text-xl font-semibold tracking-[-0.02em]">
+                What to fix first
+              </h2>
+              <ol>
+                {card.simple.top_fixes.map((f, i) => (
+                  <FixItem key={f.check} fix={f} n={i + 1} />
+                ))}
+              </ol>
+              {card.simple.more_fixes > 0 && (
+                <p className="border-t py-4 text-sm text-muted-foreground">
+                  {wide ? (
+                    <a href={`#/run/${run.id}/advanced`} className="font-medium text-foreground underline decoration-line underline-offset-4 hover:decoration-foreground">
+                      {card.simple.more_fixes} more {card.simple.more_fixes === 1 ? "fix" : "fixes"} in the Advanced view
+                    </a>
+                  ) : (
+                    <>
+                      {card.simple.more_fixes} more {card.simple.more_fixes === 1 ? "fix is" : "fixes are"} in the report for your developer.
+                    </>
+                  )}
+                </p>
+              )}
+            </>
+          )}
+          {card && card.simple.top_fixes.length === 0 && card.possible > 0 && (
+            <div className="border-t-[1.5px] border-rule pt-5">
+              <StatusLine level="good" text="Nothing to fix. AI shoppers can buy from your store." className="text-lg" />
+            </div>
+          )}
 
-      {card && card.simple.top_fixes.length > 0 && (
-        <>
-          <h2 className="mt-3 text-xl font-semibold">What to fix first</h2>
-          {card.simple.top_fixes.map((f, i) => (
-            <FixCard key={f.check} fix={f} n={i + 1} />
-          ))}
-          {card.simple.more_fixes > 0 &&
-            (wide ? (
-              <button
-                type="button"
-                onClick={() => go(`/run/${run.id}/advanced`)}
-                className="min-h-11 text-left text-sm font-medium underline underline-offset-4"
-              >
-                + {card.simple.more_fixes} more {card.simple.more_fixes === 1 ? "fix" : "fixes"}
+          <div className="mt-6 flex flex-col gap-2.5 sm:hidden">
+            <Button onClick={again} disabled={busy} className="h-12 text-base">
+              <RotateCw aria-hidden />
+              {againLabel}
+            </Button>
+            {card && <DeveloperDialog runId={run.id} className="h-12 text-base" />}
+          </div>
+
+          <div className="mt-6 flex flex-col items-start gap-1 text-sm">
+            {earlier && (
+              <button type="button" onClick={() => go(`/run/${run.id}/compare`)} className="inline-flex min-h-11 items-center gap-1.5 font-medium underline decoration-line underline-offset-4 hover:decoration-foreground">
+                See before and after
+                <ArrowRight className="size-4" aria-hidden />
               </button>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {card.simple.more_fixes} more {card.simple.more_fixes === 1 ? "fix is" : "fixes are"} in the report for your developer.
-              </p>
-            ))}
-        </>
-      )}
-      {card && card.simple.top_fixes.length === 0 && card.possible > 0 && (
-        <Panel className="text-center">
-          <p className="text-lg font-medium">Nothing to fix. AI shoppers can buy from your store.</p>
-        </Panel>
-      )}
-
-      {error && <p role="alert" className="text-sm text-bad">{error}</p>}
-      <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-        <Button onClick={again} disabled={busy} className="h-12 text-base sm:flex-1">
-          <RotateCw aria-hidden />
-          {busy ? "Starting…" : "Check my store again"}
-        </Button>
-        {card && <DeveloperDialog runId={run.id} />}
-      </div>
-
-      <div className="flex flex-col gap-1 text-sm">
-        {earlier && (
-          <button type="button" onClick={() => go(`/run/${run.id}/compare`)} className="flex min-h-11 items-center gap-1 font-medium underline-offset-4 hover:underline">
-            See before and after
-            <ArrowRight className="size-4" aria-hidden />
-          </button>
-        )}
-        {example && (
-          <button type="button" onClick={() => go(`/run/${example.id}/compare`)} className="flex min-h-11 items-center gap-1 font-medium underline-offset-4 hover:underline">
-            See an example before and after on the demo store
-            <ArrowRight className="size-4" aria-hidden />
-          </button>
-        )}
-        {!run.live && health.demo_admin_open && (
-          <a href="/store/admin" target="_blank" rel="noreferrer" className="min-h-11 py-3 text-muted-foreground underline underline-offset-4">
-            Fix the demo store (opens its settings)
-          </a>
-        )}
+            )}
+            {example && (
+              <button type="button" onClick={() => go(`/run/${example.id}/compare`)} className="inline-flex min-h-11 items-center gap-1.5 font-medium underline decoration-line underline-offset-4 hover:decoration-foreground">
+                See an example before and after on the demo store
+                <ArrowRight className="size-4" aria-hidden />
+              </button>
+            )}
+            {!run.live && health.demo_admin_open && (
+              <a href="/store/admin" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-muted-foreground">
+                Fix the demo store (opens its settings)
+              </a>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -1,18 +1,25 @@
-import { ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { hostOf, Panel } from "@/components/bits";
+import { checkedAt, StatusLine, storeName } from "@/components/bits";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type RunSummary } from "@/lib/api";
 import { go, useFetch } from "@/lib/hooks";
 
-const date = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+const name = (r: RunSummary) => storeName({ live: !!r.live, store_url: r.store_url });
+const running = (r: RunSummary) => r.status === "running" || r.status === "awaiting_human";
 
-function name(r: RunSummary) {
-  return r.live ? hostOf(r.store_url) : "Demo store (Fernhill Ceramics)";
+function level(r: RunSummary) {
+  if (r.score == null || !r.score_possible) return "unknown" as const;
+  return r.score >= 80 ? ("good" as const) : r.score >= 50 ? ("warn" as const) : ("bad" as const);
+}
+
+function state(r: RunSummary) {
+  if (running(r)) return "Still checking";
+  if (r.status === "error") return "Didn't finish";
+  return { good: "Ready for AI shoppers", warn: "Some fixes needed", bad: "AI shoppers will struggle", unknown: "Couldn't check" }[level(r)];
 }
 
 export function MyChecks() {
@@ -39,64 +46,75 @@ export function MyChecks() {
 
   const mine = data?.filter((r) => r.mine) ?? [];
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="pt-8">
+      <div className="flex flex-col gap-4 border-b-[1.5px] border-rule pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">My checks</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Saved in this browser only. Other people can't see them.</p>
+          <h1 className="text-[1.875rem] leading-tight font-semibold tracking-[-0.03em]">My checks</h1>
+          <p className="mt-1 text-muted-foreground">Saved in this browser only. Other people can't see them.</p>
         </div>
-        <Button className="h-11" onClick={() => go("/")}>
+        <Button className="h-10 self-start sm:self-auto" onClick={() => go("/")}>
           <Plus aria-hidden />
           New check
         </Button>
       </div>
 
-      {error && <p role="alert" className="text-sm text-bad">{error}</p>}
-      {!data && !error && <Skeleton className="h-48 rounded-xl" />}
+      {error && <p role="alert" className="mt-4 text-sm text-bad">{error}</p>}
+      {!data && !error && <Skeleton className="mt-6 h-48" />}
       {data && mine.length === 0 && (
-        <Panel className="py-10 text-center">
+        <div className="py-16">
           <p className="text-lg font-medium">You haven't checked a store yet.</p>
-          <Button className="mt-6 h-12" onClick={() => go("/")}>
+          <p className="mt-1 text-muted-foreground">Paste your store's link and we'll show you what AI shoppers see.</p>
+          <Button className="mt-6 h-11" onClick={() => go("/")}>
             Check my store
           </Button>
-        </Panel>
+        </div>
       )}
       {mine.length > 0 && (
-        <ul className="divide-y rounded-xl border bg-card">
-          {mine.map((r) => (
-            <li key={r.id} className="flex items-center gap-2 pr-2">
-              <button
-                type="button"
-                onClick={() => go(`/run/${r.id}`)}
-                className="flex min-h-16 flex-1 items-center gap-4 rounded-l-xl px-4 py-3 text-left hover:bg-muted/50"
-              >
-                <span className="w-12 text-2xl font-semibold tabular-nums">{r.score ?? "–"}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{name(r)}</span>
-                  <span className="block text-sm text-muted-foreground">
-                    {date(r.started_at)}
-                    {r.status === "running" || r.status === "awaiting_human" ? " · Still checking" : ""}
-                    {r.status === "error" ? " · Didn't finish" : ""}
-                  </span>
-                </span>
-                <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-              </button>
-              <Button
-                variant="ghost"
-                size="icon-lg"
-                className="size-11 text-muted-foreground"
-                aria-label={`Delete the check of ${name(r)} from ${date(r.started_at)}`}
-                disabled={r.status === "running" || r.status === "awaiting_human"}
-                onClick={() => setConfirm(r)}
-              >
-                <Trash2 aria-hidden />
-              </Button>
-            </li>
-          ))}
-        </ul>
+        <table className="w-full border-collapse text-left">
+          <thead className="sr-only sm:not-sr-only">
+            <tr className="border-b text-[13px] text-muted-foreground">
+              <th className="py-3 pr-4 font-medium">Store</th>
+              <th className="hidden py-3 pr-4 font-medium md:table-cell">Checked</th>
+              <th className="hidden py-3 pr-4 font-medium sm:table-cell">Result</th>
+              <th className="py-3 pr-4 text-right font-medium">Score</th>
+              <th className="py-3">
+                <span className="sr-only">Delete</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {mine.map((r) => (
+              <tr key={r.id} className="group border-b transition-colors hover:bg-panel">
+                <td className="py-0 pr-4">
+                  <a href={`#/run/${r.id}`} className="flex min-h-14 flex-col justify-center py-2 text-foreground no-underline">
+                    <span className="font-medium [overflow-wrap:anywhere]">{name(r)}</span>
+                    <span className="text-[13px] text-muted-foreground md:hidden">{checkedAt(r.started_at)}</span>
+                  </a>
+                </td>
+                <td className="hidden pr-4 text-muted-foreground md:table-cell">{checkedAt(r.started_at)}</td>
+                <td className="hidden pr-4 sm:table-cell">
+                  <StatusLine level={running(r) ? "unknown" : level(r)} text={state(r)} className="text-sm font-normal" />
+                </td>
+                <td className="num pr-4 text-right text-lg">{r.score ?? "–"}</td>
+                <td className="w-12 text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-11 text-muted-foreground"
+                    aria-label={`Delete the check of ${name(r)} from ${checkedAt(r.started_at)}`}
+                    disabled={running(r)}
+                    onClick={() => setConfirm(r)}
+                  >
+                    <Trash2 aria-hidden />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
       {data && mine.length > 0 && health.data && (
-        <p className="text-sm text-muted-foreground">
+        <p className="mt-4 text-sm text-muted-foreground">
           Checks are kept for {health.data.retention_days} days. Clearing your browser's cookies also removes them from this list.
         </p>
       )}
@@ -104,17 +122,17 @@ export function MyChecks() {
       <Dialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete this check?</DialogTitle>
+            <DialogTitle className="text-lg tracking-[-0.01em]">Delete this check?</DialogTitle>
             <DialogDescription>
               The results and screenshots for {confirm && name(confirm)} will be removed for good. This can't be undone.
             </DialogDescription>
           </DialogHeader>
           {deleteError && <p role="alert" className="text-sm text-bad">{deleteError}</p>}
           <DialogFooter>
-            <Button variant="outline" className="h-11" onClick={() => setConfirm(null)}>
+            <Button variant="outline" className="h-10 border-line" onClick={() => setConfirm(null)}>
               Keep it
             </Button>
-            <Button variant="destructive" className="h-11" onClick={remove} disabled={busy}>
+            <Button variant="destructive" className="h-10" onClick={remove} disabled={busy}>
               {busy ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>

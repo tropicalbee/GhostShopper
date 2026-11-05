@@ -102,7 +102,7 @@ export type Run = {
   awaiting: { stage: string; reason: string; instructions: string; popup_url?: string } | null;
   feed: FeedLine[];
   steps: Step[];
-  checks: { check_key: string; status: string; reason: string | null }[];
+  checks: { check_key: string; stage: string; status: string; cause: string | null; reason: string | null }[];
   order: Order | null;
   scorecard: Scorecard | null;
   mine: boolean; // started from this browser
@@ -144,6 +144,8 @@ export type Market = {
   comparables: { title: string; price: string; domain: string }[];
 };
 
+export type Rubric = { rules_version: string; stages: { key: string; points: number; checks: number }[] };
+
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -173,6 +175,7 @@ export const api = {
   deleteRun: (id: number) => request<null>(`/api/runs/${id}`, { method: "DELETE" }),
   devSummary: (id: number) => request<{ markdown: string }>(`/api/runs/${id}/developer-summary`),
   market: (sku: string) => request<Market>(`/api/market/${sku}`),
+  rubric: () => request<Rubric>("/api/rubric"),
   start: (body: Record<string, unknown>) =>
     request<{ run_id: number }>("/api/runs", { method: "POST", body: JSON.stringify(body) }),
 };

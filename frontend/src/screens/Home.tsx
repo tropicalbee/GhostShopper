@@ -6,6 +6,15 @@ import { Input } from "@/components/ui/input";
 import { startCheck } from "@/lib/api";
 import { go } from "@/lib/hooks";
 
+
+// What the shopper looks for, in the order it shops.
+const CHECKS = [
+  ["Can it find your product?", "From your home page, by its name."],
+  ["Can it read the price and stock?", "As text, with the currency."],
+  ["Can it tell which button buys?", "One clear Buy now or Add to cart."],
+  ["Can it reach your PayPal button?", "Without extra forms on the way."],
+];
+
 export function Home() {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,50 +43,74 @@ export function Home() {
   };
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col items-center pt-10 text-center sm:pt-24">
-      <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-5xl">Can AI shoppers buy from your store?</h1>
-      <p className="mt-4 text-lg text-muted-foreground">Paste your store's link. We'll shop it like an AI assistant would and tell you what to fix.</p>
+    <div className="pt-12 sm:pt-20">
+      <div className="max-w-2xl">
+        <h1 className="text-[2.25rem] leading-[1.05] font-semibold tracking-[-0.035em] text-balance sm:text-[3.25rem]">
+          Can AI shoppers buy from your store?
+        </h1>
+        <p className="mt-5 max-w-xl text-lg text-muted-foreground">
+          Paste your store's link. We shop it the way an AI assistant would and tell you what to fix.
+        </p>
 
-      <form onSubmit={submit} className="mt-10 flex w-full flex-col gap-3 text-left" noValidate>
-        <label htmlFor="store-url" className="text-sm font-medium">
-          Your store's web address
-        </label>
-        <Input
-          id="store-url"
-          type="url"
-          inputMode="url"
-          autoComplete="url"
-          placeholder="myshop.com"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          aria-invalid={!!error}
-          aria-describedby={error ? "store-url-error" : undefined}
-          className="h-12 bg-card text-base"
-        />
-        {error && (
-          <p id="store-url-error" role="alert" className="text-sm text-bad">
-            {error}
+        <form onSubmit={submit} className="mt-10" noValidate>
+          <label htmlFor="store-url" className="text-sm font-medium">
+            Your store's web address
+          </label>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:gap-0">
+            <Input
+              id="store-url"
+              type="url"
+              inputMode="url"
+              autoComplete="url"
+              placeholder="myshop.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? "store-url-error" : undefined}
+              className="h-12 border-line text-base shadow-none sm:border-r-0"
+            />
+            <Button type="submit" disabled={busy} className="h-12 px-6 text-base">
+              {busy ? "Starting…" : "Check my store"}
+              {!busy && <ArrowRight aria-hidden />}
+            </Button>
+          </div>
+          {error && (
+            <p id="store-url-error" role="alert" className="mt-3 text-sm text-bad">
+              {error}
+            </p>
+          )}
+        </form>
+
+        <div className="mt-5 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:gap-6">
+          <button
+            type="button"
+            onClick={() => start(null)}
+            disabled={busy}
+            className="min-h-11 self-start font-medium underline decoration-line underline-offset-4 hover:decoration-foreground sm:self-auto"
+          >
+            Or try our demo store
+          </button>
+          <p className="flex items-center gap-2 text-muted-foreground">
+            <ShieldCheck className="size-4 shrink-0" aria-hidden />
+            On your store we never buy anything or log in.
           </p>
-        )}
-        <Button type="submit" disabled={busy} className="h-12 text-base">
-          {busy ? "Starting…" : "Check my store"}
-          {!busy && <ArrowRight aria-hidden />}
-        </Button>
-      </form>
+        </div>
+      </div>
 
-      <button
-        type="button"
-        onClick={() => start(null)}
-        disabled={busy}
-        className="mt-5 min-h-11 text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-      >
-        Or try our demo store
-      </button>
-
-      <p className="mt-10 flex items-center gap-2 text-sm text-muted-foreground">
-        <ShieldCheck className="size-4 shrink-0" aria-hidden />
-        We look around like a shopper. On your store we never buy anything or log in.
-      </p>
+      <section aria-labelledby="what-we-check" className="mt-16 border-t-[1.5px] border-rule sm:mt-24">
+        <h2 id="what-we-check" className="sr-only">
+          What the shopper checks
+        </h2>
+        <ol className="grid sm:grid-cols-2 lg:grid-cols-4">
+          {CHECKS.map(([q, a], i) => (
+            <li key={q} className="border-b py-5 sm:pr-6 lg:border-b-0 lg:border-l lg:py-6 lg:pl-6 lg:first:border-l-0 lg:first:pl-0">
+              <span className="num text-[13px] text-muted-foreground">{i + 1}</span>
+              <p className="mt-2 font-medium">{q}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{a}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
     </div>
   );
 }

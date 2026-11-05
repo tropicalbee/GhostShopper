@@ -1,173 +1,98 @@
-import { ArrowLeft, BarChart3, CreditCard, Gauge, LineChart as LineIcon } from "lucide-react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { RotateCw } from "lucide-react";
+import { useState } from "react";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import { hostOf, Label, ModeLabels, Panel, ScoreGauge, StatusPill } from "@/components/bits";
+import { Label, ScoreFigure, ShopperPath, StatusLine } from "@/components/bits";
+import { DeveloperDialog } from "@/components/dialogs";
 import { FailuresGrid } from "@/components/FailuresGrid";
-import { Badge } from "@/components/ui/badge";
+import { RunHead, ViewSwitch } from "@/components/RunHead";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api, DEMO_SKU, sameSeries, type Health, type Run, type RunSummary } from "@/lib/api";
+import { api, DEMO_SKU, sameSeries, startCheck, type Health, type Run, type RunSummary } from "@/lib/api";
 import { go, useFetch } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 
-const STAGES = [
-  ["discover", "Find"],
-  ["details", "Details"],
-  ["checkout", "Checkout"],
-  ["payment", "Payment"],
-  ["outcome", "Finish"],
-] as const;
+const axis = { tickLine: false, axisLine: false, tick: { fill: "var(--muted-foreground)", fontSize: 12, fontFamily: "var(--font-mono)" } };
 
-// Diagonal hatching, as in the reference: dark for points earned, light for points missed.
-function Hatches() {
+// The key moments: the first line, every success, the first two problems, any note, and always the last line.
+function keyMoments(run: Run) {
+  const bad = run.feed.map((l, i) => (l.tone === "bad" ? i : -1)).filter((i) => i >= 0).slice(0, 2);
+  const keep = new Set([0, run.feed.length - 1, ...bad]);
+  run.feed.forEach((l, i) => (l.tone === "good" || l.tone === "info") && keep.add(i));
+  return [...keep].filter((i) => i >= 0).sort((a, b) => a - b).slice(-8).map((i) => run.feed[i]);
+}
+
+function WhatTheShopperDid({ run }: { run: Run }) {
+  const lines = keyMoments(run);
   return (
-    <defs>
-      <pattern id="hatch-dark" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-        <rect width="6" height="6" fill="var(--foreground)" />
-        <line x1="0" y1="0" x2="0" y2="6" stroke="white" strokeOpacity="0.22" strokeWidth="2" />
-      </pattern>
-      <pattern id="hatch-light" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-        <rect width="6" height="6" fill="var(--muted)" />
-        <line x1="0" y1="0" x2="0" y2="6" stroke="var(--border)" strokeWidth="2" />
-      </pattern>
-    </defs>
+    <>
+      <ol className="mt-3 text-sm">
+        {lines.map((l, i) => (
+          <li key={i} className="grid grid-cols-[2.5rem_minmax(0,1fr)] border-b py-2.5 last:border-b-0">
+            <span className="num text-[13px] text-muted-foreground">{l.step}</span>
+            <span className={cn(l.tone === "bad" && "text-bad", l.tone === "info" && "text-muted-foreground")}>{l.text}</span>
+          </li>
+        ))}
+      </ol>
+      {run.feed.length > lines.length && <p className="mt-2 text-[13px] text-muted-foreground">Every step is in the Agent steps tab below.</p>}
+    </>
   );
 }
 
-const axis = { tickLine: false, axisLine: false, tick: { fill: "var(--muted-foreground)", fontSize: 12 } };
-
-function StageBars({ run }: { run: Run }) {
-  const card = run.scorecard!;
-  const data = STAGES.map(([key, name]) => {
-    const earned = card.stages[key] ?? 0;
-    const possible = card.stage_possible?.[key] ?? earned;
-    return { name, earned, missed: Math.max(0, possible - earned), label: `${earned}/${possible}` };
-  });
-  return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 8, right: 0, bottom: 0, left: -24 }} barCategoryGap="18%">
-        <Hatches />
-        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="4 4" />
-        <XAxis dataKey="name" {...axis} />
-        <YAxis {...axis} allowDecimals={false} />
-        <Bar dataKey="earned" stackId="s" fill="url(#hatch-dark)" radius={[0, 0, 4, 4]} isAnimationActive={false}>
-          <LabelList dataKey="label" position="insideBottom" fill="white" fontSize={12} offset={8} />
-        </Bar>
-        <Bar dataKey="missed" stackId="s" fill="url(#hatch-light)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-function ScoreHistory({ run, runs }: { run: Run; runs: RunSummary[] }) {
-  const data = runs
-    .filter((r) => sameSeries(run, r) && r.score != null && r.id <= run.id)
-    .slice(0, 10)
-    .reverse()
-    .map((r) => ({ name: `#${r.id}`, score: r.score, current: r.id === run.id }));
-  if (data.length < 2) {
-    return <p className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">Check again after a fix to see the score change here.</p>;
-  }
-  return (
-    <ResponsiveContainer width="100%" height={220}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -24 }}>
-        <defs>
-          <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.12} />
-            <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="4 4" />
-        <XAxis dataKey="name" {...axis} />
-        <YAxis domain={[0, 100]} {...axis} />
-        <Tooltip
-          cursor={{ stroke: "var(--border)" }}
-          contentStyle={{ background: "var(--foreground)", border: 0, borderRadius: 8, color: "white", fontSize: 12 }}
-          itemStyle={{ color: "white" }}
-          labelFormatter={(l) => `Run ${l}`}
-        />
-        <Area
-          type="monotone"
-          dataKey="score"
-          name="Score"
-          stroke="var(--foreground)"
-          strokeWidth={2}
-          fill="url(#area)"
-          dot={{ r: 3, fill: "var(--card)", stroke: "var(--foreground)" }}
-          isAnimationActive={false}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
-function Dot({ ok }: { ok: boolean | null }) {
-  const word = ok == null ? "Not checked" : ok ? "OK" : "Problem";
-  return (
-    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <span className={cn("size-2 rounded-full", ok == null ? "bg-border" : ok ? "bg-good" : "bg-bad")} aria-hidden />
-      {word}
-    </span>
-  );
-}
-
-function PaymentCheck({ run }: { run: Run }) {
-  const status = (key: string) => {
-    const s = run.checks.find((c) => c.check_key === key)?.status;
-    return s === "pass" ? true : s === "fail" ? false : null;
-  };
+function PaymentLedger({ run }: { run: Run }) {
   const o = run.order;
   if (!o) {
     return (
       <p className="mt-4 text-sm text-muted-foreground">
-        {run.live ? "We never pay on real stores, so there is no payment to check." : "This run didn't include a payment."}
+        {run.live ? "We never pay on real stores, so there's no payment to check." : "This check didn't include a payment."}
       </p>
     );
   }
-  const rows: [string, string, boolean | null][] = [
-    ["Order", o.order_id, status("paypal_button_found")],
-    ["Payment captured", o.capture_status ?? "-", status("capture_completed")],
-    ["Amount", `${o.gross_amount ?? o.amount} ${o.currency}`, status("payment_verified")],
-    ["PayPal fee", o.paypal_fee ? `${o.paypal_fee} ${o.currency}` : "-", status("payment_verified")],
-    ["You receive", o.net_amount ? `${o.net_amount} ${o.currency}` : "-", status("payment_verified")],
+  const money = (v: string | null) => (v ? `${v} ${o.currency}` : "Not captured");
+  const rows: [string, string, boolean][] = [
+    ["Order", o.order_id, true],
+    ["Captured", o.capture_status === "COMPLETED" ? "Completed" : (o.capture_status ?? "Not captured"), false],
+    ["Charged", money(o.gross_amount ?? o.amount), true],
+    ["PayPal fee", o.paypal_fee ? `−${o.paypal_fee} ${o.currency}` : "Not reported", true],
   ];
   return (
-    <dl className="mt-4 divide-y">
-      {rows.map(([k, v, ok]) => (
-        <div key={k} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+    <dl className="mt-3 text-sm">
+      {rows.map(([k, v, mono]) => (
+        <div key={k} className="flex justify-between gap-4 border-b py-2.5">
           <dt className="text-muted-foreground">{k}</dt>
-          <dd className="flex items-center gap-3">
-            <span className="font-medium tabular-nums">{v}</span>
-            <Dot ok={ok} />
-          </dd>
+          <dd className={cn(mono && "num", "text-right [overflow-wrap:anywhere]")}>{v}</dd>
         </div>
       ))}
+      <div className="-mt-px flex justify-between gap-4 border-t-[1.5px] border-rule py-2.5 font-semibold">
+        <dt>You receive</dt>
+        <dd className="num">{money(o.net_amount)}</dd>
+      </div>
     </dl>
   );
 }
 
 function Steps({ run }: { run: Run }) {
   return (
-    <ol className="divide-y rounded-xl border bg-card">
+    <ol className="border-t-[1.5px] border-rule">
       {run.steps.map((s) => {
         const shot = s.screenshot_path ? `/api/runs/${run.id}/files/${s.screenshot_path.split(/[\\/]/).pop()}` : null;
         return (
-          <li key={s.idx} className="flex gap-4 p-4">
+          <li key={s.idx} className="grid grid-cols-[2.5rem_8.5rem_minmax(0,1fr)] gap-4 border-b py-4">
+            <span className="num text-[13px] text-muted-foreground">{s.idx}</span>
             {shot ? (
-              <a href={shot} target="_blank" rel="noreferrer" className="shrink-0">
-                <img src={shot} alt={`Step ${s.idx} screenshot`} loading="lazy" className="h-20 w-32 rounded-md border object-cover object-top" />
+              <a href={shot} target="_blank" rel="noreferrer" aria-label={`Open the screenshot of step ${s.idx}`}>
+                <img src={shot} alt="" loading="lazy" className="h-20 w-34 border object-cover object-top" />
               </a>
             ) : (
-              <div className="h-20 w-32 shrink-0 rounded-md border bg-muted" aria-hidden />
+              <span className="hatch h-20 w-34 border" aria-hidden />
             )}
             <div className="min-w-0 text-sm">
-              <p className="font-medium">
-                <span className="text-muted-foreground tabular-nums">{s.idx}. </span>
-                <code className="font-mono">{s.tool}</code>
+              <p>
+                <span className="num">{s.tool}</span>
                 {!s.ok && <span className="ml-2 text-bad">failed</span>}
               </p>
-              {s.thought && <p className="mt-1">{s.thought}</p>}
-              {s.url && <p className="mt-1 truncate text-xs text-muted-foreground">{s.url}</p>}
+              {s.thought && <p className="mt-1 text-muted-foreground">{s.thought}</p>}
+              {s.url && <p className="num mt-1 truncate text-xs text-muted-foreground">{s.url}</p>}
             </div>
           </li>
         );
@@ -176,127 +101,189 @@ function Steps({ run }: { run: Run }) {
   );
 }
 
+function History({ run, runs }: { run: Run; runs: RunSummary[] }) {
+  const data = runs
+    .filter((r) => sameSeries(run, r) && r.score != null && r.id <= run.id)
+    .slice(0, 12)
+    .reverse()
+    .map((r) => ({ name: `#${r.id}`, score: r.score }));
+  if (data.length < 2) {
+    return <p className="border-t-[1.5px] border-rule py-8 text-muted-foreground">Make your fixes and check again to see the score change here.</p>;
+  }
+  return (
+    <div className="border-t-[1.5px] border-rule pt-6">
+      <ResponsiveContainer width="100%" height={260}>
+        <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: -20 }}>
+          <CartesianGrid vertical={false} stroke="var(--border)" />
+          <XAxis dataKey="name" {...axis} />
+          <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} {...axis} />
+          <Tooltip
+            cursor={{ stroke: "var(--line)" }}
+            contentStyle={{ background: "var(--background)", border: "1px solid var(--border)", borderRadius: 0, fontSize: 13 }}
+            labelFormatter={(l) => `Check ${l}`}
+          />
+          <Line type="linear" dataKey="score" name="Score" stroke="var(--earned)" strokeWidth={2} dot={{ r: 3, fill: "var(--background)", stroke: "var(--earned)", strokeWidth: 2 }} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function Market({ run }: { run: Run }) {
-  const { data, error } = useFetch(() => api.market(DEMO_SKU), []);
-  if (run.live) return <Panel className="text-sm text-muted-foreground">The market check runs on the demo store's products only.</Panel>;
-  if (error) return <Panel className="text-sm text-bad">{error}</Panel>;
-  if (!data) return <Panel className="h-64 animate-pulse" />;
+  const { data, error } = useFetch(() => (run.live ? Promise.resolve(null) : api.market(DEMO_SKU)), [run.live]);
+  if (run.live) return <p className="border-t-[1.5px] border-rule py-8 text-muted-foreground">The market check runs on the demo store's products only.</p>;
+  if (error) return <p className="border-t-[1.5px] border-rule py-8 text-bad">{error}</p>;
+  if (!data) return <div className="hatch h-64 border" aria-busy="true" />;
   const rows = [
     { name: "Your price", price: Number(data.our_price), ours: true },
     ...data.comparables.map((c) => ({ name: c.domain, price: Number(c.price), ours: false })),
   ];
   return (
-    <Panel>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="border-t-[1.5px] border-rule pt-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
         <p className="font-medium">{data.verdict}</p>
-        {data.source === "recorded" && <Badge variant="outline">Sample market data</Badge>}
+        {data.source === "recorded" && <span className="border px-2.5 py-0.5 text-xs">Sample market data</span>}
       </div>
-      <ResponsiveContainer width="100%" height={rows.length * 36 + 20}>
-        <BarChart data={rows} layout="vertical" margin={{ top: 12, right: 40, bottom: 0, left: 0 }}>
-          <Hatches />
+      <ResponsiveContainer width="100%" height={rows.length * 34 + 16}>
+        <BarChart data={rows} layout="vertical" margin={{ top: 16, right: 64, bottom: 0, left: 0 }}>
           <XAxis type="number" hide />
-          <YAxis type="category" dataKey="name" width={170} {...axis} />
-          <Bar dataKey="price" radius={4} isAnimationActive={false} barSize={20}>
+          <YAxis type="category" dataKey="name" width={180} {...axis} tick={{ ...axis.tick, fontFamily: "var(--font-sans)", fontSize: 13 }} />
+          <Bar dataKey="price" isAnimationActive={false} barSize={14}>
             {rows.map((r) => (
-              <Cell key={r.name} fill={r.ours ? "url(#hatch-dark)" : "url(#hatch-light)"} />
+              <Cell key={r.name} fill={r.ours ? "var(--earned)" : "var(--line)"} />
             ))}
-            <LabelList dataKey="price" position="right" formatter={(v) => `$${Number(v).toFixed(2)}`} fill="var(--foreground)" fontSize={12} />
+            <LabelList dataKey="price" position="right" formatter={(v) => `$${Number(v).toFixed(2)}`} fill="var(--foreground)" fontSize={12} fontFamily="var(--font-mono)" />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-      {data.source_note && <p className="mt-2 text-xs text-muted-foreground">{data.source_note}</p>}
-    </Panel>
+      {data.source_note && <p className="mt-2 text-[13px] text-muted-foreground">{data.source_note}</p>}
+    </div>
   );
 }
 
 function NotFault({ run }: { run: Run }) {
   const card = run.scorecard!;
   const items = [...card.not_store_fault, ...card.not_checked_live];
-  if (!items.length) return <Panel className="text-sm text-muted-foreground">Everything in this run was the store's to control.</Panel>;
+  if (!items.length) return <p className="border-t-[1.5px] border-rule py-8 text-muted-foreground">Everything in this check was the store's to control.</p>;
   return (
-    <Panel>
-      <ul className="divide-y">
-        {items.map((n) => (
-          <li key={n.check} className="py-3">
-            <p className="font-medium">
-              {n.title} <span className="font-normal text-muted-foreground">({n.points} points, not counted)</span>
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">{n.plain}</p>
-            {n.reason && <p className="mt-1 text-xs text-muted-foreground">{n.reason}</p>}
-          </li>
-        ))}
-      </ul>
-    </Panel>
+    <ul className="border-t-[1.5px] border-rule">
+      {items.map((n) => (
+        <li key={n.check} className="border-b py-4">
+          <p className="font-medium">
+            {n.title} <span className="font-normal text-muted-foreground">(<span className="num">{n.points}</span> points, not counted)</span>
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{n.plain}</p>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 export function Advanced({ run, runs, health }: { run: Run; runs: RunSummary[]; health: Health }) {
   const card = run.scorecard;
-  if (!card) return <Panel className="text-center text-muted-foreground">This run has no score to break down.</Panel>;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!card) return <p className="pt-10 text-muted-foreground">This check has no score to break down.</p>;
+
+  const again = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { run_id } = await startCheck(run.live ? run.store_url : null);
+      go(`/run/${run_id}`);
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  };
+  const failed = card.fixes.filter((f) => f.status === "failed").length;
+  const verified = run.checks.find((c) => c.check_key === "payment_verified")?.status === "pass";
+  const notFault = card.not_store_fault.length + card.not_checked_live.length;
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Run #{run.id} · {run.live ? hostOf(run.store_url) : "Demo store"}
-          </h1>
-          <ModeLabels run={run} health={health} />
-        </div>
-        <Button variant="outline" onClick={() => go(`/run/${run.id}`)}>
-          <ArrowLeft aria-hidden />
-          Simple view
-        </Button>
+    <div>
+      <RunHead
+        run={run}
+        health={health}
+        actions={
+          <>
+            <ViewSwitch runId={run.id} advanced />
+            <DeveloperDialog runId={run.id} />
+            <Button onClick={again} disabled={busy} className="h-10">
+              <RotateCw aria-hidden />
+              {busy ? "Starting…" : "Check again"}
+            </Button>
+          </>
+        }
+      />
+      {error && <p role="alert" className="mt-4 text-sm text-bad">{error}</p>}
+
+      <div className="mt-6 grid grid-cols-12 border-t border-l">
+        <section className="col-span-12 flex flex-col justify-between gap-6 border-r border-b bg-panel p-6 md:flex-row md:items-end xl:col-span-4 xl:flex-col xl:items-stretch xl:gap-0">
+          <div>
+            <Label>Readiness score</Label>
+            <ScoreFigure score={card.total} className="mt-5 text-[5.5rem]" />
+          </div>
+          <div className="xl:mt-6">
+            <StatusLine level={card.simple.status} text={card.simple.status_text} />
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
+              Judged on <span className="num">{card.possible}</span> of 100 points the store controls
+            </p>
+          </div>
+        </section>
+        <section className="col-span-12 border-r border-b p-6 xl:col-span-8">
+          <Label aside={<span><span className="num">{card.total}</span> of 100 points</span>}>The shopper's path</Label>
+          <div className="mt-7">
+            <ShopperPath card={card} />
+          </div>
+          <p className="mt-6 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-muted-foreground">
+            <span className="flex items-center gap-1.5"><span className="size-2.5 bg-earned" aria-hidden />Points earned</span>
+            <span className="flex items-center gap-1.5"><span className="hatch size-2.5 border" aria-hidden />Points lost</span>
+            <span>Each stage is as wide as the points it's worth</span>
+          </p>
+        </section>
+        <section className="col-span-12 border-r border-b p-6 lg:col-span-7">
+          <Label aside={<span><span className="num">{run.steps.length}</span> steps</span>}>What the shopper did</Label>
+          <WhatTheShopperDid run={run} />
+        </section>
+        <section className="col-span-12 border-r border-b p-6 lg:col-span-5">
+          <Label aside={run.order ? <span className={verified ? "font-medium text-good" : "text-bad"}>{verified ? "Verified" : "Not verified"}</span> : undefined}>Payment check</Label>
+          <PaymentLedger run={run} />
+        </section>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Panel className="flex flex-col lg:col-span-4">
-          <Label icon={Gauge}>Readiness score</Label>
-          <div className="mt-6">
-            <ScoreGauge score={card.total} size={240} caption={`judged on ${card.possible} of 100 points`} />
-          </div>
-          <div className="mt-4 flex justify-center">
-            <StatusPill level={card.simple.status} text={card.simple.status_text} />
-          </div>
-          <p className="mt-auto pt-4 text-center text-xs text-muted-foreground">Rules {card.rules_version}. Computed from checks, never by the AI.</p>
-        </Panel>
-        <Panel className="lg:col-span-8">
-          <Label icon={LineIcon}>Score across runs</Label>
-          <div className="mt-4">
-            <ScoreHistory run={run} runs={runs} />
-          </div>
-        </Panel>
-        <Panel className="lg:col-span-7">
-          <Label icon={BarChart3}>Points by stage</Label>
-          <div className="mt-4">
-            <StageBars run={run} />
-          </div>
-        </Panel>
-        <Panel className="lg:col-span-5">
-          <Label icon={CreditCard}>Payment check</Label>
-          <PaymentCheck run={run} />
-        </Panel>
-      </div>
-
-      <Tabs defaultValue="failures" className="mt-2">
-        <TabsList>
-          <TabsTrigger value="failures">Failures ({card.fixes.filter((f) => f.status === "failed").length})</TabsTrigger>
-          <TabsTrigger value="steps">Agent steps ({run.steps.length})</TabsTrigger>
-          <TabsTrigger value="market">Market</TabsTrigger>
-          <TabsTrigger value="fault">Not the store's fault</TabsTrigger>
+      <Tabs defaultValue="failures" className="mt-12 gap-0">
+        <TabsList variant="line" className="h-auto w-full justify-start gap-6 overflow-x-auto border-b p-0">
+          {[
+            ["failures", "Failures", failed],
+            ["steps", "Agent steps", run.steps.length],
+            ["history", "History", null],
+            ["market", "Market", null],
+            ["fault", "Not the store's fault", notFault],
+          ].map(([value, label, count]) => (
+            <TabsTrigger key={value as string} value={value as string} className="h-11 flex-none px-0 text-sm after:bottom-[-1px]">
+              {label}
+              {count !== null && <span className="num text-xs text-muted-foreground">{count}</span>}
+            </TabsTrigger>
+          ))}
         </TabsList>
-        <TabsContent value="failures" className="mt-3">
-          <FailuresGrid fixes={card.fixes} />
+        <TabsContent value="failures" className="mt-4">
+          <FailuresGrid fixes={card.fixes.filter((f) => f.status === "failed")} />
         </TabsContent>
-        <TabsContent value="steps" className="mt-3">
+        <TabsContent value="steps" className="mt-4">
           <Steps run={run} />
         </TabsContent>
-        <TabsContent value="market" className="mt-3">
+        <TabsContent value="history" className="mt-4">
+          <History run={run} runs={runs} />
+        </TabsContent>
+        <TabsContent value="market" className="mt-4">
           <Market run={run} />
         </TabsContent>
-        <TabsContent value="fault" className="mt-3">
+        <TabsContent value="fault" className="mt-4">
           <NotFault run={run} />
         </TabsContent>
       </Tabs>
+      <p className="num mt-8 text-[12px] text-muted-foreground">Rules {card.rules_version}</p>
     </div>
   );
 }

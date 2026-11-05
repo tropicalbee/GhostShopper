@@ -1,7 +1,8 @@
-import { Ghost, History, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import { lazy, Suspense } from "react";
 
 import { Panel } from "@/components/bits";
+import { MobileBar, Sidebar } from "@/components/Nav";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type Run } from "@/lib/api";
@@ -35,12 +36,12 @@ function RunScreen({ id, advanced }: { id: number; advanced: boolean }) {
   const run = useFetch(() => api.run(id), [id], 1000, isRunning);
   const finished = run.data && !isRunning(run.data);
   const runs = useFetch(api.runs, [id, finished]);
-  const wide = useMediaQuery("(min-width: 1024px)");
+  const wide = useMediaQuery("(min-width: 768px)"); // the Advanced view, from tablet width up
 
   if (run.error && !run.data) {
     if (run.status !== 404) return <Down retry={run.retry} />;
     return (
-      <Panel className="mx-auto mt-10 max-w-md py-10 text-center">
+      <Panel className="mx-auto mt-16 max-w-md py-10 text-center">
         <p className="text-lg font-medium">We couldn't find that check.</p>
         <p className="mt-2 text-sm text-muted-foreground">It may have been deleted, or it was made in another browser.</p>
         <Button className="mt-6 h-11" onClick={() => go("/checks")}>
@@ -49,11 +50,11 @@ function RunScreen({ id, advanced }: { id: number; advanced: boolean }) {
       </Panel>
     );
   }
-  if (!run.data || !health.data) return <Skeleton className="mx-auto h-[28rem] max-w-2xl rounded-xl" />;
+  if (!run.data || !health.data) return <Skeleton className="mt-10 h-[28rem]" />;
   if (isRunning(run.data)) return <Live run={run.data} />;
   if (advanced && wide)
     return (
-      <Suspense fallback={<Skeleton className="h-[40rem] rounded-xl" />}>
+      <Suspense fallback={<Skeleton className="mt-10 h-[40rem]" />}>
         <Advanced run={run.data} runs={runs.data ?? []} health={health.data} />
       </Suspense>
     );
@@ -64,6 +65,10 @@ export default function App() {
   const route = useRoute();
   const health = useFetch(api.health, []);
   const runId = route[0] === "run" ? Number(route[1]) : 0;
+  // Refetched on every route change, and every 2 s while one of your checks runs, so the menu stays current.
+  const runs = useFetch(api.runs, [route.join("/")], 2000, (rs) =>
+    rs.some((r) => r.mine && (r.status === "running" || r.status === "awaiting_human")),
+  );
 
   let screen;
   if (runId && route[2] === "compare") screen = <Compare runId={runId} />;
@@ -71,23 +76,21 @@ export default function App() {
   else if (route[0] === "checks") screen = <MyChecks />;
   else if (health.error) screen = <Down retry={health.retry} />;
   else if (health.data) screen = <Home />;
-  else screen = <Skeleton className="mx-auto mt-24 h-72 max-w-xl rounded-xl" />;
+  else screen = <Skeleton className="mt-24 h-72 max-w-xl" />;
 
+  const nav = { route, runs: runs.data ?? [], health: health.data };
   return (
-    <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-8">
-        <button type="button" onClick={() => go("/")} className="flex min-h-11 items-center gap-2 font-semibold tracking-tight">
-          <Ghost className="size-5" aria-hidden />
-          GhostShopper
-        </button>
-        <nav className="flex items-center gap-1 text-sm">
-          <Button variant="ghost" className="h-11" onClick={() => go("/checks")}>
-            <History aria-hidden />
-            My checks
-          </Button>
-        </nav>
-      </header>
-      <main className="mx-auto max-w-7xl px-4 pb-16 sm:px-8">{screen}</main>
+    <div className="flex min-h-dvh">
+      <Sidebar {...nav} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <MobileBar {...nav} />
+        <main className="mx-auto w-full max-w-[76rem] flex-1 px-4 pb-20 sm:px-8 lg:px-10">{screen}</main>
+        <footer className="border-t">
+          <p className="mx-auto max-w-[76rem] px-4 py-5 text-[13px] text-muted-foreground sm:px-8 lg:px-10">
+            Scores come from checks on what the browser saw, never from the AI.
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }
