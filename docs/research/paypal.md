@@ -11,7 +11,7 @@ Checked 2026-11-05.
 - SDK reference (not yet read): https://developer.paypal.com/sdk/js/reference
 
 ## JS SDK
-- Current generation is **v6 Web SDK**. Sandbox script: `https://www.sandbox.paypal.com/web-sdk/v6/core`; live: `https://www.paypal.com/web-sdk/v6/core`. No finer version number is published; "v6" is the version.
+- Current generation is v6 Web SDK. Sandbox script: `https://www.sandbox.paypal.com/web-sdk/v6/core`; live: `https://www.paypal.com/web-sdk/v6/core`. No finer version number is published; "v6" is the version.
 - v5 (`/sdk/js?client-id=...`) is in maintenance: security fixes only.
 - `window.paypal.createInstance({ clientId, components: ["paypal-payments"], pageType })`. Client ID is the recommended auth for one-time payments; a client token is required only for Fastlane.
 - `findEligibleMethods({ currencyCode })` then `methods.isEligible("paypal")`.

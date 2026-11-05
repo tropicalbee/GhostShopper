@@ -98,11 +98,16 @@ Use installed skills only when the phase needs them:
 - Frontend and UI/UX design skills: Day 5 dashboard only, after `UI_SPEC.md` is written.
 - The demo store must stay plain and realistic, like a real small-merchant site. Never polish it with design skills; its flaws are the point.
 - SEO audit skill: not during the build; only if time allows after Day 6.
+- Markdown docs (README, docs/*.md, video script, Devpost text): write and revise them with the humanizer skill (`humanizer:humanizer`). They should read like the user wrote them: plain and direct, with no AI writing tells (no dashes in prose, no bold labels on every bullet, no "not X but Y").
 
 ## Dev commands
 
 - Backend + store: `.venv\Scripts\python -m uvicorn backend.app.main:app --port 8000` from the repo root (avoid `--reload` when using `/api/runs` on Windows). Store at `http://localhost:8000/store/`, flaw toggles at `/store/admin`. `PAYPAL_MODE=mock` for the fake PayPal (no PayPal calls).
 - Browsers: `$env:PLAYWRIGHT_BROWSERS_PATH="0"; .venv\Scripts\python -m playwright install chromium` (installs inside `.venv`).
 - Agent: `.venv\Scripts\python -m backend.app.agent --llm mock --cassette day2_flaws_on --flaws on` (add `--checkout --paypal mock` against a mock server; `--llm groq --record <name>` for live).
+- Demo state: `.venv\Scripts\python -m backend.app.seed` (`--with-runs` against a mock server records a before/after pair).
+- Compare runs: `.venv\Scripts\python -m backend.app.agent.compare --last`. Reword fixes: `python -m backend.app.agent.explain <run>`.
+- Evaluation: `python -m backend.app.eval benchmark --matrix classic|random`, `... propose`, `... judge <run>`. Market check: `python -m backend.app.market <sku>`.
+- Setup on a fresh clone: `scripts\setup.ps1` or `scripts/setup.sh`.
 - Tests: `.venv\Scripts\python -m pytest` (browser e2e tests skip if Chromium is not installed).
 - Frontend: `cd frontend && npm run dev` (proxies `/api` and `/store` to port 8000).
