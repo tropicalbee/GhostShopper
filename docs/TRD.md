@@ -16,12 +16,13 @@ Shopper agent: Groq LLM  <->  tools  <->  Playwright (local) | Kernel browser (r
 ```
 
 - `store/`: Fernhill Ceramics, a plain server-rendered shop (Jinja2). Flaw toggles in SQLite table `store_flaws`, edited at `/store/admin` or `PUT /store/admin/flaws.json`.
-- `backend/`: API, PayPal client, (D2+) agent loop, detectors, scoring.
+- `backend/`: API, PayPal client, agent (`backend/app/agent/`: `loop` tool-calling loop, `browser` Playwright tools, `checks` + `engine` deterministic detectors, `paypal_flow` checkout, `llm` Groq/replay, `recorder` SQLite), `scoring` (pure).
+- `PAYPAL_MODE=mock` swaps in `paypal_mock.py`: fake Orders client + mock v6 SDK/popup at `/mock-paypal/*`. Reported by `/api/health`. Default is `sandbox`.
 - `frontend/`: React + Vite + TS, AG Grid Community. Dev server proxies `/api` and `/store` to :8000.
 
 ## Stack
 
-Python 3.11+ (dev on 3.13), FastAPI, httpx, Jinja2, SQLite (stdlib `sqlite3`), pytest. Node + Vite + React 19 + TypeScript. Playwright (D2).
+Python 3.11+ (dev on 3.13), FastAPI, httpx, Jinja2, SQLite (stdlib `sqlite3`), pytest (+ anyio plugin for async tests). Node + Vite + React 19 + TypeScript. Playwright for Python; browsers installed inside the venv (`PLAYWRIGHT_BROWSERS_PATH=0`).
 
 ## External APIs
 
@@ -29,7 +30,7 @@ Python 3.11+ (dev on 3.13), FastAPI, httpx, Jinja2, SQLite (stdlib `sqlite3`), p
 |---|---|---|
 | PayPal JS Web SDK **v6** | Store's PayPal button | `https://www.sandbox.paypal.com/web-sdk/v6/core`; `paypal.createInstance({clientId, components:["paypal-payments"]})`, `findEligibleMethods`, `createPayPalOneTimePaymentSession({onApprove,onCancel,onError})`, `session.start({presentationMode:"auto"}, createOrderPromise)`. |
 | PayPal Orders v2 | Server create + capture | `POST /v1/oauth2/token` (client credentials), `POST /v2/checkout/orders` (intent CAPTURE, items + breakdown), `POST /v2/checkout/orders/{id}/capture`. Fees from `captures[0].seller_receivable_breakdown`. Sandbox host hardcoded: `api-m.sandbox.paypal.com`. |
-| Groq | LLM for navigation and fix explanations | Free tier, tool calling. Model set by `GROQ_MODEL`. |
+| Groq | LLM for navigation and fix explanations | Free tier, OpenAI-compatible `POST /openai/v1/chat/completions` with `tools`, via httpx (retries 429). Model set by `GROQ_MODEL`. Without it, runs replay recorded cassettes (`--llm mock`). |
 | Kernel | Hosted browser for real runs | Local Playwright in dev. Same tool layer, different browser factory. |
 | Channel3 | Market check: similar products | D4. |
 

@@ -14,19 +14,25 @@ Deadline Nov 12, 12:00pm PT. Target submit Nov 11.
 - [ ] Manual sandbox purchase with test buyer verified (needs .env credentials; user step)
 - [ ] git init + first commits (user step)
 
-## D2 (Nov 6): shopper agent navigation + failure logging
-- [ ] runs / steps / failures tables
-- [ ] Browser tool layer on local Playwright (read_page, navigate, click, fill, select, finish)
-- [ ] Groq tool-calling loop with step limit and timeout
-- [ ] Deterministic detectors for the 4 flaws, with evidence + screenshots
-- [ ] POST /api/runs, GET /api/runs/{id} (steps, failures)
-- [ ] Record first numbers in METRICS.md
+## D2 (Nov 6, done early on Nov 5): shopper agent navigation + failure logging
+- [x] runs / steps / checks (+ failures view) / scores tables
+- [x] Browser tool layer on local Playwright (open_page, find_elements, read_text, click, fill_form, take_screenshot, finish)
+- [x] Tool-calling loop with step limit; Groq adapter + replay (mock) LLM + recorder
+- [x] Deterministic detectors for the 4 flaws, with evidence + screenshots
+- [x] Deterministic scoring module + tests (started early from D5)
+- [x] POST /api/runs, GET /api/runs, GET /api/runs/{id}
+- [x] Runs with all flaws ON and OFF recorded in METRICS.md (mock LLM)
+- [ ] Same two runs with live Groq (needs GROQ_API_KEY + GROQ_MODEL; user)
 
-## D3 (Nov 7): agent completes checkout
-- [ ] pay_with_paypal tool: PayPal popup + sandbox buyer login + approve
-- [ ] Link orders.run_id
-- [ ] Agent buys successfully on the fixed store; fails with evidence on the bad store
-- [ ] Kernel browser factory behind the same tool layer
+## D3 (Nov 7, built with mocks on Nov 5): agent completes checkout
+- [x] pay_with_paypal tool: PayPal popup + buyer login + approve (live selectors unverified)
+- [x] Buyer credentials only from SANDBOX_BUYER_EMAIL/PASSWORD; redacted, never screenshotted
+- [x] Capture confirmed via backend; order linked to run (orders.run_id, runs.order_id)
+- [x] Checkout failures as scored checks (button, popup, approval timeout, capture)
+- [x] PAYPAL_MODE=mock: fake Orders client + mock SDK/popup with failure scenarios
+- [x] Mock: fixed store buys and scores 100; bad store buys and scores 40
+- [ ] Live sandbox checkout run (user; see PROGRESS.md "How to run Day 3 live")
+- [ ] Kernel browser factory behind the same tool layer (moved to D4 if time; local Playwright is enough for dev)
 
 ## D4 (Nov 8): Channel3 + verification
 - [ ] Research note in docs/research/ (Channel3, Kernel)
@@ -34,7 +40,7 @@ Deadline Nov 12, 12:00pm PT. Target submit Nov 11.
 - [ ] Verification: order status, capture COMPLETED, amount = catalog price x qty, fees present, net = gross - fee
 
 ## D5 (Nov 9): scoring + dashboard
-- [ ] Deterministic score function + unit tests, rules_version
+- [x] Deterministic score function + unit tests, rules_version (done D2)
 - [ ] UI_SPEC.md
 - [ ] Dashboard: run button, score, failures grid (AG Grid Community), fix list, verification, run comparison
 - [ ] LLM fix explanations (text only)

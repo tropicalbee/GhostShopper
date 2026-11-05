@@ -101,6 +101,8 @@ Use installed skills only when the phase needs them:
 
 ## Dev commands
 
-- Backend + store: `.venv\Scripts\python -m uvicorn backend.app.main:app --reload --port 8000` from the repo root. Store at `http://localhost:8000/store/`, flaw toggles at `/store/admin`.
-- Tests: `.venv\Scripts\python -m pytest`.
-- Frontend: `cd frontend && npm run dev` (proxies `/api` to port 8000).
+- Backend + store: `.venv\Scripts\python -m uvicorn backend.app.main:app --port 8000` from the repo root (avoid `--reload` when using `/api/runs` on Windows). Store at `http://localhost:8000/store/`, flaw toggles at `/store/admin`. `PAYPAL_MODE=mock` for the fake PayPal (no PayPal calls).
+- Browsers: `$env:PLAYWRIGHT_BROWSERS_PATH="0"; .venv\Scripts\python -m playwright install chromium` (installs inside `.venv`).
+- Agent: `.venv\Scripts\python -m backend.app.agent --llm mock --cassette day2_flaws_on --flaws on` (add `--checkout --paypal mock` against a mock server; `--llm groq --record <name>` for live).
+- Tests: `.venv\Scripts\python -m pytest` (browser e2e tests skip if Chromium is not installed).
+- Frontend: `cd frontend && npm run dev` (proxies `/api` and `/store` to port 8000).

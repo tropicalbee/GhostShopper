@@ -25,6 +25,9 @@ frontend/dist/
 # Agent run artifacts (screenshots, traces)
 runs/
 
+# Design-hook cache (the hook's config.json is kept)
+.impeccable/hook.cache.json
+
 # Editors / OS
 .vscode/
 .idea/
