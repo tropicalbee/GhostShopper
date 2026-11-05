@@ -1,0 +1,201 @@
+{
+  "recorded_from": "hand-written (mock LLM, Day 2)",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": "Start at the store home page.",
+      "tool_calls": [
+        {
+          "id": "call_01",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\": \"/store/\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Look for the product link.",
+      "tool_calls": [
+        {
+          "id": "call_02",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\": \"links\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "e5 is the 'Speckled Stoneware Mug' link.",
+      "tool_calls": [
+        {
+          "id": "call_03",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\": \"e5\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Read the product details.",
+      "tool_calls": [
+        {
+          "id": "call_04",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "I can't find a price or stock status in the text. Look for a buy button.",
+      "tool_calls": [
+        {
+          "id": "call_05",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "No button says Buy or Add to cart. 'Continue' sounds like it moves the purchase forward.",
+      "tool_calls": [
+        {
+          "id": "call_06",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\": \"e5\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "That opened a different product. Go back to the mug.",
+      "tool_calls": [
+        {
+          "id": "call_07",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\": \"/store/products/speckled-stoneware-mug\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Inspect the controls again.",
+      "tool_calls": [
+        {
+          "id": "call_08",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Try 'Go'.",
+      "tool_calls": [
+        {
+          "id": "call_09",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\": \"e7\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "A details form appeared before payment. Inspect it.",
+      "tool_calls": [
+        {
+          "id": "call_10",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\": \"inputs\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Fill the required fields.",
+      "tool_calls": [
+        {
+          "id": "call_11",
+          "type": "function",
+          "function": {
+            "name": "fill_form",
+            "arguments": "{\"fields\": [{\"element_id\": \"e4\", \"value\": \"shopper@example.com\"}, {\"element_id\": \"e5\", \"value\": \"Other\"}, {\"element_id\": \"e6\", \"value\": \"true\"}]}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Submit with 'Next'.",
+      "tool_calls": [
+        {
+          "id": "call_12",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\": \"e7\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Check the checkout page for the total.",
+      "tool_calls": [
+        {
+          "id": "call_13",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Reached checkout, but I never found a readable price or stock status.",
+      "tool_calls": [
+        {
+          "id": "call_14",
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "arguments": "{\"outcome\": \"reached_checkout\", \"price\": \"unknown\", \"in_stock\": \"unknown\", \"summary\": \"Reached checkout after a wrong turn ('Continue' opened another product) and a required details form. The price was never readable as text, there was no structured data, and the buy controls were unlabeled clickable divs.\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

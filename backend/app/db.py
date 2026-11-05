@@ -22,7 +22,76 @@ CREATE TABLE IF NOT EXISTS orders (
     paypal_fee       TEXT,
     net_amount       TEXT,
     captured_at      TEXT,
-    capture_response TEXT
+    capture_response TEXT,
+    run_id           INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at      TEXT NOT NULL,
+    finished_at     TEXT,
+    status          TEXT NOT NULL,          -- running | completed | error
+    browser         TEXT NOT NULL,          -- local | kernel
+    store_url       TEXT NOT NULL,
+    goal            TEXT NOT NULL,
+    target_product  TEXT NOT NULL,
+    checkout        INTEGER NOT NULL,       -- 1 = run includes the PayPal payment
+    paypal_mode     TEXT NOT NULL,          -- off | mock | sandbox
+    flaws_snapshot  TEXT,                   -- JSON
+    llm             TEXT NOT NULL,          -- mock | groq
+    model           TEXT,
+    outcome         TEXT,                   -- reached_checkout | purchased | blocked | gave_up | step_limit | error
+    agent_summary   TEXT,
+    agent_report    TEXT,                   -- JSON: what the agent says it read (not scored)
+    step_count      INTEGER NOT NULL DEFAULT 0,
+    order_id        TEXT,
+    error           TEXT
+);
+
+CREATE TABLE IF NOT EXISTS steps (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id          INTEGER NOT NULL REFERENCES runs(id),
+    idx             INTEGER NOT NULL,
+    tool            TEXT NOT NULL,
+    args            TEXT,                   -- JSON
+    thought         TEXT,
+    observation     TEXT,
+    ok              INTEGER NOT NULL,
+    url             TEXT,
+    screenshot_path TEXT,
+    duration_ms     INTEGER,
+    created_at      TEXT NOT NULL
+);
+
+-- Every check outcome, pass or fail. The score is computed from this table only.
+CREATE TABLE IF NOT EXISTS checks (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id      INTEGER NOT NULL REFERENCES runs(id),
+    step_id     INTEGER REFERENCES steps(id),
+    check_key   TEXT NOT NULL,
+    stage       TEXT NOT NULL,
+    passed      INTEGER,                    -- 1 pass, 0 fail, NULL not tested
+    severity    TEXT NOT NULL,
+    reason      TEXT NOT NULL,
+    evidence    TEXT,                       -- JSON: url, selector, screenshot, snippet
+    fix         TEXT,                       -- LLM explanation (Day 5), never scored
+    created_at  TEXT NOT NULL,
+    UNIQUE (run_id, check_key)
+);
+
+CREATE VIEW IF NOT EXISTS failures AS
+    SELECT * FROM checks WHERE passed IS NOT 1;
+
+CREATE TABLE IF NOT EXISTS scores (
+    run_id        INTEGER PRIMARY KEY REFERENCES runs(id),
+    total         INTEGER NOT NULL,
+    discover      INTEGER NOT NULL,
+    details       INTEGER NOT NULL,
+    checkout      INTEGER NOT NULL,
+    payment       INTEGER NOT NULL,
+    breakdown     TEXT NOT NULL,            -- JSON fix list
+    rules_version TEXT NOT NULL,
+    created_at    TEXT NOT NULL
 );
 """
 
@@ -45,7 +114,20 @@ def connect(db_path: Path) -> Iterator[sqlite3.Connection]:
 
 def init_db(db_path: Path) -> None:
     with connect(db_path) as conn:
+        # Day 1 databases have an orders table without run_id; CREATE IF NOT EXISTS won't add it.
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(orders)")}
+        if cols and "run_id" not in cols:
+            conn.execute("ALTER TABLE orders ADD COLUMN run_id INTEGER")
         conn.executescript(SCHEMA)
+
+
+def link_order_to_run(db_path: Path, order_id: str, run_id: int) -> bool:
+    """Returns False if the order is not in this database (the run then keeps no order link)."""
+    with connect(db_path) as conn:
+        if conn.execute("UPDATE orders SET run_id = ? WHERE order_id = ?", (run_id, order_id)).rowcount == 0:
+            return False
+        conn.execute("UPDATE runs SET order_id = ? WHERE id = ?", (order_id, run_id))
+        return True
 
 
 def insert_order(
