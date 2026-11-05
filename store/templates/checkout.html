@@ -5,12 +5,12 @@
 <h1>Checkout</h1>
 <table class="summary">
   <tr><th>Item</th><th>Qty</th><th>Price</th></tr>
-  <tr><td>{{ product.name }}</td><td>1</td><td>{{ price(product) }}</td></tr>
+  <tr><td>{{ product.name }}</td><td>1</td><td>{{ price(product, unit_price) }}</td></tr>
   <tr><td colspan="2">Shipping</td><td>Free</td></tr>
-  <tr class="total"><td colspan="2">Total</td><td>{{ price(product) }}</td></tr>
+  <tr class="total"><td colspan="2">Total</td><td>{{ price(product, unit_price) }}</td></tr>
 </table>
 
-{% if not product.in_stock %}
+{% if not buyable %}
   <p class="soldout">Sorry, this item is sold out.</p>
 {% elif not paypal_client_id %}
   <p class="errors" id="paypal-unavailable">Payment is unavailable: PayPal is not configured on this store (PAYPAL_CLIENT_ID is missing).</p>
@@ -26,7 +26,7 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
-{% if product.in_stock and paypal_client_id %}
+{% if buyable and paypal_client_id %}
 <script src="{{ base }}/static/checkout.js"></script>
 <script async src="{{ paypal_sdk_url }}" onload="onPayPalLoaded()" onerror="onPayPalFailed()"></script>
 {% endif %}

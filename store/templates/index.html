@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% from "_macros.html" import price with context %}
+{% from "_macros.html" import price, photo_alt with context %}
 {% block content %}
 <h1>Shop all</h1>
 <p class="intro">Everything is made by hand in our two-person studio. Pieces ship within 3 business days.</p>
 <div class="grid">
 {% for p in products %}
   <div class="card">
-    <a href="{{ base }}/products/{{ p.slug }}"><img class="thumb" src="{{ base }}/static/img/{{ p.image }}" alt="{{ p.name }}"></a>
+    <a href="{{ base }}/products/{{ p.slug }}"><img class="thumb" src="{{ base }}/static/img/{{ p.image }}" alt="{{ photo_alt(p) }}"></a>
     <a class="card-title" href="{{ base }}/products/{{ p.slug }}">{{ p.name }}</a>
     <div class="card-price">{{ price(p) }}{% if not p.in_stock %} <span class="soldout">Sold out</span>{% endif %}</div>
   </div>

@@ -1,5 +1,6 @@
 """The mystery-shopper agent: a real tool-calling loop. The LLM chooses every action."""
 
+import asyncio
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -9,8 +10,9 @@ from playwright.async_api import Error as PlaywrightError
 
 from ..config import REPO_ROOT
 from ..scoring import compute_score
-from .browser import BrowserSession, PageTools, ToolError
+from .browser import BrowserSession, PageTools, ToolError, resolve_provider
 from .engine import CheckEngine
+from .guards import ABORT, LOOP_WARNING, WARN, LoopDetector
 from .llm import LLM
 from .recorder import RunRecorder
 
@@ -75,6 +77,7 @@ def goal_text(target: str, store_url: str, checkout: bool) -> str:
 
 class PaymentHandler(Protocol):
     secrets: tuple[str, ...]
+    max_duration_s: float  # per-step timeout for pay_with_paypal (includes any human-approval wait)
 
     async def pay(self, tools: PageTools, recorder: RunRecorder, engine: CheckEngine) -> str: ...
 
@@ -88,8 +91,13 @@ class RunConfig:
     paypal_mode: str = "off"  # off | mock | sandbox
     flaws: dict[str, bool] | None = None
     max_steps: int = 25
+    step_timeout_s: float = 30.0
+    llm_timeout_s: float = 120.0
+    max_timeouts_in_a_row: int = 3
     headless: bool = True
+    browser: str | None = None  # local | kernel; None = BROWSER_PROVIDER env (default local)
     runs_dir: Path = field(default_factory=lambda: REPO_ROOT / "runs")
+    session_factory: Callable[[], BrowserSession] | None = None  # tests: inject a session (e.g. fake Kernel)
 
 
 async def run_shopper(
@@ -100,6 +108,9 @@ async def run_shopper(
 ) -> int:
     if cfg.checkout and payment is None:
         raise ValueError("A checkout run needs a payment handler")
+    session_cm = cfg.session_factory() if cfg.session_factory else BrowserSession(
+        headless=cfg.headless, provider=resolve_provider(cfg.browser))
+    provider = session_cm.provider
     rec = RunRecorder.start(
         cfg.db_path,
         store_url=cfg.store_url,
@@ -110,16 +121,20 @@ async def run_shopper(
         flaws=cfg.flaws,
         llm=llm.kind,
         model=llm.model,
+        browser=provider,
         secrets=payment.secrets if payment else (),
     )
     if on_start:
         on_start(rec.run_id)
     shots_dir = cfg.runs_dir / f"run-{rec.run_id}"
-    status, outcome, summary, report, error = "completed", "step_limit", None, None, None
+    status, summary, report, error = "completed", None, None, None
+    end_reason = "step_limit"  # unless the agent finishes or a guard stops it first
     idx = 0
+    timeouts_in_a_row = 0
+    loops = LoopDetector()
     engine: CheckEngine | None = None
     try:
-        async with BrowserSession(headless=cfg.headless) as session:
+        async with session_cm as session:
             tools = PageTools(session, cfg.store_url, shots_dir)
             engine = CheckEngine(rec, cfg.target_product, tools)
             specs = BROWSE_TOOLS + ([PAY_TOOL] if cfg.checkout else [])
@@ -130,24 +145,39 @@ async def run_shopper(
             nudges = 0
             done = False
             while not done and idx < cfg.max_steps:
-                reply = await llm.complete(messages, specs)
+                try:
+                    reply = await asyncio.wait_for(llm.complete(messages, specs), timeout=cfg.llm_timeout_s)
+                except asyncio.TimeoutError as exc:
+                    raise RuntimeError(f"LLM call timed out after {cfg.llm_timeout_s:.0f}s") from exc
                 messages.append(reply.message)
                 if not reply.tool_calls:
                     nudges += 1
                     if nudges > 2:
-                        outcome, summary = "gave_up", reply.content
+                        end_reason, summary = "agent_gave_up", reply.content
                         break
                     messages.append({"role": "user", "content": "Use one of the tools, or call finish."})
                     continue
                 for call in reply.tool_calls:
                     started = time.monotonic()
                     ok = True
+                    url_before = tools.page.url
+                    limit = (payment.max_duration_s if payment and call.name == "pay_with_paypal"
+                             else cfg.step_timeout_s)
                     try:
-                        obs = await _dispatch(call.name, call.arguments, tools, rec, engine, payment)
+                        obs = await asyncio.wait_for(
+                            _dispatch(call.name, call.arguments, tools, rec, engine, payment), timeout=limit)
+                        timeouts_in_a_row = 0
+                    except asyncio.TimeoutError:
+                        ok = False
+                        timeouts_in_a_row += 1
+                        obs = f"Error: step timed out after {limit:.0f}s."
                     except (ToolError, PlaywrightError, KeyError, TypeError) as exc:
                         ok = False
                         msg = f"missing argument {exc}" if isinstance(exc, KeyError) else str(exc).splitlines()[0]
                         obs = f"Error: {msg[:300]}"
+                    verdict = loops.check(call.name, call.arguments, url_before)
+                    if verdict == WARN:
+                        obs = f"{obs}\n{LOOP_WARNING}"
                     shot = None
                     try:
                         shot = await tools.screenshot(f"step-{idx:02d}")
@@ -170,21 +200,28 @@ async def run_shopper(
                                      "content": rec.redact(obs)[:OBSERVATION_LIMIT]})
                     if call.name == "finish":
                         a = call.arguments
-                        outcome = a.get("outcome") or "gave_up"
                         summary = a.get("summary")
-                        report = {"price": a.get("price"), "in_stock": a.get("in_stock")}
-                        done = True
+                        report = {"claimed_outcome": a.get("outcome"), "price": a.get("price"),
+                                  "in_stock": a.get("in_stock")}
+                        end_reason, done = "finished", True
+                        break
+                    if verdict == ABORT:
+                        end_reason, done = "agent_loop", True
+                        break
+                    if timeouts_in_a_row >= cfg.max_timeouts_in_a_row:
+                        end_reason, done = "step_timeouts", True
                         break
                     if idx >= cfg.max_steps:
                         break
     except Exception as exc:
-        status, outcome, error = "error", "error", f"{type(exc).__name__}: {str(exc)[:500]}"
+        status, end_reason, error = "error", "error", f"{type(exc).__name__}: {str(exc)[:500]}"
     finally:
         if engine is None:
             engine = CheckEngine(rec, cfg.target_product, _NoShots())
-        engine.finalize(checkout=cfg.checkout)
+        outcome = engine.finalize(checkout=cfg.checkout, end_reason=end_reason, error=error)
         rec.save_score(compute_score(rec.results()))
-        rec.finish(status=status, outcome=outcome, step_count=idx, summary=summary, report=report, error=error)
+        rec.finish(status=status, outcome=outcome, end_reason=end_reason, step_count=idx, summary=summary,
+                   report=report, error=error)
     return rec.run_id
 
 

@@ -6,6 +6,9 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from .agent.compare import CompareError, compare_runs, last_two_finished
+from .agent.explain import explain_run
+from .agent.llm import LLMConfigError, make_llm
 from .agent.recorder import list_runs, load_run
 from .agent.service import RunConfigError, RunRequest, ServerInfo, execute, prepare
 
@@ -16,9 +19,10 @@ class StartRun(BaseModel):
     llm: Literal["mock", "groq"] = "groq"
     cassette: str | None = None
     record: str | None = None
-    flaws: Literal["on", "off", "keep"] = "keep"
+    flaws: str = "keep"  # on | off | all | keep | comma-separated flaw keys
     checkout: bool = False
     paypal: Literal["mock", "sandbox"] = "sandbox"
+    browser: Literal["local", "kernel"] | None = None
     max_steps: int = Field(default=25, ge=1, le=60)
 
 
@@ -59,6 +63,36 @@ async def start_run(body: StartRun, request: Request):
 @router.get("")
 def get_runs(request: Request):
     return list_runs(request.app.state.settings.database_path)
+
+
+@router.get("/compare")
+def compare(request: Request, before: int | None = None, after: int | None = None):
+    """Before/after: score change, failures fixed, failures remaining. Without ids: the last two finished runs."""
+    db_path = request.app.state.settings.database_path
+    try:
+        if before is None or after is None:
+            before, after = last_two_finished(db_path)
+        return compare_runs(db_path, before, after)
+    except CompareError as exc:
+        raise HTTPException(status_code=404, detail={"error": "COMPARE", "message": str(exc)}) from exc
+
+
+class ExplainBody(BaseModel):
+    llm: Literal["mock", "groq"] = "groq"
+    cassette: str | None = None
+
+
+@router.post("/{run_id}/explain")
+async def explain(run_id: int, body: ExplainBody, request: Request):
+    """LLM rephrasing of the run's deterministic fixes. Never changes the score."""
+    try:
+        llm = make_llm(body.llm, body.cassette)
+    except LLMConfigError as exc:
+        raise HTTPException(status_code=400, detail={"error": "RUN_CONFIG", "message": str(exc)}) from exc
+    try:
+        return await explain_run(request.app.state.settings.database_path, run_id, llm)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail={"error": "UNKNOWN_RUN", "message": str(exc)}) from exc
 
 
 @router.get("/{run_id}")

@@ -1,7 +1,14 @@
-{%- macro price(p) -%}
+{%- macro price(p, amount=None) -%}
+{%- set amount = amount or p.price_str -%}
 {%- if flaws.price_as_image -%}
-<img class="price-img" src="{{ base }}/media/p/{{ price_token(p.sku, p.price_str) }}.svg">
+<img class="price-img" src="{{ base }}/media/p/{{ price_token(p.sku, amount) }}.svg">
+{%- elif flaws.currency_missing -%}
+<span class="price">{{ amount }}</span>
 {%- else -%}
-<span class="price">${{ p.price_str }}</span>
+<span class="price">${{ amount }}</span>
 {%- endif -%}
+{%- endmacro -%}
+
+{%- macro photo_alt(p) -%}
+{{ "IMG_0412.JPG" if flaws.image_alt_missing else p.name }}
 {%- endmacro -%}

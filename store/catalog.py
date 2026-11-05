@@ -7,6 +7,18 @@ from functools import lru_cache
 from pathlib import Path
 
 PRODUCTS_FILE = Path(__file__).with_name("products.json")
+PRICE_MISMATCH_SURCHARGE = Decimal("3.00")  # flaw price_mismatch: added per item at checkout
+SALE_WAS_FACTOR = Decimal("1.25")  # flaw misleading_sale: fake "was" price (a 20% discount, claimed as 50%)
+
+
+def charged_unit_price(product: "Product", flaws: dict[str, bool]) -> Decimal:
+    """What checkout shows and the backend charges per item. Equal to the advertised price unless the
+    price_mismatch flaw is on."""
+    return product.price + (PRICE_MISMATCH_SURCHARGE if flaws.get("price_mismatch") else 0)
+
+
+def sale_was_price(product: "Product") -> str:
+    return f"{(product.price * SALE_WAS_FACTOR).quantize(Decimal('0.01')):.2f}"
 
 
 @dataclass(frozen=True)

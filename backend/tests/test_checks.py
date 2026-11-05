@@ -34,12 +34,9 @@ def by_key(outcomes):
 
 def test_fixed_product_page_passes_everything():
     out = by_key(evaluate_product_page(facts()))
-    assert {k: o.passed for k, o in out.items()} == {
-        "price_in_text": True,
-        "structured_data": True,
-        "stock_readable": True,
-        "clear_buy_button": True,
-    }
+    assert all(o.passed for o in out.values()), {k: o.reason for k, o in out.items() if not o.passed}
+    assert set(out) == {"price_in_text", "structured_data", "stock_readable", "clear_buy_button", "currency_stated",
+                        "stock_consistent", "image_alt_text", "sale_claim_consistent", "buy_button_unobstructed"}
 
 
 def test_price_only_in_image_fails_with_image_evidence():
@@ -107,3 +104,75 @@ def test_path_to_checkout():
     assert o.passed is False
     assert o.evidence["url"] == "http://shop/checkout/details"
     assert "fields: Email, Agree" in o.reason
+
+
+# --- Saboteur detectors ---
+
+def price(text, value, currency=True):
+    return {"text": text, "value": value, "currency": currency, "selector": "span.price"}
+
+
+def test_currency_missing_in_text_or_jsonld():
+    ld = {**GOOD_JSONLD, "offers": {k: v for k, v in GOOD_JSONLD["offers"].items() if k != "priceCurrency"}}
+    o = by_key(evaluate_product_page(facts(prices=[price("24.00", "24.00", False)], jsonld=[ld])))["currency_stated"]
+    assert (o.passed, o.code) == (False, "currency_missing")
+    assert "24.00" in o.reason and "priceCurrency" in o.reason
+    assert by_key(evaluate_product_page(facts(prices=[price("$24.00", "24.00")])))["currency_stated"].passed
+
+
+def test_currency_untested_when_no_price_is_readable():
+    assert "currency_stated" not in by_key(evaluate_product_page(facts(prices=[], jsonld=[])))
+
+
+def test_sold_out_but_buyable_is_inconsistent():
+    f = facts(main_text="Mug $24.00 Sold out", controls=[
+        {"id": "e5", "tag": "button", "text": "Buy now", "semantic": True, "selector": "button.buy", "in_main": True}])
+    o = by_key(evaluate_product_page(f))["stock_consistent"]
+    assert (o.passed, o.code) == (False, "oos_still_buyable")
+    honest = facts(main_text="Mug $24.00 Sold out", controls=[])
+    assert by_key(evaluate_product_page(honest))["stock_consistent"].passed
+
+
+def test_photo_alt_text_must_describe_the_product():
+    bad = facts(images=[{"selector": "img.product-img", "alt": "IMG_0412.JPG", "src": "/mug.svg"}])
+    o = by_key(evaluate_product_page(bad))["image_alt_text"]
+    assert (o.passed, o.code) == (False, "image_alt_missing")
+    for alt in ("", "photo", "DSC_0001"):
+        assert not by_key(evaluate_product_page(facts(images=[{"selector": "i", "alt": alt}])))["image_alt_text"].passed
+    good = facts(images=[{"selector": "img", "alt": "Speckled Stoneware Mug"}])
+    assert by_key(evaluate_product_page(good))["image_alt_text"].passed
+
+
+def test_sale_claim_must_match_the_real_discount():
+    lie = facts(prices=[price("$24.00", "24.00")], struck_prices=[price("$30.00", "30.00")], sale_percent=50)
+    o = by_key(evaluate_product_page(lie))["sale_claim_consistent"]
+    assert (o.passed, o.code) == (False, "sale_claim_misleading")
+    assert o.evidence["actual_percent_off"] == 20.0
+    honest = facts(prices=[price("$24.00", "24.00")], struck_prices=[price("$30.00", "30.00")], sale_percent=20)
+    assert by_key(evaluate_product_page(honest))["sale_claim_consistent"].passed
+    assert by_key(evaluate_product_page(facts()))["sale_claim_consistent"].passed  # no claim at all
+
+
+def test_sale_claim_uses_jsonld_price_when_text_price_is_unreadable():
+    f = facts(prices=[], struck_prices=[price("$30.00", "30.00")], sale_percent=50)
+    assert by_key(evaluate_product_page(f))["sale_claim_consistent"].passed is False
+
+
+def test_covered_buy_button_is_detected():
+    f = facts(controls=[{"id": "e5", "tag": "button", "text": "Buy now", "semantic": True, "selector": "button.buy",
+                         "in_main": True, "covered": True, "covered_by": "div#cookie-banner"}])
+    o = by_key(evaluate_product_page(f))["buy_button_unobstructed"]
+    assert (o.passed, o.code) == (False, "buy_button_covered")
+    assert o.evidence["covered_by"] == "div#cookie-banner"
+
+
+def test_checkout_price_must_match_the_product_page():
+    from decimal import Decimal
+
+    from backend.app.agent.checks import evaluate_checkout_prices
+
+    co = {"url": "http://shop/checkout", "prices": [price("$27.00", "27.00")]}
+    o = evaluate_checkout_prices(co, Decimal("24.00"))[0]
+    assert (o.passed, o.code) == (False, "price_changed_at_checkout")
+    assert evaluate_checkout_prices(co, Decimal("27.00"))[0].passed
+    assert evaluate_checkout_prices(co, None) == []  # product price was not text: untested

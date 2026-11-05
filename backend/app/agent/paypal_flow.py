@@ -1,14 +1,23 @@
 """pay_with_paypal: click the PayPal button, handle the popup, log in as the sandbox buyer, approve,
-then confirm the capture through our backend. Each stage is a scored check.
+then confirm and verify the capture through our backend. Each stage is a scored check.
 
 Credentials: read only from SANDBOX_BUYER_EMAIL / SANDBOX_BUYER_PASSWORD (sandbox mode). They are typed
 into the PayPal popup and nowhere else: never returned to the LLM, logged, stored, or screenshotted
 (the popup is only captured before anything is typed).
+
+Human approval: if PayPal shows a CAPTCHA, an extra verification step, or a page we don't recognize,
+the agent never tries to get past it. The run is marked "awaiting human approval"; a person completes
+the PayPal window (headed browser, or Kernel live view); when the window closes the run resumes and the
+capture is confirmed as usual.
 """
 
+import asyncio
+import inspect
+import re
 import time
 from dataclasses import dataclass
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Awaitable, Callable
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -18,6 +27,7 @@ from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 from .. import db
 from ..config import BuyerCredentials, sandbox_buyer
+from ..failures import BUYER_SIDE_CAPTURE_ISSUES
 from . import checks
 from .browser import PageTools, ToolError
 from .engine import CheckEngine
@@ -34,10 +44,15 @@ class Timeouts:
     popup_s: float
     approval_s: float
     capture_s: float
+    human_s: float  # how long a human gets to complete a PayPal check
+
+    @property
+    def total_s(self) -> float:
+        return self.button_s + self.popup_s * 2 + self.approval_s + self.human_s + self.capture_s + 30
 
 
-MOCK_TIMEOUTS = Timeouts(button_s=10, popup_s=5, approval_s=8, capture_s=8)
-LIVE_TIMEOUTS = Timeouts(button_s=20, popup_s=15, approval_s=120, capture_s=45)
+MOCK_TIMEOUTS = Timeouts(button_s=10, popup_s=5, approval_s=8, capture_s=8, human_s=20)
+LIVE_TIMEOUTS = Timeouts(button_s=20, popup_s=15, approval_s=120, capture_s=45, human_s=600)
 
 # Fake login for the mock popup only (it accepts any non-empty value). Not a real account.
 MOCK_BUYER = BuyerCredentials("mock-buyer@example.test", "mock-password")
@@ -51,25 +66,18 @@ SELECTORS = {
     "approve": ["#payment-submit-btn", "button[data-id=payment-submit-btn]",
                 "button:has-text('Complete Purchase')", "button:has-text('Pay Now')"],
 }
+BLOCKER_SELECTORS = ["iframe[src*=captcha i]", "iframe[title*=captcha i]", "[id*=captcha i]", "[class*=captcha i]",
+                     "iframe[src*=recaptcha]", "iframe[src*=hcaptcha]"]
+BLOCKER_TEXT = re.compile(
+    r"captcha|verify (it'?s|it is) you|security (check|challenge)|one-?time (code|passcode)|enter the code|"
+    r"we sent (you )?a code|confirm (it'?s|it is) you|are you a robot|i'?m not a robot", re.I)
+ISSUE_RE = re.compile(r"\(([A-Z_]{4,})\)")
+
+HumanHook = Callable[[dict[str, Any], Page], Awaitable[None] | None]
 
 
 class _Stuck(Exception):
     pass
-
-
-async def _first_visible(page: Page, groups: list[str], deadline: float) -> tuple[str, Locator]:
-    """Poll until any selector of the named groups is visible. Returns (group, locator)."""
-    while time.monotonic() < deadline:
-        for group in groups:
-            for sel in SELECTORS[group]:
-                loc = page.locator(sel).first
-                try:
-                    if await loc.is_visible():
-                        return group, loc
-                except PlaywrightError:
-                    pass  # page navigating
-        await page.wait_for_timeout(200)
-    raise _Stuck(f"waiting for {' or '.join(groups)}")
 
 
 def _origin(url: str) -> str:
@@ -77,16 +85,50 @@ def _origin(url: str) -> str:
     return f"{u.scheme}://{u.netloc}"
 
 
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+async def popup_state(popup: Page) -> str:
+    """blocker | approve | password | email | unknown_form | loading. Blockers win over everything:
+    if PayPal asks for a human check we never try to continue around it."""
+    try:
+        for sel in BLOCKER_SELECTORS:
+            if await popup.locator(sel).first.is_visible():
+                return "blocker"
+        text = await popup.evaluate("() => document.body ? document.body.innerText : ''")
+        if BLOCKER_TEXT.search(text or ""):
+            return "blocker"
+        for group in ("approve", "password", "email"):
+            for sel in SELECTORS[group]:
+                if await popup.locator(sel).first.is_visible():
+                    return group
+        visible_inputs = await popup.evaluate(
+            "() => [...document.querySelectorAll('input, select, textarea')].filter(e => {"
+            " const t = (e.type || '').toLowerCase(); if (['hidden','submit','button'].includes(t)) return false;"
+            " const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).length")
+        return "unknown_form" if visible_inputs else "loading"
+    except PlaywrightError:
+        return "loading"
+
+
 class PayPalCheckout:
-    def __init__(self, buyer: BuyerCredentials, api_base: str, timeouts: Timeouts, mode: str):
+    def __init__(self, buyer: BuyerCredentials, api_base: str, timeouts: Timeouts, mode: str,
+                 on_awaiting_human: HumanHook | None = None):
         self._buyer = buyer
         self.api_base = api_base.rstrip("/")
         self.timeouts = timeouts
         self.mode = mode
+        self.on_awaiting_human = on_awaiting_human
+        self._hook_tasks: set[asyncio.Task] = set()
 
     @property
     def secrets(self) -> tuple[str, ...]:
         return (self._buyer.email, self._buyer.password)
+
+    @property
+    def max_duration_s(self) -> float:
+        return self.timeouts.total_s
 
     async def _status_text(self, page: Page) -> str:
         try:
@@ -97,13 +139,14 @@ class PayPalCheckout:
         except PlaywrightError:
             return ""
 
-    async def _fail(self, rec: RunRecorder, tools: PageTools, key: str, reason: str, evidence: dict[str, Any]) -> str:
+    async def _fail(self, rec: RunRecorder, tools: PageTools, key: str, code: str, reason: str,
+                    evidence: dict[str, Any]) -> str:
         # Evidence is the store page only. Never the popup, which may hold typed credentials.
         try:
             evidence["screenshot"] = await tools.screenshot(f"check-{key}", full_page=True)
         except PlaywrightError:
             pass
-        rec.record_check(key, False, reason, evidence)
+        rec.record_check(key, False, reason, evidence, code=code)
         return f"Payment failed: {reason}"
 
     async def pay(self, tools: PageTools, rec: RunRecorder, engine: CheckEngine) -> str:
@@ -120,7 +163,7 @@ class PayPalCheckout:
             await button.wait_for(state="visible", timeout=t.button_s * 1000)
         except PlaywrightTimeout:
             status = await self._status_text(page)
-            return await self._fail(rec, tools, "paypal_button_found",
+            return await self._fail(rec, tools, "paypal_button_found", "paypal_button_missing",
                                     f"No visible PayPal button after {t.button_s:.0f}s." + (f" Page says: {status}" if status else ""),
                                     {"url": page.url, "selector": "paypal-button", "status_text": status})
         rec.record_check("paypal_button_found", True, "PayPal button visible on checkout.",
@@ -134,8 +177,11 @@ class PayPalCheckout:
         except PlaywrightTimeout:
             await page.wait_for_timeout(300)
             status = await self._status_text(page)
+            blocked = "blocked" in status.lower()
             return await self._fail(rec, tools, "popup_opened",
-                                    f"PayPal window did not open within {t.popup_s:.0f}s (popup blocked?)."
+                                    "popup_blocked_by_browser" if blocked else "popup_not_opened",
+                                    f"PayPal window did not open within {t.popup_s:.0f}s"
+                                    + (" (the browser blocked it)." if blocked else ".")
                                     + (f" Page says: {status}" if status else ""),
                                     {"url": page.url, "selector": "paypal-button", "status_text": status})
         evidence: dict[str, Any] = {"url": page.url}
@@ -151,56 +197,49 @@ class PayPalCheckout:
             pass
         rec.record_check("popup_opened", True, "PayPal window opened from the button click.", evidence)
 
-        # 3. Log in and approve, within one overall deadline.
-        deadline = time.monotonic() + t.approval_s
-        stage = "login"
+        # 3. Log in and approve; hand over to a human if PayPal asks for a check we must not automate.
         try:
-            group, loc = await _first_visible(popup, ["email", "password", "approve"], deadline)
-            if group == "email":
-                stage = "email"
-                await loc.fill(self._buyer.email)
-                nxt = await self._optional(popup, "next")
-                if nxt:
-                    await nxt.click()
-                group, loc = await _first_visible(popup, ["password", "approve"], deadline)
-            if group == "password":
-                stage = "password"
-                await loc.fill(self._buyer.password)
-                login = await self._optional(popup, "login")
-                if login:
-                    await login.click()
-                else:
-                    await loc.press("Enter")
-                group, loc = await _first_visible(popup, ["approve"], deadline)
-            stage = "approve"
-            await loc.click()
-            stage = "PayPal window closing"
-            remaining = max(deadline - time.monotonic(), 1)
-            if not popup.is_closed():
-                await popup.wait_for_event("close", timeout=remaining * 1000)
-        except (_Stuck, PlaywrightTimeout) as exc:
-            detail = str(exc) if isinstance(exc, _Stuck) else stage
-            try:
-                await popup.close()
-            except PlaywrightError:
-                pass
-            return await self._fail(rec, tools, "payment_approved",
-                                    f"Approval did not complete within {t.approval_s:.0f}s (stuck {detail}).",
-                                    {"url": page.url, "stage": stage})
-        rec.record_check("payment_approved", True, "Buyer logged in and approved the payment.", {"url": page.url})
+            approved_by = await self._login_and_approve(popup, rec, tools)
+        except _Stuck as exc:
+            await self._close(popup)
+            return await self._fail(rec, tools, "payment_approved", "approval_timeout",
+                                    f"Approval did not complete within {t.approval_s:.0f}s (stuck {exc}).",
+                                    {"url": page.url})
+        if approved_by == "human_timeout":
+            return await self._fail(rec, tools, "payment_approved", "human_approval_timeout",
+                                    f"PayPal asked for a human check and nobody completed it within {t.human_s:.0f}s.",
+                                    {"url": page.url})
 
-        # 4. The store captures on approval and shows a confirmation; confirm it through our backend.
+        # 4. The store captures on approval and shows a confirmation, or an error / cancellation.
         result, detail = await self._wait_for_result(page, t.capture_s)
+        if result == "cancelled":
+            return await self._fail(rec, tools, "payment_approved", "approval_cancelled",
+                                    f"The payment was cancelled in the PayPal window. Page says: {detail}",
+                                    {"url": page.url, "status_text": detail, "approved_by": approved_by})
+        rec.record_check("payment_approved", True,
+                         "Buyer logged in and approved the payment." if approved_by == "agent"
+                         else "A human completed PayPal's check and approved the payment.",
+                         {"url": page.url, "approved_by": approved_by})
         if result != "thanks":
-            return await self._fail(rec, tools, "capture_completed",
-                                    f"No confirmation page after approval ({result}). " + (f"Page says: {detail}" if detail else ""),
-                                    {"url": page.url, "status_text": detail})
+            issue_match = ISSUE_RE.search(detail or "")
+            issue = issue_match.group(1) if issue_match else None
+            if result == "error":
+                code = "capture_declined" if issue in BUYER_SIDE_CAPTURE_ISSUES else "capture_error"
+            else:
+                code = "capture_unconfirmed"
+            reason = {"capture_declined": f"The buyer's funding source declined the payment ({issue}).",
+                      "capture_error": f"Capture failed after approval{f' ({issue})' if issue else ''}.",
+                      "capture_unconfirmed": "No confirmation page after approval."}[code]
+            return await self._fail(rec, tools, "capture_completed", code,
+                                    reason + (f" Page says: {detail}" if detail else ""),
+                                    {"url": page.url, "status_text": detail, "issue": issue})
+
         order_id = (parse_qs(urlparse(page.url).query).get("order") or [""])[0]
-        order = await self._backend_order(order_id)
+        order = await self._backend_get(f"/api/paypal/orders/{order_id}") if order_id else None
         ok = (order is not None and order.get("status") == "COMPLETED"
               and order.get("capture_status") == "COMPLETED" and order.get("capture_id"))
         if not ok:
-            return await self._fail(rec, tools, "capture_completed",
+            return await self._fail(rec, tools, "capture_completed", "capture_unconfirmed",
                                     f"Backend does not confirm a completed capture for order {order_id or '(none)'}.",
                                     {"url": page.url, "order_id": order_id, "backend_order": order})
         linked = db.link_order_to_run(rec.db_path, order_id, rec.run_id)
@@ -210,19 +249,113 @@ class PayPalCheckout:
             summary["note"] = "order not found in this run's database; not linked"
         rec.record_check("capture_completed", True, f"Order {order_id} captured ({order.get('capture_id')}).",
                          {"url": page.url, **summary})
-        return (f"Payment complete. Order {order_id}, capture {order.get('capture_id')}, status "
-                f"{order.get('status')}, amount {order.get('amount')} {order.get('currency')}, "
-                f"PayPal fee {order.get('paypal_fee')}, net {order.get('net_amount')}.")
 
-    async def _optional(self, page: Page, group: str) -> Locator | None:
+        # 5. Verification: order <-> capture <-> advertised amount <-> fees.
+        verification = await self._backend_get(f"/api/paypal/orders/{order_id}/verify")
+        if verification is None:
+            rec.record_check("payment_verified", False, "The backend could not verify the order.",
+                             {"order_id": order_id}, code="verification_unavailable")
+        elif verification["ok"]:
+            rec.record_check("payment_verified", True, "Order, capture, advertised amount and fees all match.",
+                             {"order_id": order_id, "checked": verification["checked"]})
+        else:
+            first = verification["mismatches"][0]
+            rec.record_check("payment_verified", False,
+                             "; ".join(m["detail"] for m in verification["mismatches"]),
+                             {"order_id": order_id, "mismatches": verification["mismatches"],
+                              "checked": verification["checked"]}, code=verification["code"] or first["code"])
+        approved_note = " A human completed PayPal's extra check." if approved_by == "human" else ""
+        verdict = "verified" if verification and verification["ok"] else "NOT verified"
+        return (f"Payment complete.{approved_note} Order {order_id}, capture {order.get('capture_id')}, status "
+                f"{order.get('status')}, amount {order.get('amount')} {order.get('currency')}, "
+                f"PayPal fee {order.get('paypal_fee')}, net {order.get('net_amount')}. Payment {verdict}.")
+
+    async def _login_and_approve(self, popup: Page, rec: RunRecorder, tools: PageTools) -> str:
+        """Returns 'agent' | 'human' | 'human_timeout'. Raises _Stuck on approval timeout."""
+        deadline = time.monotonic() + self.timeouts.approval_s
+        typed: set[str] = set()
+        state = "loading"
+        while True:
+            if popup.is_closed():
+                return "agent"
+            state = await popup_state(popup)
+            if state in ("blocker", "unknown_form"):
+                reason = ("PayPal is asking for a CAPTCHA or extra verification." if state == "blocker"
+                          else "PayPal showed a page the agent does not recognize.")
+                return await self._await_human(popup, rec, tools, state, reason)
+            if state == "approve":
+                await self._click_first(popup, "approve")
+                remaining = max(deadline - time.monotonic(), 1)
+                try:
+                    if not popup.is_closed():
+                        await popup.wait_for_event("close", timeout=remaining * 1000)
+                except PlaywrightTimeout as exc:
+                    raise _Stuck("waiting for the PayPal window to close") from exc
+                return "agent"
+            if state == "email" and "email" not in typed:
+                await self._fill_first(popup, "email", self._buyer.email)
+                typed.add("email")
+                if not await self._click_first(popup, "next"):
+                    await popup.keyboard.press("Enter")
+            elif state == "password" and "password" not in typed:
+                await self._fill_first(popup, "password", self._buyer.password)
+                typed.add("password")
+                if not await self._click_first(popup, "login"):
+                    await popup.keyboard.press("Enter")
+            if time.monotonic() > deadline:
+                raise _Stuck(f"at '{state}'")
+            await popup.wait_for_timeout(200)
+
+    async def _await_human(self, popup: Page, rec: RunRecorder, tools: PageTools, stage: str, reason: str) -> str:
+        session = tools.s
+        info = {
+            "stage": stage, "reason": reason, "since": _now(), "timeout_s": self.timeouts.human_s,
+            "popup_url": popup.url.split("?")[0], "live_view_url": getattr(session, "live_view_url", None),
+            "headless": getattr(session, "headless", True),
+            "instructions": "Complete the PayPal window (log in, pass the check, approve). The run resumes when it closes.",
+        }
+        rec.set_awaiting(info)
+        try:
+            if self.on_awaiting_human:
+                result = self.on_awaiting_human(info, popup)
+                if inspect.isawaitable(result):
+                    task = asyncio.ensure_future(result)  # the human acts while we wait for the window to close
+                    self._hook_tasks.add(task)
+                    task.add_done_callback(self._hook_tasks.discard)
+            try:
+                if not popup.is_closed():
+                    await popup.wait_for_event("close", timeout=self.timeouts.human_s * 1000)
+            except PlaywrightTimeout:
+                await self._close(popup)
+                return "human_timeout"
+            return "human"
+        finally:
+            rec.set_awaiting(None)
+
+    async def _fill_first(self, page: Page, group: str, value: str) -> None:
         for sel in SELECTORS[group]:
             loc = page.locator(sel).first
+            if await loc.is_visible():
+                await loc.fill(value)
+                return
+
+    async def _click_first(self, page: Page, group: str) -> bool:
+        for sel in SELECTORS[group]:
+            loc: Locator = page.locator(sel).first
             try:
                 if await loc.is_visible():
-                    return loc
+                    await loc.click()
+                    return True
             except PlaywrightError:
                 pass
-        return None
+        return False
+
+    async def _close(self, popup: Page) -> None:
+        try:
+            if not popup.is_closed():
+                await popup.close()
+        except PlaywrightError:
+            pass
 
     async def _popup_shot(self, tools: PageTools, popup: Page) -> str:
         tools.shots_dir.mkdir(parents=True, exist_ok=True)
@@ -231,6 +364,7 @@ class PayPalCheckout:
         return path.as_posix()
 
     async def _wait_for_result(self, page: Page, timeout_s: float) -> tuple[str, str]:
+        """thanks | error | cancelled | timeout, with the page's status text."""
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
             try:
@@ -241,16 +375,17 @@ class PayPalCheckout:
                     "() => { const e = document.querySelector('#checkout-status.errors'); return e ? e.textContent.trim() : ''; }")
                 if err:
                     return "error", err[:300]
+                status = await self._status_text(page)
+                if "cancel" in status.lower():
+                    return "cancelled", status
             except PlaywrightError:
                 pass  # navigating to the confirmation page
             await page.wait_for_timeout(250)
         return "timeout", await self._status_text(page)
 
-    async def _backend_order(self, order_id: str) -> dict[str, Any] | None:
-        if not order_id:
-            return None
+    async def _backend_get(self, path: str) -> dict[str, Any] | None:
         async with httpx.AsyncClient(timeout=10.0) as http:
-            resp = await http.get(f"{self.api_base}/api/paypal/orders/{order_id}")
+            resp = await http.get(f"{self.api_base}{path}")
         return resp.json() if resp.status_code == 200 else None
 
 
@@ -259,6 +394,7 @@ def make_payment_handler(
     store_url: str,
     server_mode: str | None = None,
     server_configured: bool | None = None,
+    on_awaiting_human: HumanHook | None = None,
 ) -> PayPalCheckout:
     """Live sandbox only when every credential is present and the server agrees; never a silent fallback."""
     api_base = _origin(store_url)
@@ -274,7 +410,7 @@ def make_payment_handler(
             f"Checkout mode '{mode}' requested, but the server runs PAYPAL_MODE={server_mode}. "
             f"Restart the server with PAYPAL_MODE={mode}, or run with --paypal {server_mode}.")
     if mode == "mock":
-        return PayPalCheckout(MOCK_BUYER, api_base, MOCK_TIMEOUTS, mode)
+        return PayPalCheckout(MOCK_BUYER, api_base, MOCK_TIMEOUTS, mode, on_awaiting_human)
     if mode != "sandbox":
         raise PaymentConfigError(f"Unknown PayPal mode {mode!r}")
     missing = []
@@ -287,4 +423,4 @@ def make_payment_handler(
         raise PaymentConfigError(
             "Live sandbox checkout disabled; missing " + " and ".join(missing)
             + ". Use a PAYPAL_MODE=mock server with --paypal mock to test the checkout path.")
-    return PayPalCheckout(buyer, api_base, LIVE_TIMEOUTS, mode)
+    return PayPalCheckout(buyer, api_base, LIVE_TIMEOUTS, mode, on_awaiting_human)

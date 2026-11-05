@@ -1,0 +1,176 @@
+{
+  "_fixture": "Hand-made fixture in Channel3 POST /v1/search response shape (https://channel3.ai/docs). Not real market data; domains use the reserved .example TLD.",
+  "products": [
+    {
+      "id": "rec-FH-DRP-02-1",
+      "title": "Ceramic Pour Over Coffee Dripper",
+      "brands": [
+        {
+          "id": "brand-1",
+          "name": "Clayworks"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://clayworks.example/img/1.jpg",
+          "is_main_image": true,
+          "alt_text": "Ceramic Pour Over Coffee Dripper"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://clayworks.example/products/1",
+          "domain": "clayworks.example",
+          "price": {
+            "price": 24.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-DRP-02-2",
+      "title": "Porcelain Cone Dripper #2",
+      "brands": [
+        {
+          "id": "brand-2",
+          "name": "Brewline"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://brewline.example/img/2.jpg",
+          "is_main_image": true,
+          "alt_text": "Porcelain Cone Dripper #2"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://brewline.example/products/2",
+          "domain": "brewline.example",
+          "price": {
+            "price": 29.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-DRP-02-3",
+      "title": "Stoneware Pour-Over Cone",
+      "brands": [
+        {
+          "id": "brand-3",
+          "name": "Kiln House"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://kilnhouse.example/img/3.jpg",
+          "is_main_image": true,
+          "alt_text": "Stoneware Pour-Over Cone"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://kilnhouse.example/products/3",
+          "domain": "kilnhouse.example",
+          "price": {
+            "price": 32.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-DRP-02-4",
+      "title": "Handmade Coffee Dripper",
+      "brands": [
+        {
+          "id": "brand-4",
+          "name": "River Pottery"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://riverpottery.example/img/4.jpg",
+          "is_main_image": true,
+          "alt_text": "Handmade Coffee Dripper"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://riverpottery.example/products/4",
+          "domain": "riverpottery.example",
+          "price": {
+            "price": 35.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-DRP-02-5",
+      "title": "Matte Black Ceramic Dripper",
+      "brands": [
+        {
+          "id": "brand-5",
+          "name": "Northfork Studio"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://northforkstudio.example/img/5.jpg",
+          "is_main_image": true,
+          "alt_text": "Matte Black Ceramic Dripper"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://northforkstudio.example/products/5",
+          "domain": "northforkstudio.example",
+          "price": {
+            "price": 42.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    }
+  ],
+  "next_page_token": null
+}

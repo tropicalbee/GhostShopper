@@ -49,14 +49,50 @@ def test_first_check_outcome_wins_and_untested_are_filled(tmp_path):
     rec.mark_untested({"payment": "payment skipped"})
     results = rec.results()
     assert set(results) == set(CHECKS)
-    assert results["price_in_text"] is False
-    assert results["capture_completed"] is None
+    assert results["price_in_text"] == "fail"
+    assert results["capture_completed"] == "not_tested"
     rec.save_score(compute_score(results))
     run = load_run(tmp_path / "t.db", rec.run_id)
     assert run["score"]["total"] == 0
     assert run["flaws_snapshot"] == {"price_as_image": True}
     reasons = {c["check_key"]: c["reason"] for c in run["checks"]}
     assert reasons["capture_completed"] == "payment skipped"
+
+
+def test_failure_code_decides_the_cause_and_environment_failures_are_excluded(tmp_path):
+    rec = start(tmp_path)
+    rec.record_check("price_in_text", False, "image only", code="price_image_only")
+    rec.record_check("capture_completed", False, "declined", code="capture_declined")
+    rec.record_check("popup_opened", False, "no code given")  # unknown/missing code -> store's fault
+    rec.mark_untested({}, blocked_by_environment=True)
+    rows = {r["check_key"]: r for r in rec.rows()}
+    assert (rows["price_in_text"]["cause"], rows["capture_completed"]["cause"]) == ("store", "environment")
+    assert rows["popup_opened"]["cause"] == "store"
+    r = rec.results()
+    assert (r["price_in_text"], r["capture_completed"], r["popup_opened"]) == ("fail", "excluded", "fail")
+    assert r["payment_verified"] == "excluded"  # never ran because of the declined capture
+    assert rec.has_environment_failure()
+
+
+def test_scorecard_explains_a_declined_capture(tmp_path):
+    rec = start(tmp_path)
+    for key in CHECKS:
+        if key not in ("capture_completed", "payment_verified", "task_completed"):
+            rec.record_check(key, True, "ok")
+    rec.record_check("capture_completed", False, "The buyer's funding source declined the payment (INSTRUMENT_DECLINED).",
+                     code="capture_declined")
+    rec.record_check("task_completed", None, "The payment did not complete for a reason outside the store.",
+                     code="blocked_by_environment")
+    rec.mark_untested({}, blocked_by_environment=True)
+    rec.save_score(compute_score(rec.results()))
+    card = load_run(tmp_path / "t.db", rec.run_id)["scorecard"]
+    assert card["total"] == 100 and card["possible"] == 85
+    assert {n["check"] for n in card["not_store_fault"]} == {"capture_completed", "payment_verified", "task_completed"}
+    assert card["fixes"] == []
+    text = " ".join(card["summary"])
+    assert "judged on 85 of 100 points" in text
+    assert "INSTRUMENT_DECLINED" in text and "No store change needed" in text
+    assert "payment_verified" in text
 
 
 def test_failures_view_lists_failed_and_untested(tmp_path):

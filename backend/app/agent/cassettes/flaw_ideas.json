@@ -1,0 +1,9 @@
+{
+  "recorded_from": "hand-written (mock saboteur proposals)",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": "[{\"key\": \"cookie_banner\", \"description\": \"A cookie consent box covers the buy button.\", \"expected_checks\": [\"buy_button_unobstructed\"]}, {\"key\": \"infinite_scroll_product\", \"description\": \"The product only appears after scrolling an infinite list.\", \"expected_checks\": [\"product_found\"]}, {\"key\": \"shipping_cost_hidden_until_payment\", \"description\": \"Shipping is only added inside the PayPal window.\", \"expected_checks\": [\"price_consistent\", \"payment_verified\"]}, {\"key\": \"login_wall_before_checkout\", \"description\": \"Checkout requires creating an account first.\", \"expected_checks\": [\"no_extra_steps\"]}]"
+    }
+  ]
+}

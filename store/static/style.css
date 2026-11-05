@@ -56,3 +56,9 @@ main { max-width: 960px; margin: 0 auto; padding: 16px; }
   .site-header nav a { margin: 0 16px 0 0; }
   .summary { min-width: 0; width: 100%; }
 }
+
+.was-price { color: #888; font-size: 15px; margin-left: 8px; }
+.sale-badge { background: #a33; color: #fff; font-family: Arial, sans-serif; font-size: 12px; padding: 2px 6px; margin-left: 6px; }
+.actions-wrap { position: relative; }
+.cookie-banner { position: absolute; inset: -6px; z-index: 5; display: flex; align-items: center; gap: 10px;
+  background: #fff; border: 1px solid #ccc; padding: 6px 10px; font-family: Arial, sans-serif; font-size: 13px; }

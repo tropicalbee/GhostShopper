@@ -1,0 +1,9 @@
+{
+  "recorded_from": "hand-written (mock LLM, fix rephrasing)",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": "{\n  \"price_image_only\": \"Your price is drawn inside a picture, so shopping assistants can't read it. Type the price as normal text on the product page instead.\",\n  \"jsonld_missing\": \"Add a small hidden product description block (Product JSON-LD) to the page with the name, SKU, price, currency and stock status, so assistants can read the facts directly.\",\n  \"stock_missing\": \"Say clearly on the page whether the item is in stock, and include the same status in the product description block.\",\n  \"buy_button_nonsemantic\": \"Swap the 'Go', 'Continue' and 'Proceed' boxes for one real button that says 'Buy now' or 'Add to cart'.\",\n  \"extra_form_step\": \"Take out the extra details form before payment, or make its questions optional and ask after the purchase.\"\n}"
+    }
+  ]
+}

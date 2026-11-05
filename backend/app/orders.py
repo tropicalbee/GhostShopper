@@ -1,15 +1,19 @@
 """Orders v2 endpoints the demo store's PayPal button calls: create and capture."""
 
+import json
 import re
+from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from store import catalog
+from store.flaws import FlawStore
 
 from . import db
 from .paypal import PayPalClient, PayPalError, summarize_capture
+from .verification import verify_payment
 
 router = APIRouter(prefix="/api/paypal", tags=["paypal"])
 
@@ -40,8 +44,9 @@ def _paypal_http_error(exc: PayPalError) -> HTTPException:
     )
 
 
-def build_purchase_unit(product: catalog.Product, quantity: int) -> dict[str, Any]:
-    total = f"{product.price * quantity:.2f}"
+def build_purchase_unit(product: catalog.Product, quantity: int, unit_price: Decimal | None = None) -> dict[str, Any]:
+    unit = product.price if unit_price is None else unit_price
+    total = f"{unit * quantity:.2f}"
     return {
         "reference_id": product.sku,
         "description": f"Fernhill Ceramics: {product.name}",
@@ -51,7 +56,7 @@ def build_purchase_unit(product: catalog.Product, quantity: int) -> dict[str, An
                 "sku": product.sku,
                 "quantity": str(quantity),
                 "category": "PHYSICAL_GOODS",
-                "unit_amount": {"currency_code": product.currency, "value": product.price_str},
+                "unit_amount": {"currency_code": product.currency, "value": f"{unit:.2f}"},
             }
         ],
         "amount": {
@@ -67,10 +72,12 @@ async def create_order(body: CreateOrderRequest, request: Request, paypal: PayPa
     product = catalog.get_by_sku(body.sku)
     if product is None:
         raise HTTPException(status_code=404, detail={"error": "UNKNOWN_SKU", "message": f"No product {body.sku}"})
-    if not product.in_stock:
+    # The store's own (possibly flawed) pricing: the price_mismatch flaw charges more than advertised.
+    flaws = FlawStore(request.app.state.settings.database_path).get_all()
+    if not product.in_stock and not flaws.get("oos_buyable"):
         raise HTTPException(status_code=409, detail={"error": "OUT_OF_STOCK", "message": f"{product.name} is sold out"})
 
-    unit = build_purchase_unit(product, body.quantity)
+    unit = build_purchase_unit(product, body.quantity, catalog.charged_unit_price(product, flaws))
     try:
         order = await paypal.create_order(unit)
     except PayPalError as exc:
@@ -104,6 +111,20 @@ async def capture_order(order_id: str, request: Request, paypal: PayPalClient = 
     summary = summarize_capture(result)
     db.record_capture(db_path, order_id, summary, result)
     return summary
+
+
+@router.get("/orders/{order_id}/verify")
+def verify_order(order_id: str, request: Request):
+    """Order <-> capture <-> advertised amount <-> fees. Used by the agent after a purchase."""
+    db_path = request.app.state.settings.database_path
+    order = db.get_order(db_path, order_id, include_raw=True)
+    if order is None:
+        raise HTTPException(status_code=404, detail={"error": "UNKNOWN_ORDER", "message": "No such order"})
+    product = catalog.get_by_sku(order["sku"])
+    if product is None:
+        raise HTTPException(status_code=404, detail={"error": "UNKNOWN_SKU", "message": order["sku"]})
+    raw = json.loads(order["capture_response"]) if order.get("capture_response") else None
+    return verify_payment(order, raw, product.price, product.currency)
 
 
 @router.get("/orders/{order_id}")

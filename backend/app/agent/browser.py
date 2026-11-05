@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
+import httpx
+
 # Browsers live inside the venv's playwright package (installed with PLAYWRIGHT_BROWSERS_PATH=0),
 # not in the user profile. Must be set before Playwright starts its driver.
 os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
@@ -73,7 +75,8 @@ FACTS_JS = r"""
     if (!visible(el)) continue;
     const id = 'e' + (++n);
     el.setAttribute('data-gs-id', id);
-    const c = { id, tag, selector: cssPath(el), text: name(el), semantic: semantic || customButton };
+    const c = { id, tag, selector: cssPath(el), text: name(el), semantic: semantic || customButton,
+                in_main: !!el.closest('main') };
     if (tag === 'a') c.href = el.getAttribute('href');
     if (tag === 'input') {
       c.type = el.type;
@@ -85,6 +88,38 @@ FACTS_JS = r"""
     controls.push(c);
   }
   const main = document.querySelector('main') || document.body;
+  // Is each control in <main> covered by something else? Hit-test its center, then restore the scroll.
+  const sx = window.scrollX, sy = window.scrollY;
+  for (const c of controls) {
+    if (!c.in_main) continue;
+    const el = document.querySelector('[data-gs-id="' + c.id + '"]');
+    el.scrollIntoView({ block: 'center', inline: 'center' });
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    c.covered = !!top && top !== el && !el.contains(top) && !top.contains(el);
+    if (c.covered) c.covered_by = cssPath(top);
+  }
+  window.scrollTo(sx, sy);
+
+  // Prices as text in <main>; struck-through "was" prices are collected separately.
+  const STRUCK = 's, del, strike, [class*="was"], [class*="compare"], [class*="old-price"]';
+  const CUR = /(?:US\$|\$|USD\s?|€|£)\s?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/;
+  const BARE = /^(\d{1,4}\.\d{2})$/;
+  const prices = [], struck_prices = [];
+  const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const t = node.textContent.trim();
+    if (!t || !node.parentElement || !visible(node.parentElement)) continue;
+    const m = t.match(CUR), b = t.match(BARE);
+    if (!m && !b) continue;
+    const entry = { text: t.slice(0, 40), value: (m ? m[1] : b[1]).replace(/,/g, ''), currency: !!m,
+                    selector: cssPath(node.parentElement) };
+    (node.parentElement.closest(STRUCK) ? struck_prices : prices).push(entry);
+  }
+  const pct = (main.innerText.match(/(\d{1,2})\s?%\s*off/i) || [])[1];
+  const images = [...main.querySelectorAll('img')]
+    .filter(i => visible(i) && i.getBoundingClientRect().width >= 150)
+    .map(i => ({ selector: cssPath(i), alt: i.getAttribute('alt'), src: i.getAttribute('src') }));
   const jsonld = [...document.querySelectorAll('script[type="application/ld+json"]')].map(s => {
     try { return JSON.parse(s.textContent); } catch (e) { return { _parse_error: String(e) }; }
   });
@@ -99,18 +134,70 @@ FACTS_JS = r"""
     url: location.href,
     title: document.title,
     main_text: main.innerText.slice(0, 6000),
-    jsonld, controls, images_without_alt, forms,
+    jsonld, controls, images_without_alt, forms, prices, struck_prices, images,
+    sale_percent: pct ? Number(pct) : null,
     has_payment_button: !!document.querySelector('paypal-button, [data-funding-source="paypal"]'),
   };
 }
 """
 
 
-class BrowserSession:
-    """One browser + context + page for a run. Local Playwright; Kernel would provide the same object."""
+PROVIDERS = ("local", "kernel")
+KERNEL_API_BASE = "https://api.onkernel.com"
+VIEWPORT = {"width": 1280, "height": 900}
 
-    def __init__(self, headless: bool = True):
+
+class BrowserConfigError(ValueError):
+    pass
+
+
+def resolve_provider(name: str | None = None) -> str:
+    """local (default) or kernel. Kernel only when explicitly chosen and KERNEL_API_KEY is set."""
+    provider = (name or os.getenv("BROWSER_PROVIDER") or "local").strip().lower()
+    if provider not in PROVIDERS:
+        raise BrowserConfigError(f"Browser provider must be one of {PROVIDERS}, got {provider!r}")
+    if provider == "kernel" and not os.getenv("KERNEL_API_KEY", "").strip():
+        raise BrowserConfigError("Browser provider 'kernel' needs KERNEL_API_KEY in .env (or use 'local').")
+    return provider
+
+
+class KernelBrowsers:
+    """Kernel's REST API for browser sessions (https://www.kernel.sh/docs). Same calls as the `kernel` SDK."""
+
+    def __init__(self, api_key: str, http: httpx.AsyncClient | None = None):
+        self._http = http or httpx.AsyncClient(
+            base_url=KERNEL_API_BASE, timeout=60.0, headers={"Authorization": f"Bearer {api_key}"})
+
+    async def create(self, *, headless: bool, timeout_seconds: int) -> dict[str, Any]:
+        # stealth stays off: it enables Kernel's CAPTCHA solver, and we never bypass PayPal's checks.
+        resp = await self._http.post("/browsers", json={
+            "headless": headless, "stealth": False, "timeout_seconds": timeout_seconds,
+            "viewport": {"width": VIEWPORT["width"], "height": VIEWPORT["height"]}})
+        if resp.status_code not in (200, 201):
+            raise RuntimeError(f"Kernel create browser failed: {resp.status_code} {resp.text[:200]}")
+        return resp.json()
+
+    async def delete(self, session_id: str) -> None:
+        resp = await self._http.delete(f"/browsers/{session_id}")
+        if resp.status_code not in (200, 204, 404):
+            raise RuntimeError(f"Kernel delete browser failed: {resp.status_code} {resp.text[:200]}")
+
+    async def aclose(self) -> None:
+        await self._http.aclose()
+
+
+class BrowserSession:
+    """One browser + context + page for a run, from local Playwright or a Kernel cloud browser (over CDP).
+    The agent code above this class is identical for both."""
+
+    def __init__(self, headless: bool = True, provider: str | None = None,
+                 kernel: KernelBrowsers | None = None, kernel_timeout_s: int = 900):
         self.headless = headless
+        self.provider = resolve_provider(provider) if kernel is None else "kernel"
+        self._kernel = kernel
+        self._kernel_timeout_s = kernel_timeout_s
+        self.session_id: str | None = None
+        self.live_view_url: str | None = None  # Kernel, non-headless only: lets a human see/act in the browser
         self._pw: Playwright | None = None
         self.browser: Browser | None = None
         self.context: BrowserContext | None = None
@@ -118,19 +205,41 @@ class BrowserSession:
 
     async def __aenter__(self) -> "BrowserSession":
         self._pw = await async_playwright().start()
-        channel = os.getenv("PLAYWRIGHT_CHANNEL") or None  # e.g. "msedge" to use the installed Edge
-        self.browser = await self._pw.chromium.launch(headless=self.headless, channel=channel)
-        self.context = await self.browser.new_context(viewport={"width": 1280, "height": 900})
-        self.page = await self.context.new_page()
+        try:
+            if self.provider == "kernel":
+                await self._open_kernel()
+            else:
+                channel = os.getenv("PLAYWRIGHT_CHANNEL") or None  # e.g. "msedge" to use the installed Edge
+                self.browser = await self._pw.chromium.launch(headless=self.headless, channel=channel)
+                self.context = await self.browser.new_context(viewport=VIEWPORT)
+                self.page = await self.context.new_page()
+        except BaseException:
+            await self.__aexit__()
+            raise
         return self
 
+    async def _open_kernel(self) -> None:
+        if self._kernel is None:
+            self._kernel = KernelBrowsers(os.environ["KERNEL_API_KEY"].strip())
+        info = await self._kernel.create(headless=self.headless, timeout_seconds=self._kernel_timeout_s)
+        self.session_id = info["session_id"]
+        self.live_view_url = info.get("browser_live_view_url")
+        self.browser = await self._pw.chromium.connect_over_cdp(info["cdp_ws_url"])
+        self.context = self.browser.contexts[0] if self.browser.contexts else await self.browser.new_context()
+        self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
+        await self.page.set_viewport_size(VIEWPORT)
+
     async def __aexit__(self, *exc) -> None:
-        if self.context:
-            await self.context.close()
-        if self.browser:
-            await self.browser.close()
-        if self._pw:
-            await self._pw.stop()
+        try:
+            if self.provider == "local" and self.context:
+                await self.context.close()
+            if self.browser:
+                await self.browser.close()  # for Kernel this only disconnects CDP
+        finally:
+            if self._kernel and self.session_id:
+                await self._kernel.delete(self.session_id)
+            if self._pw:
+                await self._pw.stop()
 
 
 def describe_controls(controls: list[dict[str, Any]], kind: str = "all") -> str:

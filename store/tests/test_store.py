@@ -37,8 +37,10 @@ def all_off(client):
 PRODUCT = "/store/products/speckled-stoneware-mug"
 
 
-def test_all_flaws_default_on(client):
-    assert client.get("/store/admin/flaws.json").json() == {k: True for k in FLAW_KEYS}
+def test_classic_flaws_default_on_new_ones_off(client):
+    from store.flaws import CLASSIC_FLAWS
+
+    assert client.get("/store/admin/flaws.json").json() == {k: k in CLASSIC_FLAWS for k in FLAW_KEYS}
 
 
 def test_unknown_flaw_rejected(client):
@@ -48,12 +50,7 @@ def test_unknown_flaw_rejected(client):
 def test_admin_form_toggles(client):
     r = client.post("/store/admin", data={"price_as_image": "on"}, follow_redirects=False)
     assert r.status_code == 303
-    assert client.get("/store/admin/flaws.json").json() == {
-        "price_as_image": True,
-        "no_structured_data": False,
-        "ambiguous_buttons": False,
-        "extra_checkout_step": False,
-    }
+    assert client.get("/store/admin/flaws.json").json() == {k: k == "price_as_image" for k in FLAW_KEYS}
 
 
 def test_price_as_image(client):
@@ -148,3 +145,50 @@ def test_index_lists_products(client):
     html = client.get("/store/").text
     for name in ("Speckled Stoneware Mug", "Pour-Over Coffee Dripper", "Ash Glaze Serving Bowl", "Espresso Cup Set (4)"):
         assert name in html
+
+
+# --- Saboteur flaws (default off) ---
+
+def only(client, flaw):
+    return set_flaws(client, **{k: k == flaw for k in FLAW_KEYS})
+
+
+def test_price_mismatch_raises_the_checkout_price(client):
+    only(client, "price_mismatch")
+    assert '<span class="price">$24.00</span>' in client.get(PRODUCT).text
+    html = client.get("/store/checkout?sku=FH-MUG-01").text
+    assert html.count('<span class="price">$27.00</span>') == 2  # item row and total
+
+
+def test_oos_buyable_says_sold_out_but_keeps_the_button(client):
+    only(client, "oos_buyable")
+    html = client.get(PRODUCT).text
+    assert "Sold out" in html and "Buy now" in html and "OutOfStock" in html
+    assert "Buy now" in client.get("/store/products/espresso-cup-set").text  # even the genuinely sold-out set
+    assert "paypal-button" in client.get("/store/checkout?sku=FH-ESP-04").text
+
+
+def test_image_alt_missing_uses_a_file_name(client):
+    only(client, "image_alt_missing")
+    assert 'alt="IMG_0412.JPG"' in client.get(PRODUCT).text
+    assert 'alt="IMG_0412.JPG"' in client.get("/store/").text
+
+
+def test_cookie_banner_covers_buy_until_accepted(client):
+    only(client, "cookie_banner")
+    assert 'id="cookie-banner"' in client.get(PRODUCT).text
+    client.cookies.set("fh_cookies", "1")
+    assert 'id="cookie-banner"' not in client.get(PRODUCT).text
+
+
+def test_currency_missing_drops_symbol_and_jsonld_currency(client):
+    only(client, "currency_missing")
+    html = client.get(PRODUCT).text
+    assert '<span class="price">24.00</span>' in html
+    assert "priceCurrency" not in html
+
+
+def test_misleading_sale_shows_a_fake_was_price(client):
+    only(client, "misleading_sale")
+    html = client.get(PRODUCT).text
+    assert "<s>$30.00</s>" in html and "50% off!" in html  # 24 vs 30 is 20% off, not 50%

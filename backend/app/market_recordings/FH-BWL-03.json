@@ -1,0 +1,176 @@
+{
+  "_fixture": "Hand-made fixture in Channel3 POST /v1/search response shape (https://channel3.ai/docs). Not real market data; domains use the reserved .example TLD.",
+  "products": [
+    {
+      "id": "rec-FH-BWL-03-1",
+      "title": "Large Ceramic Serving Bowl 10in",
+      "brands": [
+        {
+          "id": "brand-1",
+          "name": "Clayworks"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://clayworks.example/img/1.jpg",
+          "is_main_image": true,
+          "alt_text": "Large Ceramic Serving Bowl 10in"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://clayworks.example/products/1",
+          "domain": "clayworks.example",
+          "price": {
+            "price": 45.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-BWL-03-2",
+      "title": "Ash Glaze Stoneware Bowl",
+      "brands": [
+        {
+          "id": "brand-2",
+          "name": "Kiln House"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://kilnhouse.example/img/2.jpg",
+          "is_main_image": true,
+          "alt_text": "Ash Glaze Stoneware Bowl"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://kilnhouse.example/products/2",
+          "domain": "kilnhouse.example",
+          "price": {
+            "price": 58.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-BWL-03-3",
+      "title": "Handmade Salad Bowl",
+      "brands": [
+        {
+          "id": "brand-3",
+          "name": "River Pottery"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://riverpottery.example/img/3.jpg",
+          "is_main_image": true,
+          "alt_text": "Handmade Salad Bowl"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://riverpottery.example/products/3",
+          "domain": "riverpottery.example",
+          "price": {
+            "price": 64.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-BWL-03-4",
+      "title": "Wide Serving Bowl, Wood Ash Glaze",
+      "brands": [
+        {
+          "id": "brand-4",
+          "name": "Northfork Studio"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://northforkstudio.example/img/4.jpg",
+          "is_main_image": true,
+          "alt_text": "Wide Serving Bowl, Wood Ash Glaze"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://northforkstudio.example/products/4",
+          "domain": "northforkstudio.example",
+          "price": {
+            "price": 72.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-BWL-03-5",
+      "title": "Statement Serving Bowl",
+      "brands": [
+        {
+          "id": "brand-5",
+          "name": "Atelier Terre"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://atelierterre.example/img/5.jpg",
+          "is_main_image": true,
+          "alt_text": "Statement Serving Bowl"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://atelierterre.example/products/5",
+          "domain": "atelierterre.example",
+          "price": {
+            "price": 85.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    }
+  ],
+  "next_page_token": null
+}

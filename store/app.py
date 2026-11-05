@@ -20,6 +20,7 @@ from .price_image import render_price_svg, token_for
 HERE = Path(__file__).parent
 STORE_NAME = "Fernhill Ceramics"
 DETAILS_COOKIE = "fh_details"
+COOKIE_CONSENT = "fh_cookies"
 REFERRAL_OPTIONS = ("Instagram", "A friend", "Craft fair", "Search engine", "Other")
 
 
@@ -31,7 +32,10 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
     app = FastAPI(title=STORE_NAME, docs_url=None, redoc_url=None, openapi_url=None)
     flaw_store = FlawStore(db_path)
     templates = Jinja2Templates(directory=HERE / "templates")
-    price_tokens = {token_for(p.sku, p.price_str): p.price_str for p in catalog.load_products()}
+    price_tokens = {}
+    for p in catalog.load_products():
+        for amount in (p.price, p.price + catalog.PRICE_MISMATCH_SURCHARGE):
+            price_tokens[token_for(p.sku, f"{amount:.2f}")] = f"{amount:.2f}"
 
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
@@ -72,6 +76,8 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
             raise HTTPException(status_code=404, detail="Product not found")
         products = catalog.load_products()
         next_product = products[(products.index(product) + 1) % len(products)]
+        flaws = flaw_store.get_all()
+        listed_out = (not product.in_stock) or flaws["oos_buyable"]
         json_ld = {
             "@context": "https://schema.org",
             "@type": "Product",
@@ -84,10 +90,12 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
                 "@type": "Offer",
                 "price": product.price_str,
                 "priceCurrency": product.currency,
-                "availability": "https://schema.org/" + ("InStock" if product.in_stock else "OutOfStock"),
+                "availability": "https://schema.org/" + ("OutOfStock" if listed_out else "InStock"),
                 "url": str(request.url),
             },
         }
+        if flaws["currency_missing"]:
+            del json_ld["offers"]["priceCurrency"]
         return render(
             request,
             "product.html",
@@ -95,6 +103,10 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
             next_product=next_product,
             buy_url=checkout_entry(request, product),
             json_ld=json.dumps(json_ld, indent=2).replace("</", "<\\/"),
+            listed_out=listed_out,
+            buyable=product.in_stock or flaws["oos_buyable"],
+            was_price=catalog.sale_was_price(product),
+            show_cookie_banner=flaws["cookie_banner"] and request.cookies.get(COOKIE_CONSENT) != "1",
         )
 
     @app.get("/checkout/details", response_class=HTMLResponse)
@@ -140,10 +152,13 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
         base = request.scope.get("root_path", "")
         if flaw_store.get_all()["extra_checkout_step"] and request.cookies.get(DETAILS_COOKIE) != sku:
             return RedirectResponse(f"{base}/checkout/details?sku={sku}", status_code=303)
+        flaws = flaw_store.get_all()
         return render(
             request,
             "checkout.html",
             product=product,
+            unit_price=f"{catalog.charged_unit_price(product, flaws):.2f}",
+            buyable=product.in_stock or flaws["oos_buyable"],
             paypal_client_id=paypal_client_id,
             paypal_sdk_url=paypal_sdk_url,
         )

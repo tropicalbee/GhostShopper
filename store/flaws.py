@@ -1,6 +1,8 @@
 """Deliberate agent-readiness flaws, each behind a toggle persisted in SQLite.
 
-All flaws default to ON so a fresh store is the "bad store" in the demo.
+The four classic flaws default to ON so a fresh store is the "bad store" in the demo; the newer ones
+(used by the saboteur benchmark) default to OFF. Every flaw has a ground-truth label in
+backend/app/eval/ground_truth.py.
 """
 
 import sqlite3
@@ -38,8 +40,40 @@ FLAWS: tuple[Flaw, ...] = (
         "Extra checkout step",
         "A required 'Your details' form sits between the product page and payment.",
     ),
+    Flaw(
+        "price_mismatch",
+        "Price changes at checkout",
+        "Checkout shows and charges $3.00 more per item than the product page.",
+    ),
+    Flaw(
+        "oos_buyable",
+        "Sold-out item still buyable",
+        "Product pages say 'Sold out' (and OutOfStock in JSON-LD) but keep the buy button working.",
+    ),
+    Flaw(
+        "image_alt_missing",
+        "Broken image alt text",
+        "Product photos use a camera file name (IMG_0412.JPG) as alt text.",
+    ),
+    Flaw(
+        "cookie_banner",
+        "Cookie banner over the buy button",
+        "A cookie consent box sits on top of the buy controls until it is accepted.",
+    ),
+    Flaw(
+        "currency_missing",
+        "Currency missing",
+        "Prices show as '24.00' with no currency, and JSON-LD has no priceCurrency.",
+    ),
+    Flaw(
+        "misleading_sale",
+        "Misleading sale price",
+        "A struck-through 'was' price and a '50% off' badge that don't match the real discount.",
+    ),
 )
 FLAW_KEYS = tuple(f.key for f in FLAWS)
+# The four original demo flaws ("--flaws on"). New flaws stay off unless asked for.
+CLASSIC_FLAWS = ("price_as_image", "no_structured_data", "ambiguous_buttons", "extra_checkout_step")
 
 SCHEMA = "CREATE TABLE IF NOT EXISTS store_flaws (key TEXT PRIMARY KEY, enabled INTEGER NOT NULL)"
 
@@ -51,7 +85,8 @@ class FlawStore:
         with self._connect() as conn:
             conn.execute(SCHEMA)
             conn.executemany(
-                "INSERT OR IGNORE INTO store_flaws (key, enabled) VALUES (?, 1)", [(k,) for k in FLAW_KEYS]
+                "INSERT OR IGNORE INTO store_flaws (key, enabled) VALUES (?, ?)",
+                [(k, int(k in CLASSIC_FLAWS)) for k in FLAW_KEYS],
             )
 
     @contextmanager
@@ -66,7 +101,7 @@ class FlawStore:
     def get_all(self) -> dict[str, bool]:
         with self._connect() as conn:
             rows = conn.execute("SELECT key, enabled FROM store_flaws").fetchall()
-        state = {k: True for k in FLAW_KEYS}
+        state = {k: k in CLASSIC_FLAWS for k in FLAW_KEYS}
         state.update({k: bool(v) for k, v in rows if k in state})
         return state
 

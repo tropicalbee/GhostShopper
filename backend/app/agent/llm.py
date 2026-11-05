@@ -73,7 +73,9 @@ class GroqLLM:
         self._max_retries = max_retries
 
     async def complete(self, messages, tools) -> LLMReply:
-        payload = {"model": self.model, "messages": messages, "tools": tools, "tool_choice": "auto", "temperature": 0}
+        payload: dict[str, Any] = {"model": self.model, "messages": messages, "temperature": 0}
+        if tools:  # text-only calls (fix rephrasing, judge) send no tools and no tool_choice
+            payload |= {"tools": tools, "tool_choice": "auto"}
         for attempt in range(self._max_retries + 1):
             resp = await self._http.post("/chat/completions", json=payload)
             # Free tier: back off on rate limits and transient errors.

@@ -18,8 +18,10 @@ from .paypal import PayPalError
 
 MOCK_CLIENT_ID = "mock-client-id"
 MOCK_SDK_PATH = "/mock-paypal/sdk.js"
-SCENARIOS = ("ok", "no_button", "popup_blocked", "approval_stuck", "capture_declined")
-Scenario = Literal["ok", "no_button", "popup_blocked", "approval_stuck", "capture_declined"]
+SCENARIOS = ("ok", "no_button", "popup_blocked", "approval_stuck", "capture_declined",
+             "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch")
+Scenario = Literal["ok", "no_button", "popup_blocked", "approval_stuck", "capture_declined",
+                   "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch"]
 
 # PayPal US standard checkout rate, used only to make fake fee numbers realistic.
 FEE_RATE = Decimal("0.0349")
@@ -55,7 +57,10 @@ class FakePayPalClient:
                                     "details": [{"issue": "INSTRUMENT_DECLINED"}]})
         amount = order["purchase_unit"]["amount"]
         gross = Decimal(amount["value"])
+        if self.scenario == "capture_amount_mismatch":
+            gross += Decimal("1.00")  # PayPal captured a different amount than the order
         fee = (gross * FEE_RATE + FEE_FIXED).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        net = gross - fee - (Decimal("0.50") if self.scenario == "fee_mismatch" else 0)
         order["status"] = "COMPLETED"
         money = lambda v: {"currency_code": amount["currency_code"], "value": v}  # noqa: E731
         return {
@@ -71,7 +76,7 @@ class FakePayPalClient:
                     "seller_receivable_breakdown": {
                         "gross_amount": money(_money(gross)),
                         "paypal_fee": money(_money(fee)),
-                        "net_amount": money(_money(gross - fee)),
+                        "net_amount": money(_money(net)),
                     },
                 }]},
             }],
@@ -138,7 +143,12 @@ button{{width:100%;padding:12px;margin-top:8px;border:0;border-radius:20px;backg
 .step{{display:none}} .step.on{{display:block}} .note{{color:#a00;font-size:12px}}</style></head>
 <body>
 <p class="note">MOCK PayPal popup (PAYPAL_MODE=mock). Nothing is sent anywhere.</p>
-<div id="step-email" class="step on">
+<div id="step-captcha" class="step">
+  <h1>Security check</h1>
+  <div class="captcha-box"><label><input type="checkbox" id="captchaCheck"> I'm not a robot</label></div>
+  <button id="captchaContinue" type="button">Continue</button>
+</div>
+<div id="step-email" class="step">
   <h1>Log in</h1>
   <input id="email" type="email" placeholder="Email or mobile number" autocomplete="off">
   <button id="btnNext" type="button">Next</button>
@@ -146,6 +156,12 @@ button{{width:100%;padding:12px;margin-top:8px;border:0;border-radius:20px;backg
 <div id="step-password" class="step">
   <input id="password" type="password" placeholder="Password" autocomplete="off">
   <button id="btnLogin" type="button">Log In</button>
+</div>
+<div id="step-verify" class="step">
+  <h2>Verify it's you</h2>
+  <p>We sent a code to your phone.</p>
+  <input id="otpCode" type="text" inputmode="numeric" placeholder="6-digit code" autocomplete="off">
+  <button id="btnVerify" type="button">Continue</button>
 </div>
 <div id="step-review" class="step">
   <h2>Pay Fernhill Ceramics</h2>
@@ -155,13 +171,18 @@ button{{width:100%;padding:12px;margin-top:8px;border:0;border-radius:20px;backg
 </div>
 <script>
   var orderId = {order_id_json};
+  var scenario = {scenario_json};
   function show(id) {{ document.querySelectorAll('.step').forEach(function (s) {{ s.classList.toggle('on', s.id === id); }}); }}
   function send(action) {{ window.opener.postMessage({{type: 'mock-paypal', action: action, orderId: orderId}}, location.origin); window.close(); }}
+  show(scenario === 'captcha' ? 'step-captcha' : 'step-email');
+  document.getElementById('captchaContinue').onclick = function () {{ if (document.getElementById('captchaCheck').checked) show('step-email'); }};
   document.getElementById('btnNext').onclick = function () {{ if (document.getElementById('email').value.trim()) show('step-password'); }};
   document.getElementById('btnLogin').onclick = function () {{
     var pw = document.getElementById('password');
-    if (pw.value) {{ pw.value = ''; document.getElementById('email').value = ''; show('step-review'); }}
+    if (pw.value) {{ pw.value = ''; document.getElementById('email').value = '';
+      show(scenario === 'verification_required' ? 'step-verify' : 'step-review'); }}
   }};
+  document.getElementById('btnVerify').onclick = function () {{ if (/^\\d{{6}}$/.test(document.getElementById('otpCode').value)) show('step-review'); }};
   var pay = document.getElementById('payment-submit-btn');
   if (pay) pay.onclick = function () {{ send('approve'); }};
   document.getElementById('cancelLink').onclick = function (e) {{ e.preventDefault(); send('cancel'); }};
@@ -192,7 +213,8 @@ def mock_router(fake: FakePayPalClient) -> APIRouter:
         else:
             action = '<button id="payment-submit-btn" type="button">Complete Purchase</button>'
         return POPUP_HTML.format(amount=html.escape(amount["value"]), currency=html.escape(amount["currency_code"]),
-                                 review_action=action, order_id_json=json.dumps(token))
+                                 review_action=action, order_id_json=json.dumps(token),
+                                 scenario_json=json.dumps(fake.scenario))
 
     @router.get("/scenario")
     def get_scenario():

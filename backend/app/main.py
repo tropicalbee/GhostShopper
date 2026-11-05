@@ -3,14 +3,16 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
+from store import catalog
 from store.app import create_store_app
 
 from . import db
 from .agent.llm import groq_configured
 from .config import PAYPAL_SDK_URL, Settings, get_settings
+from .market import MarketError, market_check
 from .orders import router as orders_router
 from .paypal import PayPalClient
 from .paypal_mock import MOCK_CLIENT_ID, MOCK_SDK_PATH, FakePayPalClient, mock_router
@@ -53,6 +55,17 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
             "paypal_mode": settings.paypal_mode,
             "groq_configured": groq_configured(),
         }
+
+    @app.get("/api/market/{sku}")
+    async def market(sku: str):
+        """Informational market check (Channel3 live, or recorded fixtures). Never part of the score."""
+        product = catalog.get_by_sku(sku)
+        if product is None:
+            raise HTTPException(status_code=404, detail={"error": "UNKNOWN_SKU", "message": sku})
+        try:
+            return await market_check(product)
+        except MarketError as exc:
+            raise HTTPException(status_code=502, detail={"error": "MARKET_CHECK_FAILED", "message": str(exc)}) from exc
 
     @app.get("/", include_in_schema=False)
     def root():

@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS runs (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at      TEXT NOT NULL,
     finished_at     TEXT,
-    status          TEXT NOT NULL,          -- running | completed | error
+    status          TEXT NOT NULL,          -- running | awaiting_human | completed | error
     browser         TEXT NOT NULL,          -- local | kernel
     store_url       TEXT NOT NULL,
     goal            TEXT NOT NULL,
@@ -40,11 +40,13 @@ CREATE TABLE IF NOT EXISTS runs (
     flaws_snapshot  TEXT,                   -- JSON
     llm             TEXT NOT NULL,          -- mock | groq
     model           TEXT,
-    outcome         TEXT,                   -- reached_checkout | purchased | blocked | gave_up | step_limit | error
+    outcome         TEXT,                   -- reached_checkout | purchased | blocked | gave_up | error (deterministic)
+    end_reason      TEXT,                   -- finished | agent_gave_up | agent_loop | step_limit | step_timeouts | error
     agent_summary   TEXT,
-    agent_report    TEXT,                   -- JSON: what the agent says it read (not scored)
+    agent_report    TEXT,                   -- JSON: what the agent says it read and its own outcome (not scored)
     step_count      INTEGER NOT NULL DEFAULT 0,
     order_id        TEXT,
+    awaiting        TEXT,                   -- JSON while status = awaiting_human: stage, reason, since, live view
     error           TEXT
 );
 
@@ -71,6 +73,8 @@ CREATE TABLE IF NOT EXISTS checks (
     check_key   TEXT NOT NULL,
     stage       TEXT NOT NULL,
     passed      INTEGER,                    -- 1 pass, 0 fail, NULL not tested
+    code        TEXT,                       -- failure type (failures.FAILURE_TYPES)
+    cause       TEXT,                       -- store | environment (failed / not tested only)
     severity    TEXT NOT NULL,
     reason      TEXT NOT NULL,
     evidence    TEXT,                       -- JSON: url, selector, screenshot, snippet
@@ -84,16 +88,27 @@ CREATE VIEW IF NOT EXISTS failures AS
 
 CREATE TABLE IF NOT EXISTS scores (
     run_id        INTEGER PRIMARY KEY REFERENCES runs(id),
-    total         INTEGER NOT NULL,
+    total         INTEGER NOT NULL,         -- 0-100 over `possible`
+    possible      INTEGER,                  -- points the store is judged on (100 minus excluded)
     discover      INTEGER NOT NULL,
     details       INTEGER NOT NULL,
     checkout      INTEGER NOT NULL,
     payment       INTEGER NOT NULL,
+    outcome       INTEGER,
     breakdown     TEXT NOT NULL,            -- JSON fix list
+    excluded      TEXT,                     -- JSON: checks excluded as not the store's fault
     rules_version TEXT NOT NULL,
     created_at    TEXT NOT NULL
 );
 """
+
+# Columns added after a table first shipped; CREATE TABLE IF NOT EXISTS won't add them to old databases.
+ADDED_COLUMNS = {
+    "orders": {"run_id": "INTEGER"},
+    "runs": {"end_reason": "TEXT", "awaiting": "TEXT"},
+    "checks": {"code": "TEXT", "cause": "TEXT"},
+    "scores": {"possible": "INTEGER", "outcome": "INTEGER", "excluded": "TEXT"},
+}
 
 
 def _now() -> str:
@@ -114,10 +129,15 @@ def connect(db_path: Path) -> Iterator[sqlite3.Connection]:
 
 def init_db(db_path: Path) -> None:
     with connect(db_path) as conn:
-        # Day 1 databases have an orders table without run_id; CREATE IF NOT EXISTS won't add it.
-        cols = {r["name"] for r in conn.execute("PRAGMA table_info(orders)")}
-        if cols and "run_id" not in cols:
-            conn.execute("ALTER TABLE orders ADD COLUMN run_id INTEGER")
+        existing = {}
+        for table in ADDED_COLUMNS:
+            existing[table] = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for table, columns in ADDED_COLUMNS.items():
+            if not existing[table]:
+                continue  # new table: SCHEMA creates it with every column
+            for name, sql_type in columns.items():
+                if name not in existing[table]:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}")
         conn.executescript(SCHEMA)
 
 
@@ -160,11 +180,12 @@ def record_capture(db_path: Path, order_id: str, capture: dict[str, Any], raw: d
         )
 
 
-def get_order(db_path: Path, order_id: str) -> dict[str, Any] | None:
+def get_order(db_path: Path, order_id: str, include_raw: bool = False) -> dict[str, Any] | None:
     with connect(db_path) as conn:
         row = conn.execute("SELECT * FROM orders WHERE order_id = ?", (order_id,)).fetchone()
     if row is None:
         return None
     order = dict(row)
-    order.pop("capture_response", None)
+    if not include_raw:
+        order.pop("capture_response", None)
     return order

@@ -1,0 +1,74 @@
+{
+  "_fixture": "Hand-made fixture in Channel3 POST /v1/search response shape (https://channel3.ai/docs). Not real market data; domains use the reserved .example TLD.",
+  "products": [
+    {
+      "id": "rec-FH-ESP-04-1",
+      "title": "Espresso Cups Set of 4, Mixed Glazes",
+      "brands": [
+        {
+          "id": "brand-1",
+          "name": "Clayworks"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://clayworks.example/img/1.jpg",
+          "is_main_image": true,
+          "alt_text": "Espresso Cups Set of 4, Mixed Glazes"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://clayworks.example/products/1",
+          "domain": "clayworks.example",
+          "price": {
+            "price": 38.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-ESP-04-2",
+      "title": "Handmade Cortado Cups (4)",
+      "brands": [
+        {
+          "id": "brand-2",
+          "name": "Kiln House"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://kilnhouse.example/img/2.jpg",
+          "is_main_image": true,
+          "alt_text": "Handmade Cortado Cups (4)"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://kilnhouse.example/products/2",
+          "domain": "kilnhouse.example",
+          "price": {
+            "price": 52.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    }
+  ],
+  "next_page_token": null
+}

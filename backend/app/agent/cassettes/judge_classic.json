@@ -1,0 +1,9 @@
+{
+  "recorded_from": "hand-written (mock judge; NOT a real judgement)",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": "{\"price_image_only\": {\"matches_evidence\": 5, \"actionable\": 5, \"invented\": false, \"notes\": \"Matches the image-only price evidence.\"}, \"jsonld_missing\": {\"matches_evidence\": 5, \"actionable\": 3, \"invented\": false, \"notes\": \"Correct, but 'hidden product description block' may confuse a non-developer.\"}, \"stock_missing\": {\"matches_evidence\": 5, \"actionable\": 5, \"invented\": false, \"notes\": \"\"}, \"buy_button_nonsemantic\": {\"matches_evidence\": 5, \"actionable\": 5, \"invented\": false, \"notes\": \"Names the exact labels from the evidence.\"}, \"extra_form_step\": {\"matches_evidence\": 4, \"actionable\": 4, \"invented\": false, \"notes\": \"\"}}"
+    }
+  ]
+}

@@ -1,0 +1,244 @@
+{
+  "_fixture": "Hand-made fixture in Channel3 POST /v1/search response shape (https://channel3.ai/docs). Not real market data; domains use the reserved .example TLD.",
+  "products": [
+    {
+      "id": "rec-FH-MUG-01-1",
+      "title": "Handmade Speckled Ceramic Mug 12oz",
+      "brands": [
+        {
+          "id": "brand-1",
+          "name": "Clayworks"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://clayworks.example/img/1.jpg",
+          "is_main_image": true,
+          "alt_text": "Handmade Speckled Ceramic Mug 12oz"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://clayworks.example/products/1",
+          "domain": "clayworks.example",
+          "price": {
+            "price": 18.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-MUG-01-2",
+      "title": "Stoneware Coffee Mug, Oatmeal Glaze",
+      "brands": [
+        {
+          "id": "brand-2",
+          "name": "Kiln House"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://kilnhouse.example/img/2.jpg",
+          "is_main_image": true,
+          "alt_text": "Stoneware Coffee Mug, Oatmeal Glaze"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://kilnhouse.example/products/2",
+          "domain": "kilnhouse.example",
+          "price": {
+            "price": 22.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-MUG-01-3",
+      "title": "Wheel Thrown Pottery Mug",
+      "brands": [
+        {
+          "id": "brand-3",
+          "name": "River Pottery"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://riverpottery.example/img/3.jpg",
+          "is_main_image": true,
+          "alt_text": "Wheel Thrown Pottery Mug"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://riverpottery.example/products/3",
+          "domain": "riverpottery.example",
+          "price": {
+            "price": 26.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-MUG-01-4",
+      "title": "Artisan Stoneware Mug 14oz",
+      "brands": [
+        {
+          "id": "brand-4",
+          "name": "Northfork Studio"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://northforkstudio.example/img/4.jpg",
+          "is_main_image": true,
+          "alt_text": "Artisan Stoneware Mug 14oz"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://northforkstudio.example/products/4",
+          "domain": "northforkstudio.example",
+          "price": {
+            "price": 28.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-MUG-01-5",
+      "title": "Speckled Mug, Handmade in Vermont",
+      "brands": [
+        {
+          "id": "brand-5",
+          "name": "Green Mountain Clay"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://greenmountainclay.example/img/5.jpg",
+          "is_main_image": true,
+          "alt_text": "Speckled Mug, Handmade in Vermont"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://greenmountainclay.example/products/5",
+          "domain": "greenmountainclay.example",
+          "price": {
+            "price": 32.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-MUG-01-6",
+      "title": "Large Handmade Mug",
+      "brands": [
+        {
+          "id": "brand-6",
+          "name": "Atelier Terre"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://atelierterre.example/img/6.jpg",
+          "is_main_image": true,
+          "alt_text": "Large Handmade Mug"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://atelierterre.example/products/6",
+          "domain": "atelierterre.example",
+          "price": {
+            "price": 36.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-MUG-01-7",
+      "title": "Ceramic Mug (EU shop)",
+      "brands": [
+        {
+          "id": "brand-7",
+          "name": "Keramik Haus"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://keramikhaus.example/img/7.jpg",
+          "is_main_image": true,
+          "alt_text": "Ceramic Mug (EU shop)"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://keramikhaus.example/products/7",
+          "domain": "keramikhaus.example",
+          "price": {
+            "price": 21.0,
+            "compare_at_price": null,
+            "currency": "EUR"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    }
+  ],
+  "next_page_token": null
+}
