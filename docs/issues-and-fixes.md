@@ -2,6 +2,23 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-05 (Day 5 session)
+
+### Cart detection swallowed the demo store's extra step
+The new rule "a page under /checkout is checkout" matched the demo store's details form at `/store/checkout/details`. Checkout looked reached before the form, so no_extra_steps passed on the bad store and two end-to-end tests failed. Only the last path segment counts now: `/checkout` is checkout, `/checkout/details` isn't.
+
+### The scripted navigator always started at /store/
+On any other site that's a 404 page, and platform detection locked in "unknown" from it. Live runs now start at `/`, and detection keeps looking until a page shows its platform.
+
+### A store without PayPal never reached checkout
+The cart page had no payment button and wasn't titled "Checkout", so the missing PayPal button was never reported. Cart and checkout pages are now also recognised by their title ("Your cart") or path, and on live stores the PayPal check stays "not tested" if the cart is never reached.
+
+### robots.txt refusals were silent on clicks
+When a click led to a disallowed page, the browser blocked the load but the step still looked successful. The click tool now says the page wasn't opened and why.
+
+### The decision page closed unanswered
+The Impeccable decision page went away after its second round. I asked through the question tool instead.
+
 ## 2026-11-05 (tasks 1-11)
 
 ### The summary check outranked its own cause

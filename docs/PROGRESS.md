@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-11-05 (Day 5 session: real-world behaviour, design not settled)
+
+### Done
+- Any store link. `POST /api/runs {store_url}` and `--url` on the CLI run the shopper on a pasted link. A preflight turns broken links into plain messages ("We couldn't find that website…", "Your store took too long to answer…", "That link doesn't open a web page…").
+- Live stores are browse-only. On any site other than our demo store, the agent goes as far as the PayPal button, checks it's present, visible and clickable, and stops. It can't click anything PayPal-like or type a password there, and purchases on live links are refused up front.
+- Polite visiting. robots.txt is checked before the run and on every page load (RFC 9309 rules), with a 2-second minimum gap between page loads (longer if the site's Crawl-delay asks). The bot identifies itself as GhostShopperBot. Private and local addresses are refused when deployed. A bot or CAPTCHA page stops the run and is reported as "this site blocked our check", not the store's fault.
+- Platform detection: Shopify, Wix, WooCommerce or unknown, with the evidence saved on the run.
+- Plain-English fixes for every store-caused failure (what's wrong, why it costs sales, how to fix), with Shopify, Wix and WooCommerce steps where they apply. The technical fix stays for the Advanced view.
+- "Send to my developer": `GET /api/runs/{id}/developer-summary` returns Markdown with failures, evidence, selectors and suggested code.
+- A plain-language step feed (`run.feed`), a traffic-light status with words, and screenshots served from `GET /api/runs/{id}/files/{name}`.
+- docs/UI_SPEC.md rewritten for the two audiences and the shadcn style.
+- Tests: 26 new ones, on mocked Shopify, Wix, WooCommerce, unknown, bot-blocked and robots.txt sites.
+
+### Not done (stopped by the user)
+- The frontend. You rejected the shadcn-style mock (`.impeccable/mocks/final/design.html`) as "horrible" and we stopped for the day. The design needs redoing before any frontend code.
+- Two earlier design rounds (Readiness Facts, Shelf Label and the rest) are in `.impeccable/mocks/decision/`. None was chosen.
+
+### Open decision
+- How live-store payment checks count. My default is in the code: the four payment steps after the PayPal button are excluded on live stores (code `live_store_browse_only`), so a perfect live store scores 100 judged on 84 points, with a "Not checked on live stores" note. No weights changed, and demo-store numbers are unaffected. If you choose "count them as 0" instead, it's a one-line change in `engine.finalize`.
+
+### Next
+1. Agree on a dashboard design with you, then build it.
+2. Confirm the live-store scoring.
+3. The live checks from the earlier sessions (Day 3 sandbox purchase, Groq).
+
 ## 2026-11-05 (tasks 1-11, second autonomous session)
 
 ### Done

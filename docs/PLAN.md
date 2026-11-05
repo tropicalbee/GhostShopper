@@ -48,8 +48,13 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 ## D5 (Nov 9): scoring and dashboard
 - [x] Deterministic score function, unit tests, rules_version
 - [x] LLM fix explanations (text only, never scored)
-- [ ] UI_SPEC.md
-- [ ] Dashboard: run button, score, failures grid (AG Grid Community), fix list, verification, run comparison
+- [x] UI_SPEC.md (rewritten for shopkeepers and judges, shadcn style)
+- [x] Real-world behaviour: any store link, browse-only live stores, robots.txt and rate limit, bot checks reported as not the store's fault
+- [x] Platform detection (Shopify, Wix, WooCommerce) and plain-English fixes with platform steps
+- [x] "Send to my developer" summary, plain step feed, screenshot endpoint
+- [ ] Dashboard design agreed with the user (two Impeccable rounds and a shadcn mock so far, none approved)
+- [ ] Dashboard built: Home, Live check, Results, Before/after, Advanced (AG Grid Community)
+- [ ] Decide how live-store payment checks count (default in code: excluded)
 
 ## Evaluation (added Nov 5, between D4 and D5)
 - [x] Saboteur: 6 more flaws (10 in total), each a toggle with a ground-truth label
