@@ -11,6 +11,7 @@ from store.flaws import CLASSIC_FLAWS, FLAW_KEYS
 from .browser import BrowserConfigError, resolve_provider
 from .llm import CASSETTE_DIR, LLMConfigError, make_llm
 from .loop import DEFAULT_TARGET, PaymentHandler, RunConfig, run_shopper
+from .site import SiteError, Target, preflight
 
 FlawMode = Literal["on", "off", "keep"]
 
@@ -21,8 +22,9 @@ class RunConfigError(ValueError):
 
 @dataclass
 class RunRequest:
-    llm: Literal["mock", "groq"] = "groq"
+    llm: Literal["mock", "groq", "scripted"] = "groq"  # scripted = rule-based navigator, not an LLM
     cassette: str | None = None  # mock: cassette to replay
+    store_url: str | None = None  # None = our demo store; anything else is a live store (browse-only)
     record: str | None = None  # groq: save the run as this cassette name
     flaws: FlawMode = "keep"
     checkout: bool = False
@@ -84,9 +86,27 @@ def build_payment(req: RunRequest, store_url: str, server: ServerInfo | None = N
         raise RunConfigError(str(exc)) from exc
 
 
+async def resolve_target(req: RunRequest, app_base_url: str) -> Target:
+    """Which store this run visits. A pasted link gets a polite preflight with a friendly error."""
+    if not req.store_url:
+        return Target(f"{app_base_url}/store/", f"{app_base_url}", True)
+    try:
+        target = await preflight(req.store_url, app_base_url)
+    except SiteError as exc:
+        raise RunConfigError(str(exc)) from exc
+    if not target.demo and req.checkout:
+        raise RunConfigError("Purchases only run on the GhostShopper demo store. "
+                             "Live stores are checked up to the PayPal button, without paying.")
+    return target
+
+
 def prepare(req: RunRequest, store_url: str, db_path: Path, server: ServerInfo | None = None,
-            on_awaiting_human: Callable | None = None):
+            on_awaiting_human: Callable | None = None, live: bool = False):
     """Validate everything that can fail before a run row exists. Raises RunConfigError."""
+    if live and req.checkout:
+        raise RunConfigError("Purchases only run on the GhostShopper demo store.")
+    if live and req.llm == "mock":
+        raise RunConfigError("Replayed runs only fit the demo store. Use the live agent (groq) or the scripted navigator.")
     flaw_selection(req.flaws)  # raises on unknown flaw keys
     try:
         resolve_provider(req.browser)
@@ -96,7 +116,12 @@ def prepare(req: RunRequest, store_url: str, db_path: Path, server: ServerInfo |
         if req.record and not req.record.replace("_", "").replace("-", "").isalnum():
             raise LLMConfigError(f"Invalid cassette name {req.record!r}")
         record_to = CASSETTE_DIR / f"{req.record}.json" if req.record else None
-        llm = make_llm(req.llm, req.cassette, record_to)
+        if req.llm == "scripted":
+            from ..eval.navigator import ScriptedNavigator
+
+            llm = ScriptedNavigator(None if live else req.target_product)
+        else:
+            llm = make_llm(req.llm, req.cassette, record_to)
     except LLMConfigError as exc:
         raise RunConfigError(str(exc)) from exc
     payment = build_payment(req, store_url, server, on_awaiting_human)
@@ -110,13 +135,17 @@ async def execute(
     on_start: Callable[[int], None] | None = None,
     server: ServerInfo | None = None,
     on_awaiting_human: Callable | None = None,
+    live: bool = False,
+    allow_private: bool = True,
 ) -> int:
-    llm, payment = prepare(req, store_url, db_path, server, on_awaiting_human)
-    flaws = await apply_flaws(store_url, req.flaws)
+    llm, payment = prepare(req, store_url, db_path, server, on_awaiting_human, live=live)
+    flaws = None if live else await apply_flaws(store_url, req.flaws)
     cfg = RunConfig(
         store_url=store_url,
         db_path=db_path,
-        target_product=req.target_product,
+        target_product=None if live else req.target_product,
+        live=live,
+        allow_private=allow_private,
         checkout=req.checkout,
         paypal_mode=req.paypal if req.checkout else "off",
         flaws=flaws,

@@ -61,7 +61,7 @@ class RunRecorder:
         *,
         store_url: str,
         goal: str,
-        target_product: str,
+        target_product: str | None,
         checkout: bool,
         paypal_mode: str,
         flaws: dict[str, bool] | None,
@@ -69,15 +69,16 @@ class RunRecorder:
         model: str | None,
         browser: str = "local",
         secrets: Iterable[str] = (),
+        live: bool = False,
     ) -> "RunRecorder":
         db.init_db(db_path)
         redact = Redactor(secrets)
         with db.connect(db_path) as conn:
             cur = conn.execute(
                 "INSERT INTO runs (started_at, status, browser, store_url, goal, target_product, checkout,"
-                " paypal_mode, flaws_snapshot, llm, model) VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (_now(), browser, store_url, redact(goal), target_product, int(checkout), paypal_mode,
-                 json.dumps(flaws) if flaws is not None else None, llm, model),
+                " paypal_mode, flaws_snapshot, llm, model, live) VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (_now(), browser, store_url, redact(goal), target_product or "", int(checkout), paypal_mode,
+                 json.dumps(flaws) if flaws is not None else None, llm, model, int(live)),
             )
             run_id = cur.lastrowid
         return cls(db_path, run_id, redact)
@@ -147,13 +148,20 @@ class RunRecorder:
     def has_environment_failure(self) -> bool:
         return any(r["passed"] == 0 and r["cause"] == ENVIRONMENT for r in self.rows())
 
-    def mark_untested(self, reasons: dict[str, str], blocked_by_environment: bool = False) -> None:
+    def mark_untested(self, reasons: dict[str, str], blocked_by_environment: bool = False,
+                      stage_codes: dict[str, str] | None = None) -> None:
         """Record every check that never ran as not tested. If the run was stopped by something that is
-        not the store's fault, those checks are excluded rather than counted against the store."""
-        code = NOT_TESTED_ENVIRONMENT if blocked_by_environment else NOT_TESTED_STORE
+        not the store's fault, those checks are excluded rather than counted against the store.
+        stage_codes overrides the code for a whole stage (live stores: payment is out of scope)."""
+        default = NOT_TESTED_ENVIRONMENT if blocked_by_environment else NOT_TESTED_STORE
         for key, check in CHECKS.items():
             reason = reasons.get(check.stage, "Not tested: the agent did not reach this stage.")
-            self.record_check(key, None, reason, code=code)
+            self.record_check(key, None, reason, code=(stage_codes or {}).get(check.stage, default))
+
+    def set_platform(self, detected: dict[str, Any]) -> None:
+        with db.connect(self.db_path) as conn:
+            conn.execute("UPDATE runs SET platform = ?, platform_evidence = ? WHERE id = ?",
+                         (detected["platform"], json.dumps(detected.get("evidence") or []), self.run_id))
 
     def set_awaiting(self, info: dict[str, Any] | None) -> None:
         """Pause marker for human approval; None resumes the run."""
@@ -199,6 +207,7 @@ def _loads(value: str | None) -> Any:
 
 
 def load_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
+    from ..plain import narrate
     from ..scorecard import build_scorecard
 
     with db.connect(db_path) as conn:
@@ -209,7 +218,7 @@ def load_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
         checks = conn.execute("SELECT * FROM checks WHERE run_id = ? ORDER BY id", (run_id,)).fetchall()
         score = conn.execute("SELECT * FROM scores WHERE run_id = ?", (run_id,)).fetchone()
     out = dict(run)
-    for key in ("flaws_snapshot", "agent_report", "awaiting"):
+    for key in ("flaws_snapshot", "agent_report", "awaiting", "platform_evidence"):
         out[key] = _loads(out.get(key))
     out["steps"] = [{**dict(r), "args": _loads(r["args"])} for r in steps]
     out["checks"] = [{**dict(r), "evidence": _loads(r["evidence"]), "status": status_of(r["passed"], r["cause"])}
@@ -217,14 +226,17 @@ def load_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
     out["score"] = ({**dict(score), "breakdown": _loads(score["breakdown"]), "excluded": _loads(score["excluded"]) or []}
                     if score else None)
     out["order"] = db.get_order(db_path, run["order_id"]) if run["order_id"] else None
+    out["live"] = bool(out.get("live"))
     out["scorecard"] = build_scorecard(out)
+    out["feed"] = narrate(out["steps"], out["checks"])
     return out
 
 
 def list_runs(db_path: Path, limit: int = 50) -> list[dict[str, Any]]:
     with db.connect(db_path) as conn:
         rows = conn.execute(
-            "SELECT r.id, r.started_at, r.finished_at, r.status, r.outcome, r.end_reason, r.llm, r.browser,"
+            "SELECT r.id, r.started_at, r.finished_at, r.status, r.outcome, r.end_reason, r.llm, r.browser, r.live,"
+            " r.store_url, r.platform,"
             " r.checkout, r.paypal_mode, r.flaws_snapshot, r.step_count, r.order_id, s.total AS score,"
             " s.possible AS score_possible"
             " FROM runs r LEFT JOIN scores s ON s.run_id = r.id ORDER BY r.id DESC LIMIT ?",

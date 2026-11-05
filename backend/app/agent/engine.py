@@ -1,9 +1,10 @@
 """Applies the deterministic detectors to every page the agent lands on, and records check outcomes."""
 
-from typing import Any, Protocol
+from typing import Any, Awaitable, Callable, Protocol
 
 from ..scoring import EXCLUDED, FAIL, PASS
 from . import checks
+from .platform import detect_platform
 from .recorder import RunRecorder
 
 
@@ -11,13 +12,21 @@ class Screenshotter(Protocol):
     async def screenshot(self, name: str, full_page: bool = False) -> str: ...
 
 
+PaypalProbe = Callable[[], Awaitable[dict[str, Any]]]
+
+
 class CheckEngine:
-    def __init__(self, recorder: RunRecorder, target_product: str, shots: Screenshotter):
+    def __init__(self, recorder: RunRecorder, target_product: str | None, shots: Screenshotter,
+                 live: bool = False, paypal_probe: PaypalProbe | None = None):
         self.rec = recorder
-        self.target = target_product
+        self.target = target_product  # None on live stores: any product page counts
         self.shots = shots
+        self.live = live
+        self.paypal_probe = paypal_probe
         self.product_seen = False
         self.checkout_seen = False
+        self.blocked = False  # the site's bot check stopped us
+        self.platform_done = False
         self.checkout_url: str | None = None
         self.product_price = None  # first text price on the product page, for the checkout comparison
         self._form_pages: list[dict[str, Any]] = []
@@ -35,13 +44,28 @@ class CheckEngine:
 
     async def on_page(self, facts: dict[str, Any], step_id: int | None) -> None:
         url = facts.get("url")
+        if not self.platform_done and facts.get("platform_signals") is not None:
+            # Keep looking until a page shows its platform (the first page may be an error or a redirect).
+            detected = detect_platform(facts["platform_signals"])
+            self.rec.set_platform(detected)
+            self.platform_done = detected["platform"] != "unknown"
+        if facts.get("bot_check"):
+            # A bot check is the site's choice, not a store defect: record it once and stop the run.
+            if not self.blocked:
+                self.blocked = True
+                key = "product_found" if not self.product_seen else "checkout_reached"
+                await self._record(checks.Outcome(
+                    key, False, "This site blocked our check with a bot or security challenge. We didn't try to get past it.",
+                    {"url": url, "title": facts.get("title")}, "site_blocked"), step_id)
+            return
         if checks.is_product_page(facts, self.target):
             # Revisiting the product page restarts the path to checkout (wrong turns don't count as steps).
             self._form_pages = []
             if not self.product_seen:
                 self.product_seen = True
                 self.product_price = checks.first_price(facts)
-                await self._record(checks.Outcome("product_found", True, f"Reached '{facts.get('title')}'.", {"url": url}), step_id)
+                await self._record(checks.Outcome("product_found", True, f"Reached '{facts.get('title')}'.",
+                                                  {"url": url, "title": facts.get("title")}), step_id)
                 for outcome in checks.evaluate_product_page(facts):
                     await self._record(outcome, step_id)
         elif checks.is_checkout_page(facts) and not self.checkout_seen:
@@ -52,6 +76,31 @@ class CheckEngine:
                 await self._record(checks.evaluate_path_to_checkout(url, self._form_pages), step_id)
                 for outcome in checks.evaluate_checkout_prices(facts, self.product_price):
                     await self._record(outcome, step_id)
+            if self.live and self.paypal_probe:
+                await self.check_paypal(step_id)
+
+    async def check_paypal(self, step_id: int | None) -> str:
+        """Live stores: is the PayPal button present, visible and clickable? Never clicks it."""
+        if self.rec.is_recorded("paypal_button_found"):
+            row = next(r for r in self.rec.rows() if r["check_key"] == "paypal_button_found")
+            return "The PayPal button was already checked: " + ("ready." if row["passed"] == 1 else "not usable.")
+        state = await self.paypal_probe()
+        ev = {k: state.get(k) for k in ("selector", "covered_by", "visible", "clickable", "disabled")}
+        if not state.get("found"):
+            outcome = checks.Outcome("paypal_button_found", False, "No PayPal button on the cart or checkout page.",
+                                     ev, "paypal_button_missing")
+        elif not state.get("visible"):
+            outcome = checks.Outcome("paypal_button_found", False, "A PayPal button is in the page but hidden.",
+                                     ev, "paypal_button_hidden")
+        elif not state.get("clickable"):
+            why = f"covered by {state['covered_by']}" if state.get("covered_by") else "disabled"
+            outcome = checks.Outcome("paypal_button_found", False, f"The PayPal button can't be clicked ({why}).",
+                                     ev, "paypal_button_covered")
+        else:
+            outcome = checks.Outcome("paypal_button_found", True,
+                                     "PayPal button present, visible and clickable. Not clicked: live stores are browse-only.", ev)
+        await self._record(outcome, step_id)
+        return outcome.reason
 
     def on_form_filled(self, facts: dict[str, Any]) -> None:
         """The agent had to fill a form. Counts as an extra step if it is between product and checkout."""
@@ -62,19 +111,24 @@ class CheckEngine:
         form = (facts.get("forms") or [{}])[0]
         self._form_pages.append({"url": facts.get("url"), "selector": form.get("selector"), "fields": form.get("fields", [])})
 
-    def finalize(self, *, checkout: bool, end_reason: str, error: str | None = None) -> str:
+    async def finalize(self, *, checkout: bool, end_reason: str, error: str | None = None) -> str:
         """Record goal checks and the task outcome, mark the rest untested, and return the run outcome.
 
         The outcome is decided from checks, never from what the LLM claimed in finish().
         """
         rec = self.rec
-        if error is None:
+        if error is None and not self.blocked:
             if not self.product_seen:
-                rec.record_check("product_found", False, f"The agent never reached a page for '{self.target}'.",
-                                 code="product_not_found")
+                what = f"a page for '{self.target}'" if self.target else "a product page"
+                rec.record_check("product_found", False, f"The agent never reached {what}.", code="product_not_found")
             if not self.checkout_seen:
                 rec.record_check("checkout_reached", False, "The agent never reached a checkout page.",
                                  code="checkout_not_reached")
+            if self.live and self.checkout_seen and self.paypal_probe and not rec.is_recorded("paypal_button_found"):
+                try:
+                    await self.check_paypal(None)
+                except Exception:  # browser gone; leave it untested rather than guess
+                    pass
             if checkout and self.checkout_seen and not rec.has_environment_failure():
                 rec.record_check("paypal_button_found", False,
                                  "The agent reached checkout but never started the PayPal payment.",
@@ -86,6 +140,12 @@ class CheckEngine:
 
         if error is not None:
             outcome, task = "error", (None, "run_error", f"The run failed: {error}")
+        elif self.blocked:
+            outcome, task = "blocked", (None, "site_blocked", "The site's bot check stopped the visit.")
+        elif self.live and results.get("paypal_button_found") == PASS:
+            outcome, task = "paypal_ready", (True, None, "Reached the PayPal button and checked it; live stores are browse-only.")
+        elif self.live and results.get("paypal_button_found") == FAIL:
+            outcome, task = "blocked", (False, "payment_failed", "Reached checkout but the PayPal button couldn't be used.")
         elif checkout and results.get("capture_completed") == PASS:
             outcome, task = "purchased", (True, None, "Purchase completed and captured.")
         elif not checkout and results.get("checkout_reached") == PASS:
@@ -104,12 +164,21 @@ class CheckEngine:
         rec.record_check("task_completed", passed, reason, {"end_reason": end_reason}, code=code)
 
         not_reached = "Not tested: the agent never reached the product page."
-        rec.mark_untested({
+        reasons = {
             "details": not_reached,
             "checkout": "Not tested: the agent never reached checkout." if self.product_seen else not_reached,
             "payment": ("Not tested: payment was not part of this run." if not checkout
                         else "Not tested: an earlier step stopped the payment."),
-        }, blocked_by_environment=env_failure)
+        }
+        stage_codes = {}
+        if self.live and not self.blocked and error is None:
+            # Live stores are browse-only by design: the payment steps after the button are out of scope,
+            # so they're excluded rather than scored as zero. The button itself is in scope.
+            rec.record_check("paypal_button_found", None, "Not tested: the agent never reached the cart or checkout.",
+                             code="not_tested")
+            reasons["payment"] = "Not tested on live stores: GhostShopper only pays on its own demo store."
+            stage_codes["payment"] = "live_store_browse_only"
+        rec.mark_untested(reasons, blocked_by_environment=env_failure, stage_codes=stage_codes)
         return outcome
 
 

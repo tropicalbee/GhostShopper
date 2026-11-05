@@ -11,7 +11,8 @@ import sys
 
 from ..config import get_settings
 from .recorder import load_run
-from .service import RunConfigError, RunRequest, execute
+from .service import RunConfigError, RunRequest, execute, resolve_target
+from .site import allow_private_hosts
 
 
 def print_awaiting_human(info: dict, popup) -> None:
@@ -31,7 +32,8 @@ def print_awaiting_human(info: dict, popup) -> None:
 def print_run(run: dict) -> None:
     card = run["scorecard"] or {}
     print(f"Run {run['id']}: status={run['status']} outcome={run['outcome']} end={run['end_reason']} "
-          f"steps={run['step_count']} browser={run['browser']}")
+          f"steps={run['step_count']} browser={run['browser']} platform={run.get('platform')}"
+          f"{' (live store: browse-only, no payment)' if run.get('live') else ''}")
     for line in card.get("summary", []):
         print(f"  {line}")
     marks = {"pass": "PASS", "fail": "FAIL", "not_tested": "----", "excluded": "EXCL"}
@@ -50,7 +52,9 @@ def print_run(run: dict) -> None:
 
 def main() -> int:
     p = argparse.ArgumentParser(prog="python -m backend.app.agent", description="GhostShopper mystery shopper")
-    p.add_argument("--llm", choices=["mock", "groq"], default="groq")
+    p.add_argument("--url", help="a store link to check (browse-only, never pays); default: the demo store")
+    p.add_argument("--llm", choices=["mock", "groq", "scripted"], default="groq",
+                   help="scripted = rule-based navigator (not an LLM), works on any store")
     p.add_argument("--cassette", help="mock: name of the recorded responses to replay")
     p.add_argument("--record", help="groq: save this run's LLM replies as a cassette with this name")
     p.add_argument("--flaws", default="keep",
@@ -68,9 +72,18 @@ def main() -> int:
     settings = get_settings()
     store_url = a.store_url or f"{settings.app_base_url}/store/"
     req = RunRequest(llm=a.llm, cassette=a.cassette, record=a.record, flaws=a.flaws, checkout=a.checkout,
-                     paypal=a.paypal, max_steps=a.max_steps, headless=not a.headed, browser=a.browser)
+                     paypal=a.paypal, max_steps=a.max_steps, headless=not a.headed, browser=a.browser,
+                     store_url=a.url)
+
+    async def go() -> int:
+        target = await resolve_target(req, settings.app_base_url) if a.url else None
+        url = target.url if target else store_url
+        live = bool(target and not target.demo)
+        return await execute(req, url, settings.database_path, on_awaiting_human=print_awaiting_human, live=live,
+                             allow_private=allow_private_hosts(settings.app_base_url))
+
     try:
-        run_id = asyncio.run(execute(req, store_url, settings.database_path, on_awaiting_human=print_awaiting_human))
+        run_id = asyncio.run(go())
     except RunConfigError as exc:
         print(f"Config error: {exc}", file=sys.stderr)
         return 2

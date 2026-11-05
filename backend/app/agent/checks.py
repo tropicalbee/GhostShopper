@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from urllib.parse import urlparse
 
 PRICE_RE = re.compile(r"(?:\$|USD\s?)\s?\d{1,3}(?:,\d{3})*(?:\.\d{2})?")
 STOCK_RE = re.compile(r"\b(in stock|out of stock|sold out|available now|backorder|back-order|pre-?order)\b", re.I)
@@ -26,12 +27,38 @@ class Outcome:
     code: str | None = None  # failure type (failures.FAILURE_TYPES); None when passed
 
 
-def is_product_page(facts: dict[str, Any], target: str) -> bool:
-    return target.lower() in (facts.get("title") or "").lower()
+ADD_TO_CART_RE = re.compile(r"\b(buy( it)? now|add to (cart|bag|basket))\b", re.I)
+CART_RE = re.compile(r"\b(cart|basket|bag|checkout)\b", re.I)
+
+
+def is_product_page(facts: dict[str, Any], target: str | None) -> bool:
+    """Our demo store: the page is titled with the target product. Any other store (target None): the
+    page carries Product data, says og:type product, or shows a price next to an add-to-cart control."""
+    title = facts.get("title") or ""
+    if target:
+        return target.lower() in title.lower()
+    url_path = urlparse(facts.get("url") or "").path
+    if is_checkout_page(facts) or CART_RE.search(title) or CART_RE.search(url_path):
+        return False
+    if _products_in_jsonld(facts.get("jsonld") or []):
+        return True
+    if "product" in (facts.get("og_type") or "").lower():
+        return True
+    in_main = [c for c in facts.get("controls") or [] if c.get("in_main", True)]
+    has_buy = any(ADD_TO_CART_RE.search(c.get("text") or "") for c in in_main)
+    return has_buy and bool(text_prices(facts))
+
+
+CART_PATH_RE = re.compile(r"/(cart|cart-page|checkout|checkouts|basket)/?$", re.I)  # the last segment only: /checkout/details is not checkout
+CART_TITLE_RE = re.compile(r"^(your )?(shopping )?(cart|basket|bag|checkout)", re.I)
 
 
 def is_checkout_page(facts: dict[str, Any]) -> bool:
-    return bool(facts.get("has_payment_button")) or (facts.get("title") or "").lower().startswith("checkout")
+    """The page where payment starts: a payment button, or a page that is the cart or checkout by its
+    path or title (a cart with no PayPal button still counts, so the missing button gets reported)."""
+    title = (facts.get("title") or "").strip()
+    return (bool(facts.get("has_payment_button")) or title.lower().startswith("checkout")
+            or bool(CART_TITLE_RE.search(title)) or bool(CART_PATH_RE.search(urlparse(facts.get("url") or "").path)))
 
 
 def _products_in_jsonld(blocks: list[Any]) -> list[dict[str, Any]]:

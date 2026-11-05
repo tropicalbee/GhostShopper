@@ -65,6 +65,17 @@ FAILURE_TYPES: dict[str, FailureType] = {
         FailureType("paypal_button_missing", "paypal_button_found", STORE,
                     "Render the PayPal button on checkout: load the PayPal JS SDK v6 with your client ID and show "
                     "<paypal-button> when PayPal is eligible."),
+        FailureType("paypal_button_hidden", "paypal_button_found", STORE,
+                    "Make the PayPal button visible on cart or checkout: it is in the page but hidden (display, "
+                    "visibility, opacity or zero size)."),
+        FailureType("paypal_button_covered", "paypal_button_found", STORE,
+                    "Move whatever overlays the PayPal button (see covered_by in the evidence) so the button receives clicks."),
+        FailureType("live_store_browse_only", "popup_opened", ENVIRONMENT,
+                    "No store change needed: payments are only tested on the GhostShopper demo store; live stores "
+                    "are checked up to the PayPal button."),
+        FailureType("site_blocked", "product_found", ENVIRONMENT,
+                    "No store change needed for the score: the site's bot protection blocked the check. Consider "
+                    "allowing well-behaved shopping agents if you want them to buy."),
         FailureType("popup_not_opened", "popup_opened", STORE,
                     "Call session.start() directly inside the PayPal button's click handler, passing the "
                     "createOrder() promise without awaiting it first."),

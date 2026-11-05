@@ -11,6 +11,7 @@ from playwright.async_api import Error as PlaywrightError
 from ..config import REPO_ROOT
 from ..scoring import compute_score
 from .browser import BrowserSession, PageTools, ToolError, resolve_provider
+from .site import Politeness
 from .engine import CheckEngine
 from .guards import ABORT, LOOP_WARNING, WARN, LoopDetector
 from .llm import LLM
@@ -57,6 +58,12 @@ PAY_TOOL = _fn(
     "approve the payment. Sign-in details are handled for you; never ask for them.",
 )
 
+CHECK_PAYPAL_TOOL = _fn(
+    "check_paypal_button",
+    "On the cart or checkout page of a live store: check the PayPal button is present, visible and clickable. "
+    "It never clicks or pays; live stores are browse-only.",
+)
+
 SYSTEM_PROMPT = """You are an AI shopping agent acting for a customer. You browse a merchant's web store using tools only.
 You cannot see images; you only know what the tools return.
 Rules:
@@ -67,7 +74,12 @@ Rules:
 - Finish by calling finish with the outcome, the price and stock you read, and a short summary of anything that blocked or slowed you."""
 
 
-def goal_text(target: str, store_url: str, checkout: bool) -> str:
+def goal_text(target: str | None, store_url: str, checkout: bool, live: bool = False) -> str:
+    if live:
+        what = f"the product '{target}'" if target else "a product (any product the store sells)"
+        return (f"Visit the store at {store_url} like a shopper. Find {what}, read its price and stock status, "
+                f"add it to the cart and go to the cart or checkout, then use check_paypal_button. "
+                f"This is a live store: never pay, never log in, never fill in personal details.")
     if checkout:
         return (f"Buy one '{target}' from the store at {store_url}. Find it, read its price and stock status, "
                 f"go to checkout, pay with pay_with_paypal, and report the order number.")
@@ -86,8 +98,11 @@ class PaymentHandler(Protocol):
 class RunConfig:
     store_url: str
     db_path: Path
-    target_product: str = DEFAULT_TARGET
+    target_product: str | None = DEFAULT_TARGET  # None on live stores: any product page counts
     checkout: bool = False
+    live: bool = False  # a real store: browse-only, polite, never pays
+    allow_private: bool = True  # live stores: may private/local hosts be opened (dev and tests only)
+    politeness: Politeness | None = None
     paypal_mode: str = "off"  # off | mock | sandbox
     flaws: dict[str, bool] | None = None
     max_steps: int = 25
@@ -108,13 +123,17 @@ async def run_shopper(
 ) -> int:
     if cfg.checkout and payment is None:
         raise ValueError("A checkout run needs a payment handler")
+    if cfg.live and (cfg.checkout or payment is not None):
+        raise ValueError("Live stores are browse-only: purchases only run on the GhostShopper demo store")
+    polite = (cfg.politeness or Politeness()) if cfg.live else None
     session_cm = cfg.session_factory() if cfg.session_factory else BrowserSession(
-        headless=cfg.headless, provider=resolve_provider(cfg.browser))
+        headless=cfg.headless, provider=resolve_provider(cfg.browser), politeness=polite,
+        allow_private=cfg.allow_private)
     provider = session_cm.provider
     rec = RunRecorder.start(
         cfg.db_path,
         store_url=cfg.store_url,
-        goal=goal_text(cfg.target_product, cfg.store_url, cfg.checkout),
+        goal=goal_text(cfg.target_product, cfg.store_url, cfg.checkout, cfg.live),
         target_product=cfg.target_product,
         checkout=cfg.checkout,
         paypal_mode=cfg.paypal_mode if cfg.checkout else "off",
@@ -123,6 +142,7 @@ async def run_shopper(
         model=llm.model,
         browser=provider,
         secrets=payment.secrets if payment else (),
+        live=cfg.live,
     )
     if on_start:
         on_start(rec.run_id)
@@ -136,11 +156,12 @@ async def run_shopper(
     try:
         async with session_cm as session:
             tools = PageTools(session, cfg.store_url, shots_dir)
-            engine = CheckEngine(rec, cfg.target_product, tools)
-            specs = BROWSE_TOOLS + ([PAY_TOOL] if cfg.checkout else [])
+            engine = CheckEngine(rec, cfg.target_product, tools, live=cfg.live,
+                                 paypal_probe=tools.paypal_button_state if cfg.live else None)
+            specs = BROWSE_TOOLS + ([PAY_TOOL] if cfg.checkout else []) + ([CHECK_PAYPAL_TOOL] if cfg.live else [])
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": goal_text(cfg.target_product, cfg.store_url, cfg.checkout)},
+                {"role": "user", "content": goal_text(cfg.target_product, cfg.store_url, cfg.checkout, cfg.live)},
             ]
             nudges = 0
             done = False
@@ -205,6 +226,9 @@ async def run_shopper(
                                   "in_stock": a.get("in_stock")}
                         end_reason, done = "finished", True
                         break
+                    if engine.blocked:
+                        end_reason, done = "site_blocked", True
+                        break
                     if verdict == ABORT:
                         end_reason, done = "agent_loop", True
                         break
@@ -217,8 +241,10 @@ async def run_shopper(
         status, end_reason, error = "error", "error", f"{type(exc).__name__}: {str(exc)[:500]}"
     finally:
         if engine is None:
-            engine = CheckEngine(rec, cfg.target_product, _NoShots())
-        outcome = engine.finalize(checkout=cfg.checkout, end_reason=end_reason, error=error)
+            engine = CheckEngine(rec, cfg.target_product, _NoShots(), live=cfg.live)
+        outcome = await engine.finalize(checkout=cfg.checkout, end_reason=end_reason, error=error)
+        if polite is not None and cfg.politeness is None:
+            await polite.aclose()
         rec.save_score(compute_score(rec.results()))
         rec.finish(status=status, outcome=outcome, end_reason=end_reason, step_count=idx, summary=summary,
                    report=report, error=error)
@@ -238,16 +264,24 @@ async def _dispatch(name, args, tools: PageTools, rec, engine, payment: PaymentH
     if name == "read_text":
         return await tools.read_text()
     if name == "click":
-        if (await tools.element_tag(args["element_id"])).endswith("paypal-button"):
+        if await tools.is_payment_element(args["element_id"]):
+            if engine.live:
+                raise ToolError("Live stores are browse-only: never click PayPal. Use check_paypal_button instead.")
             raise ToolError("Use pay_with_paypal to pay." if payment else
                             "Payment is not part of this run. Do not click the payment button; call finish.")
         return await tools.click(args["element_id"])
     if name == "fill_form":
+        if engine.live and await tools.has_password_field(args["fields"]):
+            raise ToolError("Live stores are browse-only: never log in or enter passwords.")
         return await tools.fill_form(args["fields"])
     if name == "take_screenshot":
         return await tools.take_screenshot(args.get("label") or "shot")
     if name == "finish":
         return "Run finished."
+    if name == "check_paypal_button" and engine.live:
+        if not engine.checkout_seen:
+            raise ToolError("Go to the cart or checkout page first; that's where the PayPal button is.")
+        return await engine.check_paypal(None)
     if name == "pay_with_paypal" and payment is not None:
         return await payment.pay(tools, rec, engine)
     raise ToolError(f"Unknown tool {name!r}")

@@ -21,6 +21,8 @@ LINE_RE = re.compile(r"^(e\d+) (.+?) '(.*?)'(.*)$")
 WHERE_RE = re.compile(r"Now on: (.*) \((https?://[^)\s]+)\)")
 COOKIE_RE = re.compile(r"^(accept|accept all|allow all|ok|got it|i agree)$", re.I)
 NAV_TEXT = {"shop", "newsletter", "back to shop", "fernhill ceramics", "continue shopping"}
+PRODUCT_HREF_RE = re.compile(r"/(products?|product-page|item|items|p|shop)/[^/?#]+", re.I)
+CHECKOUT_RE = re.compile(r"(check ?out|proceed to checkout|go to checkout|view cart|cart)", re.I)
 
 
 def parse_elements(observation: str) -> list[dict[str, Any]]:
@@ -32,6 +34,8 @@ def parse_elements(observation: str) -> list[dict[str, Any]]:
             continue
         eid, kind, text, rest = m.groups()
         el = {"id": eid, "kind": kind, "text": text, "semantic": "not a real button" not in kind}
+        if " -> " in rest:
+            el["href"] = rest.split(" -> ", 1)[1].split(" ")[0]
         if " options: " in rest:
             el["options"] = [o.strip() for o in rest.split(" options: ", 1)[1].replace(" (required)", "").split(" | ")]
         out.append(el)
@@ -42,8 +46,10 @@ class ScriptedNavigator:
     kind = "scripted"
     model = "scripted-navigator-v1 (rule-based, not an LLM)"
 
-    def __init__(self, target: str, max_decisions: int = 45):
-        self.target = target.lower()
+    def __init__(self, target: str | None, max_decisions: int = 45):
+        self.target = (target or "").lower()  # empty on live stores: any product will do
+        self._expect_product = False
+        self._clicked_buy = False
         self.max_decisions = max_decisions
         self._n = 0
         self._state = "start"
@@ -83,15 +89,33 @@ class ScriptedNavigator:
         last = next((m["content"] for m in reversed(messages) if m.get("role") == "tool"), "") or ""
         s = self._state
         if s == "start":
-            return self._call("Open the store.", "pick_product_list", "open_page", url="/store/")
+            return self._call("Open the store.", "pick_product_list", "open_page",
+                              url="/store/" if self.target else "/")
         if s == "pick_product_list":
             return self._call("List the links.", "pick_product", "find_elements", kind="links")
         if s == "pick_product":
-            link = next((e for e in parse_elements(last)
-                         if e["kind"] == "a" and self.target in e["text"].lower()), None)
+            els = parse_elements(last)
+            if self.target:
+                link = next((e for e in els if e["kind"] == "a" and self.target in e["text"].lower()), None)
+            else:
+                link = next((e for e in els if e["kind"] == "a" and e["text"]
+                             and PRODUCT_HREF_RE.search(e.get("href") or "")), None)
             if not link:
-                return self._finish("gave_up", "The product is not linked from the home page.")
+                return self._finish("gave_up", "No product is linked from the home page.")
+            self._expect_product = not self.target
             return self._call(f"Open '{link['text']}'.", "landed", "click", element_id=link["id"])
+        if s == "live_cart":
+            els = parse_elements(last)
+            if any("paypal" in (e["text"] + e["kind"]).lower() for e in els):
+                return self._call("Check the PayPal button, without clicking it.", "checked", "check_paypal_button")
+            go = next((e for e in els if e["semantic"] and CHECKOUT_RE.search(e["text"])
+                       and e["text"] not in self._tried), None)
+            if go:
+                self._tried.add(go["text"])
+                return self._call(f"Go on with '{go['text']}'.", "landed", "click", element_id=go["id"])
+            return self._call("Check the PayPal button.", "checked", "check_paypal_button")
+        if s == "checked":
+            return self._finish("reached_checkout", last[:200])
         if s == "landed":
             return self._route(last)
         if s == "list_controls":
@@ -120,12 +144,20 @@ class ScriptedNavigator:
             return self._call("That did not work; look again.", "choose", "find_elements")
         where = WHERE_RE.search(last)
         title, url = (where.group(1).lower(), where.group(2)) if where else ("", "")
-        if self.target in title:
+        on_product = (self.target in title) if self.target else (self._expect_product or url == self._product_url)
+        self._expect_product = False
+        if on_product and self._clicked_buy and "check_paypal_button" in self._offered:
+            # Added to cart without leaving the page (common on live stores): go to the cart.
+            self._clicked_buy = False
+            return self._call("Added to cart; open the cart.", "landed", "open_page", url="/cart")
+        if on_product:
             self._product_url = url
             if not self._product_read:
                 self._product_read = True
                 return self._call("Read the product page.", "list_controls", "read_text")
             return self._call("List the controls.", "choose", "find_elements")
+        if "check_paypal_button" in self._offered:  # live store: cart or checkout, never pay
+            return self._call("Look for checkout and the PayPal button.", "live_cart", "find_elements")
         if title.startswith("checkout"):
             if "pay_with_paypal" in self._offered:
                 return self._call("Check the checkout page.", "pay", "read_text")
@@ -148,6 +180,7 @@ class ScriptedNavigator:
         for e in semantic_buy + clickables:
             if e["text"] not in self._tried:
                 self._tried.add(e["text"])
+                self._clicked_buy = e in semantic_buy
                 return self._call(f"Try '{e['text']}'.", "landed", "click", element_id=e["id"])
         return self._finish("gave_up", "Tried every buy-like control without reaching checkout.")
 

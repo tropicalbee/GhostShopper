@@ -17,6 +17,8 @@ os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
 
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright  # noqa: E402
 
+from .site import USER_AGENT, Politeness, SiteError, check_host  # noqa: E402
+
 FACTS_JS = r"""
 () => {
   const SEMANTIC = 'a[href], button, input:not([type=hidden]), select, textarea, [role=button], [role=link], summary';
@@ -130,14 +132,59 @@ FACTS_JS = r"""
     selector: cssPath(f),
     fields: [...f.querySelectorAll('input:not([type=hidden]), select, textarea')].map(name),
   }));
+  const PAYPAL_SEL = 'paypal-button, iframe[src*="paypal.com"], iframe[title*="PayPal" i], [data-funding-source="paypal"], ' +
+                     '.paypal-buttons, #paypal-button-container, [id*="paypal-button" i], [aria-label*="PayPal" i]';
+  const BOT_RE = /just a moment|checking your browser|verify (that )?you are (a )?human|verify you're human|attention required|are you a robot|ddos protection|security check to access|please complete the security check/i;
+  const head = document.title + ' ' + (document.body ? document.body.innerText.slice(0, 3000) : '');
+  const meta = (sel) => { const m = document.querySelector(sel); return m ? m.getAttribute('content') : null; };
   return {
     url: location.href,
     title: document.title,
     main_text: main.innerText.slice(0, 6000),
     jsonld, controls, images_without_alt, forms, prices, struck_prices, images,
     sale_percent: pct ? Number(pct) : null,
-    has_payment_button: !!document.querySelector('paypal-button, [data-funding-source="paypal"]'),
+    has_payment_button: !!document.querySelector(PAYPAL_SEL),
+    og_type: meta('meta[property="og:type"]'),
+    bot_check: BOT_RE.test(head) || !!document.querySelector(
+      '#challenge-form, .cf-browser-verification, #cf-challenge-running, iframe[src*="challenges.cloudflare.com"], .g-recaptcha, .h-captcha'),
+    platform_signals: {
+      generator: meta('meta[name="generator"]'),
+      scripts: [...document.scripts].map(s => s.src).filter(Boolean).slice(0, 60),
+      links: [...document.querySelectorAll('link[href]')].map(l => l.href).slice(0, 40),
+      body_class: document.body ? document.body.className : '',
+      globals: ['Shopify', 'wixBiSession', 'woocommerce_params', 'wc_add_to_cart_params'].filter(k => k in window),
+    },
   };
+}
+"""
+
+# Live stores: is there a PayPal button, is it visible, and would a click land on it? Never clicks.
+PAYPAL_CHECK_JS = r"""
+() => {
+  const SEL = 'paypal-button, iframe[src*="paypal.com"], iframe[title*="PayPal" i], [data-funding-source="paypal"], ' +
+              '.paypal-buttons, #paypal-button-container, [id*="paypal-button" i], [aria-label*="PayPal" i]';
+  const path = (el) => { const p = []; while (el && el.nodeType === 1 && p.length < 4) { let s = el.tagName.toLowerCase();
+    if (el.id) { p.unshift('#' + el.id); break; } if (el.classList.length) s += '.' + [...el.classList].slice(0, 2).join('.');
+    p.unshift(s); el = el.parentElement; } return p.join(' > '); };
+  const found = [...document.querySelectorAll(SEL)];
+  if (!found.length) return { found: false };
+  let best = null;
+  for (const el of found) {
+    const s = getComputedStyle(el), r = el.getBoundingClientRect();
+    const visible = !el.hidden && s.display !== 'none' && s.visibility !== 'hidden' && Number(s.opacity) > 0.05 && r.width >= 20 && r.height >= 14;
+    const info = { found: true, visible, selector: path(el), clickable: false, covered_by: null,
+                   disabled: el.disabled === true || el.getAttribute('aria-disabled') === 'true' };
+    if (visible) {
+      el.scrollIntoView({ block: 'center' });
+      const r2 = el.getBoundingClientRect();
+      const top = document.elementFromPoint(r2.left + r2.width / 2, r2.top + r2.height / 2);
+      info.clickable = !info.disabled && !!top && (top === el || el.contains(top) || top.contains(el));
+      if (top && !info.clickable && !info.disabled) info.covered_by = path(top);
+    }
+    if (!best || (info.visible && !best.visible) || (info.clickable && !best.clickable)) best = info;
+    if (best.clickable) break;
+  }
+  return best;
 }
 """
 
@@ -191,13 +238,18 @@ class BrowserSession:
     The agent code above this class is identical for both."""
 
     def __init__(self, headless: bool = True, provider: str | None = None,
-                 kernel: KernelBrowsers | None = None, kernel_timeout_s: int = 900):
+                 kernel: KernelBrowsers | None = None, kernel_timeout_s: int = 900,
+                 politeness: Politeness | None = None, allow_private: bool = True):
         self.headless = headless
         self.provider = resolve_provider(provider) if kernel is None else "kernel"
         self._kernel = kernel
         self._kernel_timeout_s = kernel_timeout_s
         self.session_id: str | None = None
         self.live_view_url: str | None = None  # Kernel, non-headless only: lets a human see/act in the browser
+        # Live stores: robots.txt, rate limit and the public-host rule on every page load.
+        self.politeness = politeness
+        self.allow_private = allow_private
+        self.refused: dict[str, str] = {}  # url -> why we didn't load it
         self._pw: Playwright | None = None
         self.browser: Browser | None = None
         self.context: BrowserContext | None = None
@@ -211,12 +263,35 @@ class BrowserSession:
             else:
                 channel = os.getenv("PLAYWRIGHT_CHANNEL") or None  # e.g. "msedge" to use the installed Edge
                 self.browser = await self._pw.chromium.launch(headless=self.headless, channel=channel)
-                self.context = await self.browser.new_context(viewport=VIEWPORT)
+                extra = {"user_agent": USER_AGENT} if self.politeness else {}
+                self.context = await self.browser.new_context(viewport=VIEWPORT, **extra)
                 self.page = await self.context.new_page()
+            if self.politeness:
+                await self.context.route("**/*", self._guard)
         except BaseException:
             await self.__aexit__()
             raise
         return self
+
+    async def _guard(self, route, request) -> None:
+        """Main-frame page loads on live stores: public hosts only, robots.txt, and a polite pace."""
+        frame = request.frame
+        if (request.resource_type != "document" or not request.is_navigation_request()
+                or (frame and frame.parent_frame is not None) or not request.url.startswith("http")):
+            await route.continue_()
+            return
+        try:
+            await check_host(request.url, self.allow_private)
+        except SiteError as exc:
+            self.refused[request.url] = str(exc)
+            await route.abort("blockedbyclient")
+            return
+        if not await self.politeness.allowed(request.url):
+            self.refused[request.url] = "robots.txt asks automated visitors not to open this page"
+            await route.abort("blockedbyclient")
+            return
+        await self.politeness.wait_turn(request.url)
+        await route.continue_()
 
     async def _open_kernel(self) -> None:
         if self._kernel is None:
@@ -321,9 +396,18 @@ class PageTools:
         target = urljoin(self.page.url if self.page.url.startswith("http") else self.store_url, url)
         if urlparse(target).netloc != self._origin:
             raise ToolError(f"Only pages on {self._origin} can be opened in this run.")
-        resp = await self.page.goto(target, wait_until="load", timeout=20_000)
+        try:
+            resp = await self.page.goto(target, wait_until="load", timeout=20_000)
+        except Exception as exc:
+            why = self.s.refused.get(target)
+            if why:
+                raise ToolError(f"Not opened: {why}. Try another link.") from exc
+            raise
         status = resp.status if resp else "unknown"
         return f"HTTP {status}. {await self._where()}"
+
+    async def paypal_button_state(self) -> dict[str, Any]:
+        return await self.page.evaluate(PAYPAL_CHECK_JS)
 
     async def find_elements(self, kind: str = "all") -> str:
         facts = await self.facts()
@@ -340,6 +424,21 @@ class PageTools:
             raise ToolError(f"Element {element_id} not found on this page; call find_elements again.")
         return loc.first
 
+    async def is_payment_element(self, element_id: str) -> bool:
+        """Our <paypal-button>, or anything on a live store that is or sits in a PayPal button."""
+        loc = await self._locate(element_id)
+        return await loc.evaluate(
+            "el => /paypal/i.test([el.tagName, el.id, String(el.className), el.getAttribute('aria-label') || '',"
+            " el.getAttribute('title') || '', (el.innerText || '').slice(0, 60)].join(' '))"
+            " || !!el.closest('.paypal-buttons, #paypal-button-container, [data-funding-source=\"paypal\"]')")
+
+    async def has_password_field(self, fields: list[dict[str, Any]]) -> bool:
+        for f in fields or []:
+            loc = await self._locate(f.get("element_id"))
+            if await loc.evaluate("el => (el.type || '').toLowerCase() === 'password'"):
+                return True
+        return False
+
     async def element_tag(self, element_id: str) -> str:
         loc = await self._locate(element_id)
         return await loc.evaluate("el => el.tagName.toLowerCase()")
@@ -347,9 +446,13 @@ class PageTools:
     async def click(self, element_id: str) -> str:
         loc = await self._locate(element_id)
         label = (await loc.inner_text(timeout=2_000)).strip()[:60] if await loc.count() else ""
+        refused_before = len(self.s.refused)
         await loc.click(timeout=5_000)
         await self.page.wait_for_timeout(300)  # let onclick navigations start
         await self._settle()
+        if len(self.s.refused) > refused_before:
+            why = list(self.s.refused.values())[-1]
+            raise ToolError(f"Clicked '{label}' but the page was not opened: {why}. Try another link.")
         return f"Clicked {element_id} '{label}'. {await self._where()}"
 
     async def fill_form(self, fields: list[dict[str, Any]]) -> str:

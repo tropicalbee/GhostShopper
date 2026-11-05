@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS runs (
     step_count      INTEGER NOT NULL DEFAULT 0,
     order_id        TEXT,
     awaiting        TEXT,                   -- JSON while status = awaiting_human: stage, reason, since, live view
+    live            INTEGER NOT NULL DEFAULT 0,  -- 1 = a real store: browse-only, never pays
+    platform        TEXT,                   -- shopify | wix | woocommerce | unknown
+    platform_evidence TEXT,                 -- JSON list of the signals that decided it
     error           TEXT
 );
 
@@ -105,7 +108,8 @@ CREATE TABLE IF NOT EXISTS scores (
 # Columns added after a table first shipped; CREATE TABLE IF NOT EXISTS won't add them to old databases.
 ADDED_COLUMNS = {
     "orders": {"run_id": "INTEGER"},
-    "runs": {"end_reason": "TEXT", "awaiting": "TEXT"},
+    "runs": {"end_reason": "TEXT", "awaiting": "TEXT", "live": "INTEGER NOT NULL DEFAULT 0", "platform": "TEXT",
+             "platform_evidence": "TEXT"},
     "checks": {"code": "TEXT", "cause": "TEXT"},
     "scores": {"possible": "INTEGER", "outcome": "INTEGER", "excluded": "TEXT"},
 }

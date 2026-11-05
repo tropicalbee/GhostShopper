@@ -6,13 +6,21 @@ Everything here is derived from logged checks and the failure-type registry. LLM
 
 from typing import Any
 
+from pathlib import PurePosixPath
+
 from .failures import ENVIRONMENT, FAILURE_TYPES, fix_for
+from .plain import NOT_YOUR_FAULT, plain_fix, status_for
 from .scoring import CHECKS
 
+LIVE_SCOPE = "live_store_browse_only"
 
-def _evidence_summary(evidence: dict[str, Any] | None) -> dict[str, Any]:
+
+def _evidence_summary(evidence: dict[str, Any] | None, run_id: int | None = None) -> dict[str, Any]:
     ev = evidence or {}
-    return {k: ev[k] for k in ("url", "selector", "screenshot", "status_text", "order_id") if ev.get(k)}
+    out = {k: ev[k] for k in ("url", "selector", "screenshot", "status_text", "order_id", "covered_by") if ev.get(k)}
+    if run_id is not None and ev.get("screenshot"):
+        out["screenshot_url"] = f"/api/runs/{run_id}/files/{PurePosixPath(ev['screenshot']).name}"
+    return out
 
 
 def build_scorecard(run: dict[str, Any]) -> dict[str, Any] | None:
@@ -20,6 +28,7 @@ def build_scorecard(run: dict[str, Any]) -> dict[str, Any] | None:
     if not score:
         return None
     checks = {c["check_key"]: c for c in run["checks"]}
+    platform = run.get("platform") or "unknown"
 
     fixes = []
     for f in score["breakdown"]:
@@ -28,22 +37,26 @@ def build_scorecard(run: dict[str, Any]) -> dict[str, Any] | None:
         fixes.append({
             "check": f["key"], "title": f["title"], "stage": f["stage"], "severity": f["severity"],
             "points": f["points"], "status": f["status"], "code": code, "reason": c.get("reason"),
-            "evidence": _evidence_summary(c.get("evidence")),
+            "evidence": _evidence_summary(c.get("evidence"), run.get("id")),
             "fix": fix_for(code) or f["fix"],
             "fix_explained": c.get("fix"),
+            "plain": plain_fix(code, platform),
         })
 
-    not_fault = []
+    not_fault, live_scope = [], []
     caused_by = [c for c in run["checks"] if c.get("passed") == 0 and c.get("cause") == ENVIRONMENT]
     for e in score["excluded"]:
         c = checks.get(e["key"], {})
-        ft = FAILURE_TYPES.get(c.get("code") or "")
-        not_fault.append({
-            "check": e["key"], "title": e["title"], "points": e["points"], "code": c.get("code"),
+        code = c.get("code")
+        ft = FAILURE_TYPES.get(code or "")
+        item = {
+            "check": e["key"], "title": e["title"], "points": e["points"], "code": code,
             "reason": c.get("reason"),
             "explanation": ft.fix if ft else "Not the store's fault.",
+            "plain": NOT_YOUR_FAULT.get(code or "", "Not something your store controls."),
             "kind": "failed" if c.get("passed") == 0 else "not tested (blocked)",
-        })
+        }
+        (live_scope if code == LIVE_SCOPE else not_fault).append(item)
 
     possible = score.get("possible") if score.get("possible") is not None else 100
     lines = []
@@ -52,7 +65,14 @@ def build_scorecard(run: dict[str, Any]) -> dict[str, Any] | None:
     else:
         line = f"Readiness score {score['total']}/100"
         if possible < 100:
-            line += f", judged on {possible} of 100 points ({100 - possible} excluded as not the store's fault)"
+            nsf = sum(n["points"] for n in not_fault)
+            scope = sum(n["points"] for n in live_scope)
+            parts = []
+            if nsf:
+                parts.append(f"{nsf} excluded as not the store's fault")
+            if scope:
+                parts.append(f"{scope} for payment steps only tested on the demo store")
+            line += f", judged on {possible} of 100 points ({'; '.join(parts)})"
         lines.append(line + ".")
     store_failed = [f for f in fixes if f["status"] == "failed"]
     if store_failed:
@@ -60,6 +80,8 @@ def build_scorecard(run: dict[str, Any]) -> dict[str, Any] | None:
     for c in caused_by:
         ft = FAILURE_TYPES.get(c.get("code") or "")
         blocked = [n["check"] for n in not_fault if n["kind"] != "failed"]
+        if c.get("code") == LIVE_SCOPE:
+            continue
         title = CHECKS[c["check_key"]].title
         msg = f"{title}: {c['reason']} {ft.fix if ft else ''}".strip()
         msg += " Excluded from the score"
@@ -67,6 +89,18 @@ def build_scorecard(run: dict[str, Any]) -> dict[str, Any] | None:
             msg += f", together with the check(s) it prevented: {', '.join(blocked)}"
         lines.append(msg + ".")
 
+    status = status_for(score["total"], possible)
+    top = [f for f in fixes if f["status"] == "failed" and f["plain"] and f["stage"] != "outcome"][:3]
+    simple = {
+        "score": score["total"],
+        "label": "How easily AI shoppers can buy from your store",
+        "of_what": "of what your store controls",
+        "status": status["level"],
+        "status_text": status["text"],
+        "top_fixes": [{"check": f["check"], "points": f["points"], **f["plain"],
+                       "screenshot_url": f["evidence"].get("screenshot_url")} for f in top],
+        "more_fixes": max(0, len([f for f in fixes if f["status"] == "failed" and f["stage"] != "outcome"]) - len(top)),
+    }
     return {
         "total": score["total"],
         "possible": possible,
@@ -74,5 +108,8 @@ def build_scorecard(run: dict[str, Any]) -> dict[str, Any] | None:
         "stages": {s: score.get(s) for s in ("discover", "details", "checkout", "payment", "outcome")},
         "fixes": fixes,
         "not_store_fault": not_fault,
+        "not_checked_live": live_scope,
         "summary": lines,
+        "simple": simple,
+        "platform": platform,
     }
