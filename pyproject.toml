@@ -1,0 +1,10 @@
+[project]
+name = "ghostshopper"
+version = "0.1.0"
+description = "See your store through an AI shopper's eyes."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["backend/tests", "store/tests"]
