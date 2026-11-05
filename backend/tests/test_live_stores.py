@@ -35,7 +35,7 @@ async def live_run(tmp_path, name: str) -> dict:
     with site_server(name) as srv:
         cfg = RunConfig(store_url=f"{srv.url}/", db_path=tmp_path / "live.db", runs_dir=tmp_path / "runs",
                         target_product=None, live=True, allow_private=True, max_steps=30,
-                        politeness=Politeness(min_interval_s=0.05))
+                        politeness=Politeness(min_interval_s=0.05, allow_private=True))
         run_id = await run_shopper(cfg, ScriptedNavigator(None))
     return load_run(tmp_path / "live.db", run_id)
 
@@ -142,7 +142,7 @@ async def test_politeness_waits_between_page_loads(monkeypatch):
 
     monkeypatch.setenv("ALLOW_PRIVATE_URLS", "true")
     with site_server("shopify") as srv:
-        polite = Politeness(min_interval_s=0.3)
+        polite = Politeness(min_interval_s=0.3, allow_private=True)
         started = time.monotonic()
         for _ in range(3):
             await polite.wait_turn(f"{srv.url}/")

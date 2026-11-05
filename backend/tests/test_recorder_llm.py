@@ -87,6 +87,7 @@ def test_scorecard_explains_a_declined_capture(tmp_path):
     rec.save_score(compute_score(rec.results()))
     card = load_run(tmp_path / "t.db", rec.run_id)["scorecard"]
     assert card["total"] == 100 and card["possible"] == 85
+    assert sum(card["stage_possible"].values()) == 85 and card["stages"] == card["stage_possible"]
     assert {n["check"] for n in card["not_store_fault"]} == {"capture_completed", "payment_verified", "task_completed"}
     assert card["fixes"] == []
     text = " ".join(card["summary"])

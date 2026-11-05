@@ -86,8 +86,11 @@ async def check_host(url: str, allow_private: bool) -> None:
 class Politeness:
     """robots.txt (RFC 9309 rules) and a minimum gap between page loads, per origin."""
 
-    def __init__(self, http: httpx.AsyncClient | None = None, min_interval_s: float = MIN_INTERVAL_S):
+    def __init__(self, http: httpx.AsyncClient | None = None, min_interval_s: float = MIN_INTERVAL_S,
+                 allow_private: bool = False, transport: httpx.AsyncBaseTransport | None = None):
         self._http = http
+        self.allow_private = allow_private
+        self._transport = transport  # tests: a mock transport behind the same host checks
         self._robots: dict[str, RobotFileParser | bool] = {}
         self._last: dict[str, float] = {}
         self.min_interval_s = min_interval_s
@@ -95,8 +98,13 @@ class Politeness:
 
     async def _client(self) -> httpx.AsyncClient:
         if self._http is None:
-            self._http = httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers={"User-Agent": USER_AGENT})
+            self._http = httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers={"User-Agent": USER_AGENT},
+                                           event_hooks={"request": [self._check_request]}, transport=self._transport)
         return self._http
+
+    async def _check_request(self, request: httpx.Request) -> None:
+        """Runs before every request, redirect hops included, so no hop can reach a private address."""
+        await check_host(str(request.url), self.allow_private)
 
     async def robots(self, origin: str) -> RobotFileParser | bool:
         """A parser, True (allow all) or False (disallow all)."""
@@ -112,7 +120,7 @@ class Politeness:
                 parser = RobotFileParser()
                 parser.parse(resp.text.splitlines())
                 result = parser
-        except httpx.HTTPError:
+        except (httpx.HTTPError, SiteError):  # unreachable, or redirected somewhere we won't go
             result = False
         self._robots[origin] = result
         return result
@@ -149,8 +157,9 @@ async def preflight(url: str, app_base_url: str, politeness: Politeness | None =
     demo = is_demo_store(url, app_base_url)
     if demo:
         return Target(url, origin_of(url), True)
-    await check_host(url, allow_private_hosts(app_base_url))
-    polite = politeness or Politeness()
+    allow_private = allow_private_hosts(app_base_url)
+    await check_host(url, allow_private)
+    polite = politeness or Politeness(allow_private=allow_private)
     try:
         if not await polite.allowed(url):
             raise SiteError("Your store's robots.txt asks automated visitors not to open this page, so we didn't. "

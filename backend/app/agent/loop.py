@@ -113,6 +113,7 @@ class RunConfig:
     browser: str | None = None  # local | kernel; None = BROWSER_PROVIDER env (default local)
     runs_dir: Path = field(default_factory=lambda: REPO_ROOT / "runs")
     session_factory: Callable[[], BrowserSession] | None = None  # tests: inject a session (e.g. fake Kernel)
+    owner_hash: str | None = None  # the browser that started the run; None = shared example
 
 
 async def run_shopper(
@@ -125,7 +126,7 @@ async def run_shopper(
         raise ValueError("A checkout run needs a payment handler")
     if cfg.live and (cfg.checkout or payment is not None):
         raise ValueError("Live stores are browse-only: purchases only run on the GhostShopper demo store")
-    polite = (cfg.politeness or Politeness()) if cfg.live else None
+    polite = (cfg.politeness or Politeness(allow_private=cfg.allow_private)) if cfg.live else None
     session_cm = cfg.session_factory() if cfg.session_factory else BrowserSession(
         headless=cfg.headless, provider=resolve_provider(cfg.browser), politeness=polite,
         allow_private=cfg.allow_private)
@@ -143,6 +144,7 @@ async def run_shopper(
         browser=provider,
         secrets=payment.secrets if payment else (),
         live=cfg.live,
+        owner_hash=cfg.owner_hash,
     )
     if on_start:
         on_start(rec.run_id)

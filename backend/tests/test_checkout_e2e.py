@@ -26,7 +26,7 @@ pytestmark = pytest.mark.anyio
 @pytest.fixture
 def server(tmp_path):
     settings = Settings(paypal_client_id="", paypal_client_secret="", database_path=tmp_path / "co.db",
-                        app_base_url="http://unused", paypal_mode="mock")
+                        app_base_url="http://unused", paypal_mode="mock", dev_options=True)  # local test server
     with LiveServer(create_app(settings)) as srv:
         srv.db_path = settings.database_path
         srv.runs_dir = tmp_path / "runs"

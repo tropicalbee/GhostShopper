@@ -22,5 +22,6 @@ COPY store/ store/
 COPY backend/ backend/
 COPY --from=frontend /app/frontend/dist frontend/dist
 EXPOSE 8000
-# Render sets PORT. One worker: runs are serialized by an in-process lock.
-CMD ["sh", "-c", "python -m uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Render sets PORT. One worker: runs are serialized by an in-process lock and the rate limiter is in memory.
+# Proxy headers: Render's proxy is the only way in, so its X-Forwarded-For gives the real client IP for rate limits.
+CMD ["sh", "-c", "python -m uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

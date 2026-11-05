@@ -250,6 +250,7 @@ class BrowserSession:
         self.politeness = politeness
         self.allow_private = allow_private
         self.refused: dict[str, str] = {}  # url -> why we didn't load it
+        self._host_ok: dict[str, str | None] = {}  # host -> None if public, else why it's refused (per run)
         self._pw: Playwright | None = None
         self.browser: Browser | None = None
         self.context: BrowserContext | None = None
@@ -274,23 +275,35 @@ class BrowserSession:
         return self
 
     async def _guard(self, route, request) -> None:
-        """Main-frame page loads on live stores: public hosts only, robots.txt, and a polite pace."""
+        """Live stores. Every request (pages, frames, images, scripts) must go to a public host, so a page
+        can't make our browser load an internal address and show it in a screenshot. Main-frame page loads
+        also follow robots.txt and a polite pace."""
+        url = request.url
+        if not url.startswith(("http://", "https://")):
+            await route.continue_()  # data:, blob: and the like never leave the browser
+            return
         frame = request.frame
-        if (request.resource_type != "document" or not request.is_navigation_request()
-                or (frame and frame.parent_frame is not None) or not request.url.startswith("http")):
-            await route.continue_()
-            return
-        try:
-            await check_host(request.url, self.allow_private)
-        except SiteError as exc:
-            self.refused[request.url] = str(exc)
+        main_load = (request.resource_type == "document" and request.is_navigation_request()
+                     and not (frame and frame.parent_frame is not None))
+        host = urlparse(url).hostname or ""
+        if host not in self._host_ok:
+            try:
+                await check_host(url, self.allow_private)
+                self._host_ok[host] = None
+            except SiteError as exc:
+                self._host_ok[host] = str(exc)
+        refusal = self._host_ok[host]
+        if refusal:
+            if main_load:
+                self.refused[url] = refusal
             await route.abort("blockedbyclient")
             return
-        if not await self.politeness.allowed(request.url):
-            self.refused[request.url] = "robots.txt asks automated visitors not to open this page"
-            await route.abort("blockedbyclient")
-            return
-        await self.politeness.wait_turn(request.url)
+        if main_load and self.politeness:
+            if not await self.politeness.allowed(url):
+                self.refused[url] = "robots.txt asks automated visitors not to open this page"
+                await route.abort("blockedbyclient")
+                return
+            await self.politeness.wait_turn(url)
         await route.continue_()
 
     async def _open_kernel(self) -> None:

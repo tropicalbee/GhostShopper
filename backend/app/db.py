@@ -3,7 +3,7 @@
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS runs (
     live            INTEGER NOT NULL DEFAULT 0,  -- 1 = a real store: browse-only, never pays
     platform        TEXT,                   -- shopify | wix | woocommerce | unknown
     platform_evidence TEXT,                 -- JSON list of the signals that decided it
-    error           TEXT
+    error           TEXT,
+    owner_hash      TEXT                    -- SHA-256 of the browser's owner token; NULL = shared example
 );
 
 CREATE TABLE IF NOT EXISTS steps (
@@ -105,11 +106,13 @@ CREATE TABLE IF NOT EXISTS scores (
 );
 """
 
+UNCLAIMED = "unclaimed"  # owner_hash of runs made before checks belonged to a browser; no token hashes to it
+
 # Columns added after a table first shipped; CREATE TABLE IF NOT EXISTS won't add them to old databases.
 ADDED_COLUMNS = {
     "orders": {"run_id": "INTEGER"},
     "runs": {"end_reason": "TEXT", "awaiting": "TEXT", "live": "INTEGER NOT NULL DEFAULT 0", "platform": "TEXT",
-             "platform_evidence": "TEXT"},
+             "platform_evidence": "TEXT", "owner_hash": "TEXT"},
     "checks": {"code": "TEXT", "cause": "TEXT"},
     "scores": {"possible": "INTEGER", "outcome": "INTEGER", "excluded": "TEXT"},
 }
@@ -142,6 +145,10 @@ def init_db(db_path: Path) -> None:
             for name, sql_type in columns.items():
                 if name not in existing[table]:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}")
+                    if (table, name) == ("runs", "owner_hash"):
+                        # Runs from before ownership existed belong to nobody we can identify. NULL would make
+                        # them shared examples, so they become unclaimed: hidden from the web, kept for the CLI.
+                        conn.execute("UPDATE runs SET owner_hash = ?", (UNCLAIMED,))
         conn.executescript(SCHEMA)
 
 
@@ -193,3 +200,44 @@ def get_order(db_path: Path, order_id: str, include_raw: bool = False) -> dict[s
     if not include_raw:
         order.pop("capture_response", None)
     return order
+
+
+def delete_run(db_path: Path, run_id: int, runs_dir: Path) -> None:
+    """Remove a run, its steps, checks, score, judge ratings and screenshot folder.
+
+    A sandbox order the run placed stays (it is the demo store's record) but loses its link to the run.
+    """
+    with connect(db_path) as conn:
+        conn.execute("UPDATE orders SET run_id = NULL WHERE run_id = ?", (run_id,))
+        for table in ("steps", "checks", "scores"):
+            conn.execute(f"DELETE FROM {table} WHERE run_id = ?", (run_id,))
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'judge_ratings'").fetchone():
+            conn.execute("DELETE FROM judge_ratings WHERE run_id = ?", (run_id,))
+        conn.execute("DELETE FROM runs WHERE id = ?", (run_id,))
+    _remove_run_folder(runs_dir, run_id)
+
+
+def _remove_run_folder(runs_dir: Path, run_id: int) -> None:
+    root = runs_dir.resolve()
+    folder = runs_dir / f"run-{int(run_id)}"
+    # Only a real folder named run-<id> directly under the configured runs folder, never a link out of it.
+    if folder.is_symlink() or not folder.is_dir() or folder.resolve().parent != root:
+        return
+    for item in folder.iterdir():
+        if item.is_file() and not item.is_symlink() and item.suffix == ".png":
+            item.unlink()
+    if not any(folder.iterdir()):
+        folder.rmdir()
+
+
+def purge_old_runs(db_path: Path, runs_dir: Path, days: int) -> list[int]:
+    """Delete finished checks older than `days` that belong to a browser. Shared examples and unclaimed runs
+    from before ownership existed are kept."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec="seconds")
+    with connect(db_path) as conn:
+        ids = [r[0] for r in conn.execute(
+            "SELECT id FROM runs WHERE owner_hash IS NOT NULL AND owner_hash != ? AND started_at < ?"
+            " AND status NOT IN ('running', 'awaiting_human') ORDER BY id", (UNCLAIMED, cutoff))]
+    for run_id in ids:
+        delete_run(db_path, run_id, runs_dir)
+    return ids

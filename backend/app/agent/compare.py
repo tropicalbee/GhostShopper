@@ -8,12 +8,26 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .. import db
 from ..scoring import CHECKS
 from .recorder import list_runs, load_run
 
 
 class CompareError(LookupError):
     pass
+
+
+def previous_run(db_path: Path, run_id: int) -> int | None:
+    """The latest earlier finished, scored check of the same store by the same browser (or, for a shared
+    example, the previous example). Never someone else's check."""
+    with db.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT p.id FROM runs r JOIN runs p ON p.store_url = r.store_url AND p.owner_hash IS r.owner_hash"
+            " JOIN scores s ON s.run_id = p.id"
+            " WHERE r.id = ? AND p.id < r.id AND p.status = 'completed' ORDER BY p.id DESC LIMIT 1",
+            (run_id,),
+        ).fetchone()
+    return row[0] if row else None
 
 
 def compare_runs(db_path: Path, before_id: int, after_id: int) -> dict[str, Any]:

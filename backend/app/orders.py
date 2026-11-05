@@ -13,6 +13,7 @@ from store.flaws import FlawStore
 
 from . import db
 from .paypal import PayPalClient, PayPalError, summarize_capture
+from .ratelimit import rate_limit
 from .verification import verify_payment
 
 router = APIRouter(prefix="/api/paypal", tags=["paypal"])
@@ -69,6 +70,7 @@ def build_purchase_unit(product: catalog.Product, quantity: int, unit_price: Dec
 
 @router.post("/orders", status_code=201)
 async def create_order(body: CreateOrderRequest, request: Request, paypal: PayPalClient = Depends(get_paypal)):
+    rate_limit(request, "api_limiter")  # each call creates a PayPal sandbox order
     product = catalog.get_by_sku(body.sku)
     if product is None:
         raise HTTPException(status_code=404, detail={"error": "UNKNOWN_SKU", "message": f"No product {body.sku}"})

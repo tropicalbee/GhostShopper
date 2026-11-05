@@ -10,7 +10,7 @@ from pathlib import PurePosixPath
 
 from .failures import ENVIRONMENT, FAILURE_TYPES, fix_for
 from .plain import NOT_YOUR_FAULT, plain_fix, status_for
-from .scoring import CHECKS
+from .scoring import CHECKS, STAGES
 
 LIVE_SCOPE = "live_store_browse_only"
 
@@ -105,7 +105,9 @@ def build_scorecard(run: dict[str, Any]) -> dict[str, Any] | None:
         "total": score["total"],
         "possible": possible,
         "rules_version": score["rules_version"],
-        "stages": {s: score.get(s) for s in ("discover", "details", "checkout", "payment", "outcome")},
+        "stages": {s: score.get(s) for s in STAGES},
+        "stage_possible": {s: sum(c.points for c in CHECKS.values() if c.stage == s)
+                           - sum(e["points"] for e in score["excluded"] if e.get("stage") == s) for s in STAGES},
         "fixes": fixes,
         "not_store_fault": not_fault,
         "not_checked_live": live_scope,

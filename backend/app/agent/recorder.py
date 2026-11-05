@@ -70,15 +70,17 @@ class RunRecorder:
         browser: str = "local",
         secrets: Iterable[str] = (),
         live: bool = False,
+        owner_hash: str | None = None,  # the browser that started it; None = shared example (CLI, seed)
     ) -> "RunRecorder":
         db.init_db(db_path)
         redact = Redactor(secrets)
         with db.connect(db_path) as conn:
             cur = conn.execute(
                 "INSERT INTO runs (started_at, status, browser, store_url, goal, target_product, checkout,"
-                " paypal_mode, flaws_snapshot, llm, model, live) VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " paypal_mode, flaws_snapshot, llm, model, live, owner_hash)"
+                " VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (_now(), browser, store_url, redact(goal), target_product or "", int(checkout), paypal_mode,
-                 json.dumps(flaws) if flaws is not None else None, llm, model, int(live)),
+                 json.dumps(flaws) if flaws is not None else None, llm, model, int(live), owner_hash),
             )
             run_id = cur.lastrowid
         return cls(db_path, run_id, redact)
@@ -232,17 +234,25 @@ def load_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
     return out
 
 
-def list_runs(db_path: Path, limit: int = 50) -> list[dict[str, Any]]:
+def list_runs(db_path: Path, limit: int = 50, visible_to: str | None = None) -> list[dict[str, Any]]:
+    """All runs (CLI), or with visible_to: that browser's runs plus the shared examples, each marked
+    mine/example. The owner hash itself is never returned."""
+    where, params = ("", ()) if visible_to is None else (" WHERE r.owner_hash = ? OR r.owner_hash IS NULL", (visible_to,))
     with db.connect(db_path) as conn:
         rows = conn.execute(
             "SELECT r.id, r.started_at, r.finished_at, r.status, r.outcome, r.end_reason, r.llm, r.browser, r.live,"
             " r.store_url, r.platform,"
             " r.checkout, r.paypal_mode, r.flaws_snapshot, r.step_count, r.order_id, s.total AS score,"
-            " s.possible AS score_possible"
-            " FROM runs r LEFT JOIN scores s ON s.run_id = r.id ORDER BY r.id DESC LIMIT ?",
-            (limit,),
+            " s.possible AS score_possible, r.owner_hash"
+            f" FROM runs r LEFT JOIN scores s ON s.run_id = r.id{where} ORDER BY r.id DESC LIMIT ?",
+            (*params, limit),
         ).fetchall()
-    return [{**dict(r), "flaws_snapshot": _loads(r["flaws_snapshot"])} for r in rows]
+    out = []
+    for r in rows:
+        row = {**dict(r), "flaws_snapshot": _loads(r["flaws_snapshot"])}
+        owner = row.pop("owner_hash")
+        out.append({**row, "mine": visible_to is not None and owner == visible_to, "example": owner is None})
+    return out
 
 
 __all__ = ["Redactor", "RunRecorder", "load_run", "list_runs", "status_of", "STORE", "ENVIRONMENT"]

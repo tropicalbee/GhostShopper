@@ -1,5 +1,6 @@
 """Builds a run from a request: validates config up front, sets store flaws, then runs the agent."""
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Literal
@@ -56,7 +57,8 @@ def flaw_selection(mode: str) -> dict[str, bool] | None:
 async def apply_flaws(store_url: str, mode: FlawMode | str) -> dict[str, bool]:
     url = store_url.rstrip("/") + "/admin/flaws.json"
     selection = flaw_selection(mode)
-    async with httpx.AsyncClient(timeout=10.0) as http:
+    token = os.getenv("DEMO_ADMIN_TOKEN", "").strip()
+    async with httpx.AsyncClient(timeout=10.0, headers={"X-Admin-Token": token} if token else {}) as http:
         if selection is not None:
             resp = await http.put(url, json={"flaws": selection})
         else:
@@ -137,6 +139,8 @@ async def execute(
     on_awaiting_human: Callable | None = None,
     live: bool = False,
     allow_private: bool = True,
+    owner_hash: str | None = None,
+    runs_dir: Path | None = None,
 ) -> int:
     llm, payment = prepare(req, store_url, db_path, server, on_awaiting_human, live=live)
     flaws = None if live else await apply_flaws(store_url, req.flaws)
@@ -152,6 +156,8 @@ async def execute(
         max_steps=req.max_steps,
         headless=req.headless,
         browser=req.browser,
+        owner_hash=owner_hash,
+        **({"runs_dir": runs_dir} if runs_dir else {}),
     )
     try:
         return await run_shopper(cfg, llm, payment, on_start=on_start)

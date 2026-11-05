@@ -3,6 +3,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -26,10 +27,38 @@ class Settings:
     app_base_url: str
     # sandbox: real PayPal sandbox. mock: fake Orders client + mock SDK/popup, no PayPal calls at all.
     paypal_mode: str = "sandbox"
+    # Developer options on POST /api/runs (llm, cassette, record, flaws, checkout, browser, max_steps, paypal)
+    # and an unlocked demo store settings page. Off unless the server runs on localhost or DEV_OPTIONS=1.
+    dev_options: bool = False
+    # Unlocks /store/admin on a deployed server for the presenter (?token=... once, then a cookie).
+    demo_admin_token: str = ""
+    runs_dir: Path = REPO_ROOT / "runs"  # screenshots, one folder per run
+    frontend_dist: Path = REPO_ROOT / "frontend" / "dist"
+    retention_days: int = 30  # owned checks older than this are deleted at startup; examples are kept
+    run_rate_limit: tuple[int, int] = (6, 600)  # starts per (client IP, browser) per window in seconds
+    api_rate_limit: tuple[int, int] = (30, 600)  # explain, market and PayPal order calls, which cost quota
 
     @property
     def paypal_configured(self) -> bool:
         return bool(self.paypal_client_id and self.paypal_client_secret)
+
+    @property
+    def https(self) -> bool:
+        return self.app_base_url.startswith("https://")
+
+
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1")
+
+
+def _flag(name: str) -> bool | None:
+    value = os.getenv(name, "").strip().lower()
+    if value in ("1", "true", "yes"):
+        return True
+    if value in ("0", "false", "no"):
+        return False
+    if value:
+        raise ValueError(f"{name} must be 1 or 0, got {value!r}")
+    return None
 
 
 def get_settings() -> Settings:
@@ -39,12 +68,20 @@ def get_settings() -> Settings:
     mode = os.getenv("PAYPAL_MODE", "sandbox").strip().lower() or "sandbox"
     if mode not in PAYPAL_MODES:
         raise ValueError(f"PAYPAL_MODE must be one of {PAYPAL_MODES}, got {mode!r}")
+    base = os.getenv("APP_BASE_URL", "http://localhost:8000").rstrip("/")
+    dev = _flag("DEV_OPTIONS")
+    retention = os.getenv("RETENTION_DAYS", "30").strip()
+    if not retention.isdigit() or int(retention) < 1:
+        raise ValueError(f"RETENTION_DAYS must be a whole number of days (1 or more), got {retention!r}")
     return Settings(
         paypal_client_id=os.getenv("PAYPAL_CLIENT_ID", "").strip(),
         paypal_client_secret=os.getenv("PAYPAL_CLIENT_SECRET", "").strip(),
         database_path=db_path,
-        app_base_url=os.getenv("APP_BASE_URL", "http://localhost:8000").rstrip("/"),
+        app_base_url=base,
         paypal_mode=mode,
+        dev_options=dev if dev is not None else (urlparse(base).hostname or "") in LOCAL_HOSTS,
+        demo_admin_token=os.getenv("DEMO_ADMIN_TOKEN", "").strip(),
+        retention_days=int(retention),
     )
 
 

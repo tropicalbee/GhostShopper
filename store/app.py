@@ -3,6 +3,7 @@
 Mounted by the backend at /store. Checkout calls the backend's /api/paypal endpoints.
 """
 
+import hmac
 import json
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ HERE = Path(__file__).parent
 STORE_NAME = "Fernhill Ceramics"
 DETAILS_COOKIE = "fh_details"
 COOKIE_CONSENT = "fh_cookies"
+ADMIN_COOKIE = "fh_admin"
 REFERRAL_OPTIONS = ("Instagram", "A friend", "Craft fair", "Search engine", "Other")
 
 
@@ -28,7 +30,10 @@ class FlawUpdate(BaseModel):
     flaws: dict[str, bool]
 
 
-def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: str) -> FastAPI:
+def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: str, admin_open: bool = True,
+                     admin_token: str = "") -> FastAPI:
+    """admin_open: the settings page is open to anyone (local development). Otherwise it needs admin_token,
+    sent once as ?token= (which sets an httpOnly cookie) or as an X-Admin-Token header."""
     app = FastAPI(title=STORE_NAME, docs_url=None, redoc_url=None, openapi_url=None)
     flaw_store = FlawStore(db_path)
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -180,12 +185,30 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
 
     # --- Flaw toggles (demo control panel, not part of the "merchant" UI) ---
 
+    def admin_allowed(request: Request) -> bool:
+        if admin_open:
+            return True
+        supplied = (request.headers.get("x-admin-token") or request.cookies.get(ADMIN_COOKIE)
+                    or request.query_params.get("token") or "")
+        return bool(admin_token) and hmac.compare_digest(supplied.encode(), admin_token.encode())
+
+    def require_admin(request: Request) -> None:
+        if not admin_allowed(request):
+            raise HTTPException(status_code=403, detail="The demo store's settings are locked on this server.")
+
     @app.get("/admin", response_class=HTMLResponse)
     def admin(request: Request, saved: bool = False):
-        return render(request, "admin.html", flaw_defs=FLAWS, saved=saved)
+        require_admin(request)
+        resp = render(request, "admin.html", flaw_defs=FLAWS, saved=saved)
+        if not admin_open and request.query_params.get("token"):
+            resp.set_cookie(ADMIN_COOKIE, admin_token, httponly=True, samesite="strict",
+                            secure=request.url.scheme == "https", path=f"{request.scope.get('root_path', '')}/admin",
+                            max_age=12 * 3600)
+        return resp
 
     @app.post("/admin")
     async def admin_save(request: Request):
+        require_admin(request)
         form = await request.form()
         flaw_store.set_many({f.key: form.get(f.key) == "on" for f in FLAWS})
         return RedirectResponse(f"{request.scope.get('root_path', '')}/admin?saved=1", status_code=303)
@@ -195,7 +218,8 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
         return flaw_store.get_all()
 
     @app.put("/admin/flaws.json")
-    def put_flaws(body: FlawUpdate):
+    def put_flaws(body: FlawUpdate, request: Request):
+        require_admin(request)
         try:
             return flaw_store.set_many(body.flaws)
         except KeyError as exc:

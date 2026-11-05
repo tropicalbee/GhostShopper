@@ -36,7 +36,7 @@ requires_browser = pytest.mark.skipif(not _chromium_available(), reason="Playwri
 @pytest.fixture
 def server(tmp_path):
     settings = Settings(paypal_client_id="", paypal_client_secret="", database_path=tmp_path / "e2e.db",
-                        app_base_url="http://unused")
+                        app_base_url="http://unused", dev_options=True)  # local test server, like localhost
     with LiveServer(create_app(settings)) as srv:
         srv.db_path = settings.database_path
         srv.runs_dir = tmp_path / "runs"

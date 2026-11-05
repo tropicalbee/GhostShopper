@@ -83,7 +83,7 @@ async def run_benchmark(combos: list[tuple[str, ...]], *, workers: int = 4, chec
 
     async def worker(i: int) -> None:
         db_path = out_dir / f"worker{i}.db"
-        settings = Settings("", "", db_path, "http://unused", paypal_mode="mock")
+        settings = Settings("", "", db_path, "http://unused", paypal_mode="mock", dev_options=True)  # local only
         with LiveServer(create_app(settings)) as srv:
             while not queue.empty():
                 combo = queue.get_nowait()

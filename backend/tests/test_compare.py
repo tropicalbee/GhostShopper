@@ -88,5 +88,6 @@ def test_compare_endpoint(db):
     with TestClient(create_app(Settings("", "", db, "http://x"))) as client:
         r = client.get(f"/api/runs/compare?before={a}&after={b}")
         assert r.status_code == 200 and len(r.json()["fixed"]) == 5
-        assert client.get("/api/runs/compare").json()["after"]["run_id"] == b
+        assert client.get(f"/api/runs/{b}/compare").json()["before"]["run_id"] == a  # previous check, same store
+        assert client.get("/api/runs/compare").status_code == 422  # no global "last two runs"
         assert client.get(f"/api/runs/compare?before={a}&after=999").status_code == 404
