@@ -1,0 +1,131 @@
+{
+  "recorded_from": "hand-written (mock LLM, Day 3)",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": "Start at the store home page.",
+      "tool_calls": [
+        {
+          "id": "call_01",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\": \"/store/\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Look for the product link.",
+      "tool_calls": [
+        {
+          "id": "call_02",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\": \"links\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "e5 is the 'Speckled Stoneware Mug' link.",
+      "tool_calls": [
+        {
+          "id": "call_03",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\": \"e5\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Read the product details.",
+      "tool_calls": [
+        {
+          "id": "call_04",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Price $24.00, in stock. Find the buy button.",
+      "tool_calls": [
+        {
+          "id": "call_05",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "e5 is 'Buy now'.",
+      "tool_calls": [
+        {
+          "id": "call_06",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\": \"e5\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Confirm this is checkout.",
+      "tool_calls": [
+        {
+          "id": "call_07",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Checkout shows the mug. Pay with PayPal.",
+      "tool_calls": [
+        {
+          "id": "call_08",
+          "type": "function",
+          "function": {
+            "name": "pay_with_paypal",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Payment confirmed.",
+      "tool_calls": [
+        {
+          "id": "call_09",
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "arguments": "{\"outcome\": \"purchased\", \"price\": \"$24.00\", \"in_stock\": \"In stock\", \"summary\": \"Found the mug, read price and stock, reached checkout in one click and paid with PayPal. The order number is on the confirmation page.\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

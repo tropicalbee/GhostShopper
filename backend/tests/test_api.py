@@ -72,7 +72,10 @@ def client(tmp_path, fake):
 def test_health(client):
     r = client.get("/api/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok", "paypal_configured": True, "paypal_env": "sandbox"}
+    body = r.json()
+    assert {k: body[k] for k in ("status", "paypal_configured", "paypal_env")} == {
+        "status": "ok", "paypal_configured": True, "paypal_env": "sandbox"}
+    assert isinstance(body["groq_configured"], bool)
 
 
 def test_create_order_prices_from_catalog(client, fake):
