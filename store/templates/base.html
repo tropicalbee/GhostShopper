@@ -22,7 +22,6 @@
       {% for slug, label in categories.items() %}<a href="{{ base }}/?category={{ slug }}#shop"{% if nav_current == slug %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}<a href="{{ base }}/#studio">Our studio</a>
     </nav>
-    <a class="header-cta" href="{{ base }}/newsletter"{% if nav_current == "newsletter" %} aria-current="page"{% endif %}>Newsletter</a>
   </div>
 </header>
 {% endblock %}
@@ -32,6 +31,17 @@
 {% block footer %}
 {% from "_macros.html" import logo with context %}
 <footer class="site-footer">
+  <div class="container footer-signup">
+    <div>
+      <h2>Hear about the next kiln opening</h2>
+      <p>We fire about once a month. Restocks, seconds sales and new glazes, nothing else.</p>
+    </div>
+    <form class="footer-form" onsubmit="event.preventDefault(); this.outerHTML = '<p class=&quot;form-done&quot;>Thanks! You are on the list.</p>';">
+      <label class="visually-hidden" for="footer-email">Email</label>
+      <input id="footer-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+      <input type="submit" value="Subscribe">
+    </form>
+  </div>
   <div class="container footer-grid">
     <div class="footer-brand">
       {{ logo("p") }}
@@ -48,10 +58,10 @@
     <div>
       <h2 class="footer-head">Help</h2>
       <ul class="footer-links">
-        <li><a href="{{ base }}/newsletter">Restock alerts</a></li>
         <li>Orders ship in 3 business days</li>
         <li>Returns accepted within 30 days</li>
         <li>Broken in transit? We replace it</li>
+        <li><a href="{{ base }}/newsletter">Restock alerts</a></li>
       </ul>
     </div>
     <div>
@@ -63,11 +73,9 @@
       </ul>
     </div>
   </div>
-  <div class="footer-bar">
-    <div class="container footer-bar-inner">
-      <p>&copy; 2026 {{ store_name }}. Payments by PayPal.</p>
-      <p>A demo store for GhostShopper. Photos from <a href="https://unsplash.com">Unsplash</a>, plus the dripper by <a href="https://commons.wikimedia.org/wiki/File:Kalita_Coffee_Dripper_Ceramic_101-Lotto.jpg">Quercus acuta</a> and the serving bowl by <a href="https://commons.wikimedia.org/wiki/File:BOWL,_Stoneware_withopalescent_blue_glaze.jpg">&#25516;&#33590;</a> (CC BY-SA 4.0, Wikimedia Commons).</p>
-    </div>
+  <div class="container footer-bar">
+    <p>&copy; 2026 {{ store_name }}. Payments by PayPal. A demo store for GhostShopper.</p>
+    <p><a href="{{ base }}/credits">Photo credits</a></p>
   </div>
 </footer>
 {% endblock %}

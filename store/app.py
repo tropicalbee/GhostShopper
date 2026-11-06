@@ -188,6 +188,10 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
     def newsletter(request: Request):
         return render(request, "newsletter.html")
 
+    @app.get("/credits", response_class=HTMLResponse)
+    def credits(request: Request):
+        return render(request, "credits.html")
+
     @app.get("/media/p/{token}.svg")
     def price_image(token: str):
         amount = price_tokens.get(token)

@@ -39,6 +39,15 @@ class Review:
         d = date.fromisoformat(self.date)
         return f"{d:%B} {d.day}, {d.year}"
 
+    @property
+    def initials(self) -> str:
+        return "".join(part[0] for part in self.author.replace(".", "").split()[:2]).upper()
+
+    @property
+    def tone(self) -> int:
+        """Stable avatar colour (1-4) from the reviewer's name."""
+        return sum(map(ord, self.author)) % 4 + 1
+
 
 @dataclass(frozen=True)
 class Product:
@@ -69,6 +78,13 @@ class Product:
         if not self.reviews:
             return None
         return (Decimal(sum(r.rating for r in self.reviews)) / len(self.reviews)).quantize(Decimal("0.1"))
+
+    @property
+    def rating_breakdown(self) -> list[tuple[int, int, int]]:
+        """(stars, count, percent of reviews) from 5 stars down to 1."""
+        total = len(self.reviews) or 1
+        counts = [sum(1 for r in self.reviews if r.rating == s) for s in (5, 4, 3, 2, 1)]
+        return [(s, c, round(c * 100 / total)) for s, c in zip((5, 4, 3, 2, 1), counts)]
 
 
 @lru_cache(maxsize=1)

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Photo credits | {{ store_name }}{% endblock %}
+{% block content %}
+<div class="container narrow-page">
+  <div class="panel">
+    <h1>Photo credits</h1>
+    <p>{{ store_name }} is a demo store for GhostShopper. The product and studio photos come from these photographers.</p>
+    <ul class="credit-list">
+      <li>Most photos: free to use under the <a href="https://unsplash.com/license">Unsplash License</a>, from <a href="https://unsplash.com">Unsplash</a>.</li>
+      <li>Pour-Over Coffee Dripper: <a href="https://commons.wikimedia.org/wiki/File:Kalita_Coffee_Dripper_Ceramic_101-Lotto.jpg">photo by Quercus acuta</a>, CC BY-SA 4.0, via Wikimedia Commons.</li>
+      <li>Ash Glaze Serving Bowl: <a href="https://commons.wikimedia.org/wiki/File:BOWL,_Stoneware_withopalescent_blue_glaze.jpg">photo by user &#25516;&#33590;</a>, CC BY-SA 4.0, via Wikimedia Commons.</li>
+    </ul>
+    <p><a class="btn" href="{{ base }}/">Back to the shop</a></p>
+  </div>
+</div>
+{% endblock %}

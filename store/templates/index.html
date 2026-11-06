@@ -10,7 +10,6 @@
       <p>Mugs, bowls and vases thrown by hand in our two-person studio in Asheville.</p>
       <div class="hero-actions">
         <a class="btn btn-light" href="#shop">Shop the collection</a>
-        <a class="btn btn-ghost" href="#studio">Meet the studio</a>
       </div>
     </div>
   </div>
@@ -91,13 +90,12 @@
   <img src="{{ base }}/static/img/potter-wheel.jpg" alt="A potter's clay-covered hands shaping a pot on the wheel" width="1200" height="900" loading="lazy">
   <div class="studio-card">
     <h2>Two potters, one kiln</h2>
-    <p>We started Fernhill in a garage in 2019. Today we throw everything on two wheels by the river in Asheville and fire about once a month, so every batch is small.</p>
-    <h3>Hear about the next kiln opening</h3>
-    <form class="inline-form" onsubmit="event.preventDefault(); this.outerHTML = '<p class=&quot;form-done&quot;>Thanks! You are on the list.</p>';">
-      <label class="visually-hidden" for="signup-email">Email</label>
-      <input id="signup-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
-      <button type="submit" class="btn">Sign up</button>
-    </form>
+    <p>We started Fernhill in a garage in 2019. Today we throw everything on two wheels by the river in Asheville and fire about once a month, so every batch is small and no two pieces match exactly.</p>
+    <dl class="studio-facts">
+      <div><dt>Studio shop</dt><dd>48 Riverside Drive, Asheville, NC</dd></div>
+      <div><dt>Open</dt><dd>Tuesday to Saturday, 10am to 5pm</dd></div>
+      <div><dt>Say hello</dt><dd>hello@fernhill.example</dd></div>
+    </dl>
   </div>
 </section>
 {% endblock %}

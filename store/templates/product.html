@@ -27,7 +27,7 @@
       <h1>{{ product.name }}</h1>
       {% endif %}
       {% if product.rating %}
-      <p class="product-rating">{{ stars(product.rating) }} <span>{{ product.rating }} from {{ product.reviews | length }} reviews</span></p>
+      <p class="product-rating">{{ stars(product.rating) }} <span>{{ product.rating }} from {{ product.reviews | length }} review{{ "s" if product.reviews | length != 1 }}</span></p>
       {% endif %}
 
       <div class="product-price">{{ price(product) }}
@@ -42,8 +42,13 @@
       {% endif %}
       <p class="product-summary">{{ product.summary }}</p>
 
-      {% if listed_out %}
-        <p class="soldout">Sold out{% if not buyable %}. Join the newsletter to hear when it's back.{% endif %}</p>
+      {% if listed_out and buyable %}
+        <p class="soldout">Sold out</p>
+      {% elif not buyable %}
+        <div class="soldout-actions">
+          <button type="button" class="buy" disabled>Sold out</button>
+          <a class="notify-link" href="{{ base }}/newsletter">Email me when it's back</a>
+        </div>
       {% endif %}
       {% if buyable %}
       <div class="actions-wrap">
@@ -90,20 +95,33 @@
 
 {% if product.reviews %}
 <section class="product-reviews container" aria-labelledby="reviews-head">
-  <header class="reviews-summary">
-    <h2 id="reviews-head">Customer reviews</h2>
-    <p>{{ stars(product.rating, "lg") }} <span>{{ product.rating }} out of 5, based on {{ product.reviews | length }} reviews</span></p>
-  </header>
-  <ol class="review-list">
-    {% for r in product.reviews %}
-    <li class="review">
-      {{ stars(r.rating) }}
-      <h3>{{ r.title }}</h3>
-      <p>{{ r.body }}</p>
-      <p class="review-meta">{{ r.author }}, {{ r.location }}, <time datetime="{{ r.date }}">{{ r.display_date }}</time></p>
-    </li>
-    {% endfor %}
-  </ol>
+  <h2 id="reviews-head">Customer reviews</h2>
+  <div class="reviews-layout">
+    <div class="reviews-summary">
+      <p class="reviews-score">{{ product.rating }}<span> out of 5</span></p>
+      {{ stars(product.rating, "lg") }}
+      <p class="muted">Based on {{ product.reviews | length }} review{{ "s" if product.reviews | length != 1 }}</p>
+      <ul class="rating-bars">
+        {% for s, count, pct in product.rating_breakdown %}
+        <li><span>{{ s }} star</span><span class="bar"><span style="width: {{ pct }}%"></span></span><span>{{ count }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    <ol class="review-list">
+      {% for r in product.reviews %}
+      <li class="review">
+        <div class="review-head">
+          <span class="avatar avatar-{{ r.tone }}" aria-hidden="true">{{ r.initials }}</span>
+          <p class="review-author">{{ r.author }}<span>{{ r.location }}</span></p>
+          <time datetime="{{ r.date }}">{{ r.display_date }}</time>
+        </div>
+        {{ stars(r.rating) }}
+        <h3>{{ r.title }}</h3>
+        <p>{{ r.body }}</p>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
 </section>
 {% endif %}
 
