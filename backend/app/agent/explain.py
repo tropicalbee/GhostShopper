@@ -12,7 +12,7 @@ from typing import Any
 
 from .. import db
 from .llm import LLM
-from .recorder import load_run
+from .recorder import invalidate_run, load_run
 
 MAX_LEN = 500
 SYSTEM = (
@@ -61,6 +61,7 @@ async def explain_run(db_path: Path, run_id: int, llm: LLM) -> list[dict[str, An
             if text:
                 conn.execute("UPDATE checks SET fix = ? WHERE run_id = ? AND check_key = ?", (text, run_id, i["check"]))
             out.append({**i, "explained": text or i["fix"], "source": f"llm:{llm.model}" if text else "deterministic"})
+    invalidate_run(db_path, run_id)  # the cached run payload carries checks.fix
     return out
 
 
@@ -73,7 +74,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p = argparse.ArgumentParser(prog="python -m backend.app.agent.explain", description="Rephrase a run's fixes")
     p.add_argument("run_id", type=int)
-    p.add_argument("--llm", choices=["mock", "groq"], default="groq")
+    p.add_argument("--llm", choices=["live", "groq", "mock"], default="live",
+                   help="live = the provider set by LLM_PROVIDER/LLM_MODEL/LLM_API_KEY (groq is an alias)")
     p.add_argument("--cassette")
     a = p.parse_args(argv)
     try:

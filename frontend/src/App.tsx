@@ -1,11 +1,11 @@
 import { RotateCw } from "lucide-react";
 import { lazy, Suspense } from "react";
 
-import { Panel } from "@/components/bits";
+import { Panel, RunSkeleton } from "@/components/bits";
 import { MobileBar, Sidebar } from "@/components/Nav";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api, type Run } from "@/lib/api";
+import { api, RECENT_RUNS, type Run, type RunSummary } from "@/lib/api";
 import { go, useFetch, useMediaQuery, useRoute } from "@/lib/hooks";
 import { Compare } from "@/screens/Compare";
 import { Home } from "@/screens/Home";
@@ -16,6 +16,7 @@ import { Results } from "@/screens/Results";
 // AG Grid and the charts are most of the bundle; phones on the Simple view never load them.
 const Advanced = lazy(() => import("@/screens/Advanced").then((m) => ({ default: m.Advanced })));
 
+const NO_RUNS: RunSummary[] = []; // a stable empty list, so Results' memo is not defeated while the list loads
 const isRunning = (r: Run) => r.status === "running" || r.status === "awaiting_human";
 
 function Down({ retry }: { retry: () => void }) {
@@ -35,7 +36,7 @@ function RunScreen({ id, advanced }: { id: number; advanced: boolean }) {
   const health = useFetch(api.health, []);
   const run = useFetch(() => api.run(id), [id], 1000, isRunning);
   const finished = run.data && !isRunning(run.data);
-  const runs = useFetch(api.runs, [id, finished]);
+  const runs = useFetch(() => api.runs({ limit: RECENT_RUNS }), [id, finished]);
   const wide = useMediaQuery("(min-width: 768px)"); // the Advanced view, from tablet width up
 
   if (run.error && !run.data) {
@@ -50,15 +51,15 @@ function RunScreen({ id, advanced }: { id: number; advanced: boolean }) {
       </Panel>
     );
   }
-  if (!run.data || !health.data) return <Skeleton className="mt-10 h-[28rem]" />;
+  if (!run.data || !health.data) return <RunSkeleton />;
   if (isRunning(run.data)) return <Live run={run.data} />;
   if (advanced && wide)
     return (
-      <Suspense fallback={<Skeleton className="mt-10 h-[40rem]" />}>
-        <Advanced run={run.data} runs={runs.data ?? []} health={health.data} />
+      <Suspense fallback={<RunSkeleton />}>
+        <Advanced run={run.data} runs={runs.data} health={health.data} />
       </Suspense>
     );
-  return <Results run={run.data} health={health.data} runs={runs.data ?? []} wide={wide} />;
+  return <Results run={run.data} health={health.data} runs={runs.data ?? NO_RUNS} wide={wide} />;
 }
 
 export default function App() {
@@ -66,7 +67,7 @@ export default function App() {
   const health = useFetch(api.health, []);
   const runId = route[0] === "run" ? Number(route[1]) : 0;
   // Refetched on every route change, and every 2 s while one of your checks runs, so the menu stays current.
-  const runs = useFetch(api.runs, [route.join("/")], 2000, (rs) =>
+  const runs = useFetch(() => api.runs({ limit: RECENT_RUNS }), [route.join("/")], 2000, (rs) =>
     rs.some((r) => r.mine && (r.status === "running" || r.status === "awaiting_human")),
   );
 
@@ -78,7 +79,8 @@ export default function App() {
   else if (health.data) screen = <Home />;
   else screen = <Skeleton className="mt-24 h-72 max-w-xl" />;
 
-  const nav = { route, runs: runs.data ?? [], health: health.data };
+  // null while the list loads, so the menu shows a skeleton; a failed load shows the empty note instead.
+  const nav = { route, runs: runs.data ?? (runs.error ? [] : null), health: health.data };
   return (
     <div className="flex min-h-dvh">
       <Sidebar {...nav} />

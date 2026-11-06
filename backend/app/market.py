@@ -5,8 +5,10 @@ live API is used; without it, recorded fixtures in Channel3's response shape are
 so (source = "recorded"). The market check is informational: it never changes the readiness score.
 """
 
+import copy
 import json
 import os
+import time
 from dataclasses import asdict, dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
@@ -143,16 +145,40 @@ def analyze(product: Product, response: dict[str, Any], source: str, query: str)
                         competitive, verdict, comps)
 
 
+MARKET_CACHE_TTL_S = 600  # a Channel3 search costs quota; the answer barely changes in ten minutes
+# shortcut: per process, one entry per (sku, source), no size bound needed (the catalog is one store's products).
+# Errors are never stored. Move to a shared cache if the server ever runs more than one process.
+_market_cache: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+
+
+def clear_market_cache() -> None:
+    _market_cache.clear()
+
+
 async def market_check(product: Product, search: ProductSearch | None = None) -> dict[str, Any]:
+    """Pass `search` to bypass the cache (tests, one-off lookups)."""
+    cached_search = search is None
+    key = (product.sku, "channel3" if os.getenv("CHANNEL3_API_KEY", "").strip() else "recorded")
+    if cached_search:
+        hit = _market_cache.get(key)
+        if hit and time.monotonic() - hit[0] < MARKET_CACHE_TTL_S:
+            return copy.deepcopy(hit[1])
     search = search or make_search()
     query = product.name
     try:
         response = await search.search(query, product.sku)
     finally:
-        close = getattr(search, "aclose", None)
-        if close:
-            await close()
-    return asdict(analyze(product, response, search.source, query))
+        await _close(search)
+    report = asdict(analyze(product, response, search.source, query))
+    if cached_search:
+        _market_cache[key] = (time.monotonic(), report)
+    return copy.deepcopy(report)
+
+
+async def _close(search: ProductSearch) -> None:
+    close = getattr(search, "aclose", None)
+    if close:
+        await close()
 
 
 def main() -> int:

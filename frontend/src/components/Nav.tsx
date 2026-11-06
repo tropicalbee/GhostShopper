@@ -1,7 +1,8 @@
 import { History, Menu, Plus, SlidersHorizontal } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { checkedAt, Logo, storeName } from "@/components/bits";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { Health, RunSummary } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -33,9 +34,9 @@ function Brand() {
 }
 
 // The menu itself: the same on the desktop rail and in the phone drawer.
-function NavBody({ route, runs, health, onNavigate }: { route: string[]; runs: RunSummary[]; health: Health | null; onNavigate?: () => void }) {
+function NavBody({ route, runs, health, onNavigate }: { route: string[]; runs: RunSummary[] | null; health: Health | null; onNavigate?: () => void }) {
   const runId = route[0] === "run" ? Number(route[1]) : 0;
-  const recent = runs.filter((r) => r.mine).slice(0, 6);
+  const recent = useMemo(() => (runs ?? []).filter((r) => r.mine).slice(0, 6), [runs]);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <nav aria-label="Main" className="flex flex-col gap-0.5 p-3">
@@ -50,7 +51,16 @@ function NavBody({ route, runs, health, onNavigate }: { route: string[]; runs: R
         <h2 id="recent-checks" className="px-3 text-[13px] font-medium text-muted-foreground">
           Recent checks
         </h2>
-        {recent.length ? (
+        {runs === null ? (
+          <ul className="mt-2 flex flex-col gap-0.5" aria-busy="true" aria-label="Loading your recent checks">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="flex min-h-10 flex-col justify-center gap-1.5 px-3 py-1.5">
+                <Skeleton className="h-3.5 w-28" />
+                <Skeleton className="h-3 w-36" />
+              </li>
+            ))}
+          </ul>
+        ) : recent.length ? (
           <ul className="mt-2 flex flex-col gap-0.5">
             {recent.map((r) => (
               <li key={r.id}>
@@ -90,7 +100,7 @@ function NavBody({ route, runs, health, onNavigate }: { route: string[]; runs: R
   );
 }
 
-export function Sidebar(props: { route: string[]; runs: RunSummary[]; health: Health | null }) {
+export function Sidebar(props: { route: string[]; runs: RunSummary[] | null; health: Health | null }) {
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r bg-background lg:flex">
       <Brand />
@@ -99,7 +109,7 @@ export function Sidebar(props: { route: string[]; runs: RunSummary[]; health: He
   );
 }
 
-export function MobileBar(props: { route: string[]; runs: RunSummary[]; health: Health | null }) {
+export function MobileBar(props: { route: string[]; runs: RunSummary[] | null; health: Health | null }) {
   const [open, setOpen] = useState(false);
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background pr-2 lg:hidden">

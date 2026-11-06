@@ -33,7 +33,8 @@ class FlawUpdate(BaseModel):
 def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: str, admin_open: bool = True,
                      admin_token: str = "") -> FastAPI:
     """admin_open: the settings page is open to anyone (local development). Otherwise it needs admin_token,
-    sent once as ?token= (which sets an httpOnly cookie) or as an X-Admin-Token header."""
+    entered once in the unlock form (which sets an httpOnly cookie) or sent as an X-Admin-Token header. A token in
+    the URL is not accepted: it would end up in access logs and browser history."""
     app = FastAPI(title=STORE_NAME, docs_url=None, redoc_url=None, openapi_url=None)
     flaw_store = FlawStore(db_path)
     templates = Jinja2Templates(directory=HERE / "templates")
@@ -44,7 +45,7 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
 
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
-    def render(request: Request, name: str, **ctx: Any) -> HTMLResponse:
+    def render(request: Request, name: str, status_code: int = 200, **ctx: Any) -> HTMLResponse:
         base = request.scope.get("root_path", "")
         return templates.TemplateResponse(
             request,
@@ -57,6 +58,7 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
                 "price_token": token_for,
                 **ctx,
             },
+            status_code=status_code,
         )
 
     def checkout_entry(request: Request, product: catalog.Product) -> str:
@@ -188,9 +190,14 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
     def admin_allowed(request: Request) -> bool:
         if admin_open:
             return True
-        supplied = (request.headers.get("x-admin-token") or request.cookies.get(ADMIN_COOKIE)
-                    or request.query_params.get("token") or "")
+        supplied = request.headers.get("x-admin-token") or request.cookies.get(ADMIN_COOKIE) or ""
+        return token_matches(supplied)
+
+    def token_matches(supplied: str) -> bool:
         return bool(admin_token) and hmac.compare_digest(supplied.encode(), admin_token.encode())
+
+    def unlock_page(request: Request, wrong: bool = False) -> HTMLResponse:
+        return render(request, "admin_unlock.html", wrong=wrong, status_code=403)
 
     def require_admin(request: Request) -> None:
         if not admin_allowed(request):
@@ -198,12 +205,22 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
 
     @app.get("/admin", response_class=HTMLResponse)
     def admin(request: Request, saved: bool = False):
-        require_admin(request)
-        resp = render(request, "admin.html", flaw_defs=FLAWS, saved=saved)
-        if not admin_open and request.query_params.get("token"):
-            resp.set_cookie(ADMIN_COOKIE, admin_token, httponly=True, samesite="strict",
-                            secure=request.url.scheme == "https", path=f"{request.scope.get('root_path', '')}/admin",
-                            max_age=12 * 3600)
+        if not admin_allowed(request):
+            if not admin_token:
+                require_admin(request)  # nothing can unlock it on this server: plain 403
+            return unlock_page(request)
+        return render(request, "admin.html", flaw_defs=FLAWS, saved=saved)
+
+    @app.post("/admin/unlock")
+    def admin_unlock(request: Request, token: str = Form("")):
+        base = request.scope.get("root_path", "")
+        if admin_open:
+            return RedirectResponse(f"{base}/admin", status_code=303)
+        if not token_matches(token):
+            return unlock_page(request, wrong=True)
+        resp = RedirectResponse(f"{base}/admin", status_code=303)
+        resp.set_cookie(ADMIN_COOKIE, admin_token, httponly=True, samesite="strict",
+                        secure=request.url.scheme == "https", path=f"{base}/admin", max_age=12 * 3600)
         return resp
 
     @app.post("/admin")

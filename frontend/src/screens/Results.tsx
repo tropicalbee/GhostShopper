@@ -1,5 +1,5 @@
 import { ArrowRight, Info, RotateCw } from "lucide-react";
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 
 import { platformName, ScoreFigure, ShopperPath, StatusLine } from "@/components/bits";
 import { DeveloperDialog, ShowMeDialog } from "@/components/dialogs";
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { sameSeries, startCheck, type Health, type PlainFix, type Run, type RunSummary } from "@/lib/api";
 import { go, useCountUp } from "@/lib/hooks";
 
-function FixItem({ fix, n }: { fix: PlainFix; n: number }) {
+// Results re-renders on each frame of the score count-up; the fix list does not change, so skip it.
+const FixItem = memo(function FixItem({ fix, n }: { fix: PlainFix; n: number }) {
   return (
     <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 border-b py-6 last:border-b-0">
       <span className="num grid size-7 place-items-center border border-line text-[13px] text-foreground/80" aria-hidden>
@@ -29,7 +30,7 @@ function FixItem({ fix, n }: { fix: PlainFix; n: number }) {
       </div>
     </li>
   );
-}
+});
 
 export function Results({ run, health, runs, wide }: { run: Run; health: Health; runs: RunSummary[]; wide: boolean }) {
   const card = run.scorecard;
@@ -49,13 +50,17 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
     }
   };
 
-  const earlier = runs.find((r) => r.id < run.id && sameSeries(run, r) && r.score != null);
-  // Visitors can't change the shared demo store, so its before and after comes from the shared example pair.
-  const scored = (r: RunSummary) => r.example && !r.live && r.score != null;
-  const example =
-    !run.live && !earlier && !health.demo_admin_open
-      ? runs.find((r) => scored(r) && runs.some((p) => scored(p) && p.id < r.id))
-      : undefined;
+  // Scans the run list (up to 50 rows, with a nested scan for the example pair); cached across count-up frames.
+  const { earlier, example } = useMemo(() => {
+    const earlier = runs.find((r) => r.id < run.id && sameSeries(run, r) && r.score != null);
+    // Visitors can't change the shared demo store, so its before and after comes from the shared example pair.
+    const scored = (r: RunSummary) => r.example && !r.live && r.score != null;
+    const example =
+      !run.live && !earlier && !health.demo_admin_open
+        ? runs.find((r) => scored(r) && runs.some((p) => scored(p) && p.id < r.id))
+        : undefined;
+    return { earlier, example };
+  }, [run, runs, health.demo_admin_open]);
   const platform = platformName(card?.platform);
   const againLabel = busy ? "Starting…" : "Check my store again";
 

@@ -5,6 +5,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -30,6 +31,18 @@ log = logging.getLogger(__name__)
 DASHBOARD_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
                  "font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; "
                  "frame-ancestors 'none'")
+
+
+def _cache_policy(path: str, status: int) -> str | None:
+    """Cache-Control for responses that don't set their own. The dashboard index and the screenshot endpoint
+    do; the demo store (HTML) is left alone."""
+    if path.startswith("/assets/"):
+        return "public, max-age=31536000, immutable" if status == 200 else None  # build output is content-hashed
+    if path == "/api/rubric":
+        return "public, max-age=3600"
+    if path.startswith("/api/"):
+        return "private, no-store"  # one browser's private data
+    return None
 
 
 def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayPalClient | None = None) -> FastAPI:
@@ -73,12 +86,18 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
             response.set_cookie(COOKIE, token, max_age=MAX_AGE_S, httponly=True, samesite="lax",
                                 secure=settings.https, path="/")
         h = response.headers
+        cache = _cache_policy(request.url.path, response.status_code)
+        if cache and "cache-control" not in h:
+            # A response that hands out a fresh owner cookie must never be stored by a shared cache.
+            h["Cache-Control"] = cache.replace("public", "private") if fresh else cache
         h.setdefault("X-Content-Type-Options", "nosniff")
         h.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         h.setdefault("X-Frame-Options", "DENY")
         if settings.https:
             h.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         return response
+
+    app.add_middleware(GZipMiddleware, minimum_size=1000)  # added last = outermost: wraps the headers above
 
     app.include_router(orders_router)
     app.include_router(runs_router)

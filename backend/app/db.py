@@ -106,6 +106,17 @@ CREATE TABLE IF NOT EXISTS scores (
 );
 """
 
+# Idempotent. runs(owner_hash, store_url, id) serves the per-browser list and before/after lookups,
+# runs(started_at) the retention purge, steps(run_id, idx) the ordered step load, orders(run_id) the unlink on delete.
+INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_runs_owner_store_id ON runs (owner_hash, store_url, id);
+CREATE INDEX IF NOT EXISTS idx_runs_started_at ON runs (started_at);
+CREATE INDEX IF NOT EXISTS idx_steps_run_idx ON steps (run_id, idx);
+CREATE INDEX IF NOT EXISTS idx_orders_run ON orders (run_id);
+"""
+
+BUSY_TIMEOUT_MS = 5000  # wait this long for a competing writer instead of failing with "database is locked"
+
 UNCLAIMED = "unclaimed"  # owner_hash of runs made before checks belonged to a browser; no token hashes to it
 
 # Columns added after a table first shipped; CREATE TABLE IF NOT EXISTS won't add them to old databases.
@@ -127,6 +138,7 @@ def connect(db_path: Path) -> Iterator[sqlite3.Connection]:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
+    conn.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
     try:
         yield conn
         conn.commit()
@@ -136,6 +148,10 @@ def connect(db_path: Path) -> Iterator[sqlite3.Connection]:
 
 def init_db(db_path: Path) -> None:
     with connect(db_path) as conn:
+        # WAL lets the dashboard's reads proceed while a run writes. Persistent in the file, so once is enough;
+        # synchronous=NORMAL is the safe pairing for WAL (a power cut can lose the last commit, never corrupt).
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
         existing = {}
         for table in ADDED_COLUMNS:
             existing[table] = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
@@ -150,6 +166,7 @@ def init_db(db_path: Path) -> None:
                         # them shared examples, so they become unclaimed: hidden from the web, kept for the CLI.
                         conn.execute("UPDATE runs SET owner_hash = ?", (UNCLAIMED,))
         conn.executescript(SCHEMA)
+        conn.executescript(INDEXES)
 
 
 def link_order_to_run(db_path: Path, order_id: str, run_id: int) -> bool:
@@ -214,6 +231,9 @@ def delete_run(db_path: Path, run_id: int, runs_dir: Path) -> None:
         if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'judge_ratings'").fetchone():
             conn.execute("DELETE FROM judge_ratings WHERE run_id = ?", (run_id,))
         conn.execute("DELETE FROM runs WHERE id = ?", (run_id,))
+    from .agent.recorder import invalidate_run  # late import: recorder imports this module
+
+    invalidate_run(db_path, run_id)
     _remove_run_folder(runs_dir, run_id)
 
 

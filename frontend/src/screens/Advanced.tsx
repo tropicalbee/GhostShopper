@@ -1,5 +1,5 @@
 import { RotateCw } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { Label, ScoreFigure, ShopperPath, StatusLine } from "@/components/bits";
@@ -23,7 +23,7 @@ function keyMoments(run: Run) {
 }
 
 function WhatTheShopperDid({ run }: { run: Run }) {
-  const lines = keyMoments(run);
+  const lines = useMemo(() => keyMoments(run), [run.feed]);
   return (
     <>
       <ol className="mt-3 text-sm">
@@ -101,12 +101,17 @@ function Steps({ run }: { run: Run }) {
   );
 }
 
-function History({ run, runs }: { run: Run; runs: RunSummary[] }) {
-  const data = runs
-    .filter((r) => sameSeries(run, r) && r.score != null && r.id <= run.id)
-    .slice(0, 12)
-    .reverse()
-    .map((r) => ({ name: `#${r.id}`, score: r.score }));
+function History({ run, runs }: { run: Run; runs: RunSummary[] | null }) {
+  const data = useMemo(
+    () =>
+      (runs ?? [])
+        .filter((r) => sameSeries(run, r) && r.score != null && r.id <= run.id)
+        .slice(0, 12)
+        .reverse()
+        .map((r) => ({ name: `#${r.id}`, score: r.score })),
+    [run, runs],
+  );
+  if (!runs) return <div className="hatch h-[17.5rem] border-y-[1.5px] border-t-rule" role="status" aria-busy="true" aria-label="Loading the history" />;
   if (data.length < 2) {
     return <p className="border-t-[1.5px] border-rule py-8 text-muted-foreground">Make your fixes and check again to see the score change here.</p>;
   }
@@ -133,7 +138,7 @@ function Market({ run }: { run: Run }) {
   const { data, error } = useFetch(() => (run.live ? Promise.resolve(null) : api.market(DEMO_SKU)), [run.live]);
   if (run.live) return <p className="border-t-[1.5px] border-rule py-8 text-muted-foreground">The market check runs on the demo store's products only.</p>;
   if (error) return <p className="border-t-[1.5px] border-rule py-8 text-bad">{error}</p>;
-  if (!data) return <div className="hatch h-64 border" aria-busy="true" />;
+  if (!data) return <div className="hatch h-64 border-y-[1.5px] border-t-rule" role="status" aria-busy="true" aria-label="Loading the market check" />;
   const rows = [
     { name: "Your price", price: Number(data.our_price), ours: true },
     ...data.comparables.map((c) => ({ name: c.domain, price: Number(c.price), ours: false })),
@@ -179,7 +184,7 @@ function NotFault({ run }: { run: Run }) {
   );
 }
 
-export function Advanced({ run, runs, health }: { run: Run; runs: RunSummary[]; health: Health }) {
+export function Advanced({ run, runs, health }: { run: Run; runs: RunSummary[] | null; health: Health }) {
   const card = run.scorecard;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

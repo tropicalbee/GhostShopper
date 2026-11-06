@@ -1,7 +1,7 @@
 """Run the mystery shopper from the command line against a running store.
 
     python -m backend.app.agent --llm mock --cassette day2_flaws_on --flaws on
-    python -m backend.app.agent --llm groq --flaws off --record my_run
+    python -m backend.app.agent --llm live --flaws off --record my_run
 """
 
 import argparse
@@ -53,10 +53,11 @@ def print_run(run: dict) -> None:
 def main() -> int:
     p = argparse.ArgumentParser(prog="python -m backend.app.agent", description="GhostShopper mystery shopper")
     p.add_argument("--url", help="a store link to check (browse-only, never pays); default: the demo store")
-    p.add_argument("--llm", choices=["mock", "groq", "scripted"], default="groq",
-                   help="scripted = rule-based navigator (not an LLM), works on any store")
+    p.add_argument("--llm", choices=["live", "groq", "mock", "scripted"], default="live",
+                   help="live = the provider set by LLM_PROVIDER/LLM_MODEL/LLM_API_KEY (groq is an alias); "
+                        "mock = replay a cassette; scripted = rule-based navigator (not an LLM), works on any store")
     p.add_argument("--cassette", help="mock: name of the recorded responses to replay")
-    p.add_argument("--record", help="groq: save this run's LLM replies as a cassette with this name")
+    p.add_argument("--record", help="live: save this run's LLM replies as a cassette with this name")
     p.add_argument("--flaws", default="keep",
                    help="set store flaws before the run: on (the 4 classic flaws), off, all, keep, "
                         "or a comma-separated list of flaw keys")

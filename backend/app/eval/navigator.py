@@ -15,7 +15,7 @@ import re
 from typing import Any
 
 from ..agent.checks import BUY_RE
-from ..agent.llm import LLMReply, ToolCall
+from ..agent.llm import ChatModel, LLMReply, ToolCall
 
 LINE_RE = re.compile(r"^(e\d+) (.+?) '(.*?)'(.*)$")
 WHERE_RE = re.compile(r"Now on: (.*) \((https?://[^)\s]+)\)")
@@ -42,7 +42,7 @@ def parse_elements(observation: str) -> list[dict[str, Any]]:
     return out
 
 
-class ScriptedNavigator:
+class ScriptedNavigator(ChatModel):
     kind = "scripted"
     model = "scripted-navigator-v1 (rule-based, not an LLM)"
 

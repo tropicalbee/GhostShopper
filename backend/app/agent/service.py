@@ -10,7 +10,7 @@ import httpx
 from store.flaws import CLASSIC_FLAWS, FLAW_KEYS
 
 from .browser import BrowserConfigError, resolve_provider
-from .llm import CASSETTE_DIR, LLMConfigError, make_llm
+from .llm import CASSETTE_DIR, LLMConfigError, close_llm, make_llm
 from .loop import DEFAULT_TARGET, PaymentHandler, RunConfig, run_shopper
 from .site import SiteError, Target, preflight
 
@@ -114,6 +114,8 @@ def prepare(req: RunRequest, store_url: str, db_path: Path, server: ServerInfo |
         resolve_provider(req.browser)
     except BrowserConfigError as exc:
         raise RunConfigError(str(exc)) from exc
+    # The payment handler first: if it can't be built, no LLM client has been opened to leak.
+    payment = build_payment(req, store_url, server, on_awaiting_human)
     try:
         if req.record and not req.record.replace("_", "").replace("-", "").isalnum():
             raise LLMConfigError(f"Invalid cassette name {req.record!r}")
@@ -126,7 +128,6 @@ def prepare(req: RunRequest, store_url: str, db_path: Path, server: ServerInfo |
             llm = make_llm(req.llm, req.cassette, record_to)
     except LLMConfigError as exc:
         raise RunConfigError(str(exc)) from exc
-    payment = build_payment(req, store_url, server, on_awaiting_human)
     return llm, payment
 
 
@@ -162,6 +163,4 @@ async def execute(
     try:
         return await run_shopper(cfg, llm, payment, on_start=on_start)
     finally:
-        close = getattr(llm, "aclose", None)
-        if close:
-            await close()
+        await close_llm(llm)

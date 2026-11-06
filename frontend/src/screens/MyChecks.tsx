@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { checkedAt, StatusLine, storeName } from "@/components/bits";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type RunSummary } from "@/lib/api";
 import { go, useFetch } from "@/lib/hooks";
+
+const PAGE = 20;
 
 const name = (r: RunSummary) => storeName({ live: !!r.live, store_url: r.store_url });
 const running = (r: RunSummary) => r.status === "running" || r.status === "awaiting_human";
@@ -23,8 +25,43 @@ function state(r: RunSummary) {
 }
 
 export function MyChecks() {
-  const { data, error, retry } = useFetch(api.runs, []);
   const health = useFetch(api.health, []);
+  // Pages of 20, newest first; "Show more" asks for the runs before the last one loaded.
+  const [data, setData] = useState<RunSummary[] | null>(null);
+  const [more, setMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .runs({ limit: PAGE })
+      .then((page) => {
+        if (!alive) return;
+        setData(page);
+        setMore(page.length === PAGE);
+      })
+      .catch((e: Error) => alive && setError(e.message));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const showMore = async () => {
+    if (!data?.length) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const page = await api.runs({ limit: PAGE, before: data[data.length - 1].id });
+      setData((rows) => [...(rows ?? []), ...page]);
+      setMore(page.length === PAGE);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const [confirm, setConfirm] = useState<RunSummary | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -35,8 +72,8 @@ export function MyChecks() {
     setDeleteError(null);
     try {
       await api.deleteRun(confirm.id);
+      setData((rows) => rows?.filter((r) => r.id !== confirm.id) ?? null);
       setConfirm(null);
-      retry();
     } catch (e) {
       setDeleteError((e as Error).message);
     } finally {
@@ -59,8 +96,21 @@ export function MyChecks() {
       </div>
 
       {error && <p role="alert" className="mt-4 text-sm text-bad">{error}</p>}
-      {!data && !error && <Skeleton className="mt-6 h-48" />}
-      {data && mine.length === 0 && (
+      {!data && !error && (
+        <div className="mt-2" role="status" aria-busy="true" aria-label="Loading your checks">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex min-h-14 items-center justify-between gap-4 border-b py-2">
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3.5 w-28 md:hidden" />
+              </div>
+              <Skeleton className="hidden h-4 w-36 sm:block" />
+              <Skeleton className="h-5 w-8" />
+            </div>
+          ))}
+        </div>
+      )}
+      {data && mine.length === 0 && !more && (
         <div className="py-16">
           <p className="text-lg font-medium">You haven't checked a store yet.</p>
           <p className="mt-1 text-muted-foreground">Paste your store's link and we'll show you what AI shoppers see.</p>
@@ -112,6 +162,13 @@ export function MyChecks() {
             ))}
           </tbody>
         </table>
+      )}
+      {more && (
+        <div className="mt-4">
+          <Button variant="outline" className="h-11 border-line px-6" onClick={showMore} disabled={loadingMore}>
+            {loadingMore ? "Loading…" : "Show more"}
+          </Button>
+        </div>
       )}
       {data && mine.length > 0 && health.data && (
         <p className="mt-4 text-sm text-muted-foreground">

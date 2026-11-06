@@ -59,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     else:
         print(f"Server: PAYPAL_MODE={health.get('paypal_mode')}, PayPal configured={health.get('paypal_configured')}, "
-              f"Groq configured={health.get('groq_configured')}")
+              f"live LLM={health.get('llm_label') or health.get('groq_configured')}")
         if health.get("paypal_mode") == "mock":
             httpx.put(f"{settings.app_base_url}/mock-paypal/scenario", json={"scenario": "ok"}, timeout=5.0)
             print("Mock PayPal scenario reset to 'ok'.")
@@ -73,8 +73,9 @@ def main(argv: list[str] | None = None) -> int:
             print("Store reset to the bad state for the live demo.")
 
     pay = "sandbox" if (health or {}).get("paypal_mode", "sandbox") == "sandbox" else "mock"
-    llm = "--llm groq" if (health or {}).get("groq_configured") else "--llm mock --cassette day3_checkout_flaws_on"
-    llm_after = "--llm groq" if (health or {}).get("groq_configured") else "--llm mock --cassette day3_checkout_flaws_off"
+    live_ok = bool((health or {}).get("llm_label") or (health or {}).get("groq_configured"))
+    llm = "--llm live" if live_ok else "--llm mock --cassette day3_checkout_flaws_on"
+    llm_after = "--llm live" if live_ok else "--llm mock --cassette day3_checkout_flaws_off"
     print("\nDemo commands:")
     print(f"  1. Bad store run:   python -m backend.app.agent {llm} --flaws keep --checkout --paypal {pay} --headed")
     print(f"  2. Apply fixes:     open {settings.app_base_url}/store/admin and untick everything (or --flaws off)")

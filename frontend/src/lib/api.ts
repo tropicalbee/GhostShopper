@@ -169,7 +169,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<Health>("/api/health"),
-  runs: () => request<RunSummary[]>("/api/runs"),
+  // Newest first. Fewer than `limit` rows back means the end; `before` pages from a run id.
+  runs: (params: { limit?: number; before?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.limit) q.set("limit", String(params.limit));
+    if (params.before) q.set("before", String(params.before));
+    return request<RunSummary[]>(`/api/runs${q.size ? `?${q}` : ""}`);
+  },
   run: (id: number) => request<Run>(`/api/runs/${id}`),
   compareFor: (id: number) => request<Compare>(`/api/runs/${id}/compare`),
   deleteRun: (id: number) => request<null>(`/api/runs/${id}`, { method: "DELETE" }),
@@ -189,5 +195,8 @@ export function startCheck(storeUrl: string | null) {
 // Two checks belong together when they are of the same store and from the same browser (or both examples).
 export const sameSeries = (a: Pick<Run, "store_url" | "mine" | "example">, b: RunSummary) =>
   a.store_url === b.store_url && a.mine === b.mine && a.example === b.example;
+
+// How many recent checks the sidebar and the history chart need.
+export const RECENT_RUNS = 50;
 
 export const DEMO_SKU = "FH-MUG-01";

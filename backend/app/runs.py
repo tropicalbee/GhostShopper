@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -19,7 +19,7 @@ from . import db
 from .agent.compare import CompareError, compare_runs, previous_run
 from .agent.explain import explain_run
 from .agent.llm import LLMConfigError, groq_configured, make_llm
-from .agent.recorder import list_runs, load_run
+from .agent.recorder import invalidate_run, list_runs, load_run
 from .agent.service import RunConfigError, RunRequest, ServerInfo, execute, prepare, resolve_target
 from .agent.site import allow_private_hosts
 from .devsummary import developer_summary
@@ -49,6 +49,15 @@ def _error(status: int, code: str, message: str) -> HTTPException:
 
 
 NOT_FOUND = "We couldn't find that check."
+START_TIMEOUT_S = 30  # how long a start may take (browser launch, first page) before the client gets an error
+
+
+async def _aclose(*things: Any) -> None:
+    """Close whatever of these holds a client. Used on objects built only to validate or after use."""
+    for thing in things:
+        close = getattr(thing, "aclose", None)
+        if close:
+            await close()
 
 
 def _readable(request: Request, run_id: int) -> dict[str, Any]:
@@ -57,6 +66,16 @@ def _readable(request: Request, run_id: int) -> dict[str, Any]:
     if run is None or (run["owner_hash"] is not None and run["owner_hash"] != request.state.owner):
         raise _error(404, "UNKNOWN_RUN", NOT_FOUND)
     return run
+
+
+def _meta(request: Request, run_id: int) -> dict[str, Any]:
+    """Owner and status of a run this browser may see, without building the whole payload. Same 404 rule as
+    _readable; for endpoints that only need to know whose run it is."""
+    with db.connect(request.app.state.settings.database_path) as conn:
+        row = conn.execute("SELECT owner_hash, status FROM runs WHERE id = ?", (run_id,)).fetchone()
+    if row is None or (row["owner_hash"] is not None and row["owner_hash"] != request.state.owner):
+        raise _error(404, "UNKNOWN_RUN", NOT_FOUND)
+    return dict(row)
 
 
 def _public(run: dict[str, Any], viewer: str) -> dict[str, Any]:
@@ -88,18 +107,21 @@ async def start_run(body: StartRun, request: Request):
     try:
         target = await resolve_target(req, settings.app_base_url)  # friendly errors for links we can't check
         live = not target.demo
-        prepare(req, target.url, settings.database_path, server, live=live)  # fail fast, before any run row
+        # Fail fast, before any run row. execute() builds its own, so close what this one built.
+        probe_llm, probe_payment = prepare(req, target.url, settings.database_path, server, live=live)
     except RunConfigError as exc:
         raise _error(400, "RUN_CONFIG", str(exc)) from exc
+    await _aclose(probe_llm, probe_payment)
+    # No await between the check and the acquire, so two near-simultaneous starts can't both pass.
     if state.run_lock.locked():
         raise _error(409, "RUN_IN_PROGRESS", "A check is already running. Try again when it finishes.")
-    db.purge_old_runs(settings.database_path, settings.runs_dir, settings.retention_days)  # also on long uptimes
+    await state.run_lock.acquire()
+    try:
+        db.purge_old_runs(settings.database_path, settings.runs_dir, settings.retention_days)  # also on long uptimes
+        started: asyncio.Future[int] = asyncio.get_running_loop().create_future()
+        owner = request.state.owner
 
-    started: asyncio.Future[int] = asyncio.get_running_loop().create_future()
-    owner = request.state.owner
-
-    async def worker():
-        async with state.run_lock:
+        async def worker():
             try:
                 await execute(req, target.url, settings.database_path, on_start=started.set_result, server=server,
                               live=live, allow_private=allow_private_hosts(settings.app_base_url),
@@ -108,20 +130,30 @@ async def start_run(body: StartRun, request: Request):
                 if not started.done():
                     started.set_exception(exc)
 
-    task = asyncio.create_task(worker())
+        task = asyncio.create_task(worker())
+        # The lock is released when the task is done, however it ends (a task cancelled before it first runs
+        # never enters its own try/finally, so the release can't live in the worker).
+        task.add_done_callback(lambda _: state.run_lock.release())
+    except BaseException:
+        state.run_lock.release()
+        raise
     state.run_tasks.add(task)
     task.add_done_callback(state.run_tasks.discard)
     try:
-        run_id = await asyncio.wait_for(started, timeout=30)
+        run_id = await asyncio.wait_for(started, timeout=START_TIMEOUT_S)
     except Exception as exc:
         log.exception("Run failed to start")
+        task.cancel()  # the client is told it failed, so no check may run behind its back
         raise _error(500, "RUN_START_FAILED", "The check couldn't start. Please try again.") from exc
     return {"run_id": run_id, "status": "running", "live": live}
 
 
 @router.get("")
-def get_runs(request: Request):
-    return list_runs(request.app.state.settings.database_path, visible_to=request.state.owner)
+def get_runs(request: Request, limit: int = Query(50, ge=1, le=100), before: int | None = Query(None, ge=1)):
+    """This browser's checks plus the shared examples, newest first. Page with `before` (the last id you have);
+    fewer than `limit` items back means the end."""
+    return list_runs(request.app.state.settings.database_path, limit=limit, visible_to=request.state.owner,
+                     before=before)
 
 
 def _compare(request: Request, before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
@@ -158,7 +190,8 @@ class ExplainBody(BaseModel):
 @router.post("/{run_id}/explain")
 async def explain(run_id: int, body: ExplainBody, request: Request):
     """LLM rephrasing of the run's deterministic fixes. Never changes the score."""
-    _readable(request, run_id)
+    if _meta(request, run_id)["owner_hash"] is None:
+        raise _error(403, "EXAMPLE", "Example checks are shared and can't be changed.")
     rate_limit(request, "api_limiter")
     if body.model_fields_set and not request.app.state.settings.dev_options:
         raise _error(400, "RUN_CONFIG", "Only the default explanation can be requested on this server.")
@@ -166,10 +199,14 @@ async def explain(run_id: int, body: ExplainBody, request: Request):
         llm = make_llm(body.llm, body.cassette)
     except LLMConfigError as exc:
         raise _error(400, "RUN_CONFIG", str(exc)) from exc
+    db_path = request.app.state.settings.database_path
     try:
-        return await explain_run(request.app.state.settings.database_path, run_id, llm)
+        return await explain_run(db_path, run_id, llm)
     except LookupError as exc:
         raise _error(404, "UNKNOWN_RUN", NOT_FOUND) from exc
+    finally:
+        invalidate_run(db_path, run_id)  # explain rewrites checks.fix, which the cached payload carries
+        await _aclose(llm)
 
 
 @router.get("/{run_id}/developer-summary")
@@ -181,7 +218,7 @@ def get_developer_summary(run_id: int, request: Request):
 @router.get("/{run_id}/files/{name}")
 def get_run_file(run_id: int, name: str, request: Request):
     """A screenshot from this run's folder, and nothing outside it."""
-    _readable(request, run_id)
+    _meta(request, run_id)
     if not FILE_NAME_RE.match(name):
         raise HTTPException(status_code=404)
     with db.connect(request.app.state.settings.database_path) as conn:
@@ -199,7 +236,7 @@ def get_run_file(run_id: int, name: str, request: Request):
 @router.delete("/{run_id}", status_code=204)
 def delete_run(run_id: int, request: Request):
     """Delete one of your checks: its results and screenshots. Shared examples can't be deleted."""
-    run = _readable(request, run_id)
+    run = _meta(request, run_id)
     if run["owner_hash"] is None:
         raise _error(403, "EXAMPLE", "Example checks are shared and can't be deleted.")
     if run["status"] in ("running", "awaiting_human"):

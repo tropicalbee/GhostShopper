@@ -1,6 +1,6 @@
 import { CircleCheck, TriangleAlert } from "lucide-react";
 
-import { checkedAt, Label, ScoreFigure, ShopperPath, StatusLine, storeName } from "@/components/bits";
+import { checkedAt, Label, PathSkeleton, ScoreFigure, ShopperPath, StatusLine, storeName } from "@/components/bits";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, type Run } from "@/lib/api";
@@ -12,15 +12,68 @@ function Side({ title, run, score, muted }: { title: string; run: Run | null; sc
     <section className={cn("min-w-0 p-6", muted ? "bg-panel" : "bg-card")}>
       <Label aside={run ? `Check ${run.id}, ${checkedAt(run.started_at)}` : undefined}>{title}</Label>
       <ScoreFigure score={score} className={cn("mt-5 text-[4.5rem] sm:text-[5.5rem]", muted && "text-foreground/70")} />
-      {run?.scorecard && (
+      {run?.scorecard ? (
         <>
           <StatusLine level={run.scorecard.simple.status} text={run.scorecard.simple.status_text} className="mt-4" />
           <div className="mt-6">
             <ShopperPath card={run.scorecard} compact />
           </div>
         </>
+      ) : (
+        !run && (
+          <div aria-hidden>
+            <Skeleton className="mt-4 h-5 w-48 max-w-full" />
+            <div className="mt-6">
+              <PathSkeleton compact />
+            </div>
+          </div>
+        )
       )}
     </section>
+  );
+}
+
+// The shape of the page while the comparison loads: heading rule, two score panels, two lists.
+function CompareSkeleton() {
+  return (
+    <div role="status" aria-busy="true" aria-label="Loading the comparison">
+      <div className="border-b-[1.5px] border-rule pt-8 pb-5">
+        <Skeleton className="h-4 w-44" />
+        <Skeleton className="mt-3 h-8 w-80 max-w-full" />
+      </div>
+      <div className="mt-6 grid border md:grid-cols-[minmax(0,1fr)_9rem_minmax(0,1fr)]">
+        {[0, 1, 2].map((i) =>
+          i === 1 ? (
+            <div key={i} className="grid place-items-center border-y px-6 py-4 md:border-x md:border-y-0">
+              <Skeleton className="h-8 w-14" />
+            </div>
+          ) : (
+            <div key={i} className={cn("p-6", i === 0 && "bg-panel")}>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="mt-5 h-20 w-40" />
+              <Skeleton className="mt-4 h-5 w-48 max-w-full" />
+              <div className="mt-6">
+                <PathSkeleton compact />
+              </div>
+            </div>
+          ),
+        )}
+      </div>
+      <div className="mt-10 grid gap-10 md:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i}>
+            <Skeleton className="h-6 w-32" />
+            <div className="mt-3 border-t-[1.5px] border-rule">
+              {[0, 1, 2].map((j) => (
+                <div key={j} className="border-b py-3.5">
+                  <Skeleton className="h-4 w-4/5" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -46,10 +99,13 @@ export function Compare({ runId }: { runId: number }) {
       </div>
     );
   }
-  if (!data) return <Skeleton className="mt-10 h-96" />;
+  if (!data) return <CompareSkeleton />;
 
   const delta = data.score_change;
   const stillToFix = [...data.remaining, ...data.new_failures];
+  // Titles come from the two runs; until both have answered, show bars instead of the technical wording.
+  const ready = (!!beforeRun.data || !!beforeRun.error) && (!!afterRun.data || !!afterRun.error);
+  const title = (f: { check: string; title: string }) => (ready ? plainTitle(f) : <Skeleton className="my-1 h-4 w-3/4" />);
   const name = afterRun.data ? storeName(afterRun.data) : "";
   return (
     <div>
@@ -95,7 +151,7 @@ export function Compare({ runId }: { runId: number }) {
             {data.fixed.map((f) => (
               <li key={f.check} className="flex items-start gap-2.5 border-b py-3">
                 <CircleCheck className="mt-0.5 size-4 shrink-0 text-good" aria-label="Fixed" />
-                <span className="text-muted-foreground line-through decoration-line">{plainTitle(f)}</span>
+                <span className="min-w-0 flex-1 text-muted-foreground line-through decoration-line">{title(f)}</span>
               </li>
             ))}
             {!data.fixed.length && <li className="py-3 text-muted-foreground">Nothing fixed yet.</li>}
@@ -108,7 +164,7 @@ export function Compare({ runId }: { runId: number }) {
           <ul>
             {stillToFix.map((f) => (
               <li key={f.check} className="border-b py-3">
-                <p className="font-medium">{plainTitle(f)}</p>
+                <div className="font-medium">{title(f)}</div>
                 {plainHow(f.check) && <p className="mt-0.5 text-sm text-muted-foreground">{plainHow(f.check)}</p>}
               </li>
             ))}

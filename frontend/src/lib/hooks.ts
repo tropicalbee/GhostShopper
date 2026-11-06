@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Hash routes, so a reload or a shared link lands on the same screen: #/, #/run/12, #/run/12/advanced, #/compare.
 export function useRoute(): string[] {
@@ -58,6 +58,8 @@ export function useFetch<T>(load: () => Promise<T>, deps: unknown[], pollMs?: nu
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<number | null>(null); // HTTP status of the last error, 0 = no answer
   const [nonce, setNonce] = useState(0);
+  // The last payload as text, so a poll that brings nothing new does not re-render the screen.
+  const last = useRef("");
   useEffect(() => {
     let alive = true;
     let timer: number | undefined;
@@ -65,7 +67,11 @@ export function useFetch<T>(load: () => Promise<T>, deps: unknown[], pollMs?: nu
       load()
         .then((d) => {
           if (!alive) return;
-          setData(d);
+          const text = JSON.stringify(d);
+          if (text !== last.current) {
+            last.current = text;
+            setData(d);
+          }
           setError(null);
           setStatus(null);
           if (pollMs && keepPolling?.(d)) timer = window.setTimeout(run, pollMs);

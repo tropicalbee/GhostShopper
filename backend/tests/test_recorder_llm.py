@@ -166,6 +166,7 @@ async def test_groq_llm_parses_tool_calls_and_retries_429():
 
 def test_make_llm_requires_explicit_config(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
     with pytest.raises(LLMConfigError, match="GROQ_API_KEY"):
         make_llm("groq")
     with pytest.raises(LLMConfigError, match="cassette"):

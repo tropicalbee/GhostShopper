@@ -34,7 +34,7 @@ services:
         sync: false
       - key: CHANNEL3_API_KEY
         sync: false
-      - key: DEMO_ADMIN_TOKEN   # presenter only: unlocks /store/admin?token=...
+      - key: DEMO_ADMIN_TOKEN   # presenter only: unlocks /store/admin (password form)
         sync: false
       - key: DEV_OPTIONS
         value: "0"

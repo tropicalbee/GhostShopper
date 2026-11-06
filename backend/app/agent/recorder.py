@@ -1,6 +1,9 @@
 """Persists a shopper run: steps, check outcomes and the score. Redacts secrets before every write."""
 
+import copy
 import json
+import threading
+from collections import OrderedDict
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -208,7 +211,52 @@ def _loads(value: str | None) -> Any:
     return json.loads(value) if value else None
 
 
+# Finished runs never change except through explain (checks.fix) and delete, which call invalidate_run.
+# shortcut: per process (the server is one process), 128 runs, keyed by database file and run id. A write from
+# another process (CLI explain, judge) isn't seen until restart; move to a shared cache or a version column
+# if more than one process ever writes.
+CACHE_SIZE = 128
+TERMINAL = ("completed", "error")
+_cache: "OrderedDict[tuple[str, int], dict[str, Any]]" = OrderedDict()
+_cache_lock = threading.Lock()
+_generation = 0  # bumped by every invalidation, so a load that raced a write doesn't cache the old payload
+
+
+def invalidate_run(db_path: Path, run_id: int) -> None:
+    global _generation
+    with _cache_lock:
+        _generation += 1
+        _cache.pop((str(db_path), run_id), None)
+
+
+def clear_run_cache() -> None:
+    global _generation
+    with _cache_lock:
+        _generation += 1
+        _cache.clear()
+
+
 def load_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
+    """The full run payload. Finished runs come from an LRU; running ones are always read fresh.
+    Callers get their own copy and may modify it."""
+    key = (str(db_path), run_id)
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit is not None:
+            _cache.move_to_end(key)
+            return copy.deepcopy(hit)
+        generation = _generation
+    run = _build_run(db_path, run_id)
+    if run is not None and run["status"] in TERMINAL:
+        with _cache_lock:
+            if generation == _generation:
+                _cache[key] = copy.deepcopy(run)
+                while len(_cache) > CACHE_SIZE:
+                    _cache.popitem(last=False)
+    return run
+
+
+def _build_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
     from ..plain import narrate
     from ..scorecard import build_scorecard
 
@@ -234,10 +282,19 @@ def load_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
     return out
 
 
-def list_runs(db_path: Path, limit: int = 50, visible_to: str | None = None) -> list[dict[str, Any]]:
+def list_runs(db_path: Path, limit: int = 50, visible_to: str | None = None,
+              before: int | None = None) -> list[dict[str, Any]]:
     """All runs (CLI), or with visible_to: that browser's runs plus the shared examples, each marked
-    mine/example. The owner hash itself is never returned."""
-    where, params = ("", ()) if visible_to is None else (" WHERE r.owner_hash = ? OR r.owner_hash IS NULL", (visible_to,))
+    mine/example. The owner hash itself is never returned. `before` pages: only runs with id < before."""
+    conditions: list[str] = []
+    params: list[Any] = []
+    if visible_to is not None:
+        conditions.append("(r.owner_hash = ? OR r.owner_hash IS NULL)")
+        params.append(visible_to)
+    if before is not None:
+        conditions.append("r.id < ?")
+        params.append(before)
+    where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
     with db.connect(db_path) as conn:
         rows = conn.execute(
             "SELECT r.id, r.started_at, r.finished_at, r.status, r.outcome, r.end_reason, r.llm, r.browser, r.live,"

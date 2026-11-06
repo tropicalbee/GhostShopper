@@ -74,7 +74,7 @@ async def judge_run(db_path: Path, run_id: int, llm: LLM) -> dict[str, Any]:
     if run is None:
         raise LookupError(f"No run {run_id}")
     items = [f for f in run["scorecard"]["fixes"] if f["status"] == "failed" and f.get("fix_explained")]
-    valid = llm.kind == "groq"
+    valid = llm.kind not in ("mock", "scripted")  # any live provider
     note = None if valid else "Not valid until run live: this judgement replayed a recorded cassette."
     if not items:
         return {"run_id": run_id, "valid": valid, "note": "No LLM explanations to judge; run explain first.",

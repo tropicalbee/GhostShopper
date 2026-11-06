@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Health, Run, Scorecard } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -166,8 +167,61 @@ export function PathStrip({
   );
 }
 
-export function ShopperPath({ card, compact = false }: { card: Scorecard; compact?: boolean }) {
-  return <PathStrip stages={stagesOf(card)} compact={compact} />;
+// Memoized: Results re-renders on every frame of the score count-up, and the card does not change.
+export const ShopperPath = memo(function ShopperPath({ card, compact = false }: { card: Scorecard; compact?: boolean }) {
+  const stages = useMemo(() => stagesOf(card), [card]);
+  return <PathStrip stages={stages} compact={compact} />;
+});
+
+// Placeholder for the stage strip while a run loads: same row of hatched tracks.
+export function PathSkeleton({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className="flex gap-1 sm:gap-1.5" aria-hidden>
+      {[3, 2, 2, 2, 1].map((w, i) => (
+        <div key={i} className="min-w-0" style={{ flexGrow: w, flexBasis: 0 }}>
+          <div className={cn("hatch border", compact ? "h-2" : "h-2.5")} />
+          <Skeleton className={cn("mt-2 h-3.5 w-3/4", compact && "h-3")} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// The shape of a finished check while it loads: title rule, score panel on the left, fix list on the right.
+export function RunSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading the check" role="status">
+      <div className="border-b-[1.5px] border-rule pt-8 pb-5">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="mt-3 h-8 w-72 max-w-full" />
+      </div>
+      <div className="mt-6 grid gap-8 lg:grid-cols-12 lg:gap-12">
+        <div className="border bg-panel p-6 lg:col-span-5">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="mt-4 h-20 w-44" />
+          <Skeleton className="mt-5 h-5 w-56 max-w-full" />
+          <div className="mt-6">
+            <PathSkeleton compact />
+          </div>
+        </div>
+        <div className="lg:col-span-7">
+          <Skeleton className="h-6 w-48" />
+          <div className="mt-3 border-t-[1.5px] border-rule">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 border-b py-6">
+                <Skeleton className="size-7" />
+                <div>
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="mt-2 h-4 w-full" />
+                  <div className="hatch mt-4 h-16 border" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function platformName(p: string | null | undefined): string | null {

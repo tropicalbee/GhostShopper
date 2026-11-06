@@ -92,6 +92,7 @@ class FlawStore:
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(self._db_path)
+        conn.execute("PRAGMA busy_timeout=5000")  # wait for a run writing to the same file
         try:
             with conn:  # commits on success, rolls back on error
                 yield conn

@@ -1,6 +1,7 @@
 import { CircleAlert, CircleCheck, Hand, Info, Loader2 } from "lucide-react";
+import { memo } from "react";
 
-import { ModeLabels, PathStrip, STAGES, storeName, Tag, type PathStage } from "@/components/bits";
+import { ModeLabels, PathSkeleton, PathStrip, STAGES, storeName, Tag, type PathStage } from "@/components/bits";
 import { api, type FeedLine, type Rubric, type Run } from "@/lib/api";
 import { useFetch } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
@@ -12,7 +13,9 @@ const TONE = {
   neutral: { icon: null, cls: "", word: "" },
 } as const;
 
-function Line({ line }: { line: FeedLine }) {
+// Each poll returns fresh objects for lines that have not changed, so compare by content, not identity.
+// A new line then renders alone instead of the whole feed re-rendering (and re-running its entry animation).
+const Line = memo(function Line({ line }: { line: FeedLine }) {
   const tone = TONE[line.tone];
   const Icon = tone.icon;
   return (
@@ -29,7 +32,7 @@ function Line({ line }: { line: FeedLine }) {
       </span>
     </li>
   );
-}
+}, (a, b) => a.line.step === b.line.step && a.line.text === b.line.text && a.line.tone === b.line.tone);
 
 // The path fills as checks come in: a stage is reached once any of its checks is logged, filled by the
 // share of its checks that passed, and marked stuck when the store caused a failure there.
@@ -55,11 +58,13 @@ export function Live({ run }: { run: Run }) {
         <Tag>{run.live ? "Live store, checked up to the PayPal button" : "Demo store"}</Tag>
         <ModeLabels run={run} />
       </div>
-      {rubric.data && (
-        <div className="mt-8">
+      <div className="mt-8">
+        {rubric.data ? (
           <PathStrip stages={livePath(run, rubric.data)} detail={false} label="How far the shopper has got" />
-        </div>
-      )}
+        ) : (
+          <PathSkeleton />
+        )}
+      </div>
 
       {run.status === "awaiting_human" && run.awaiting && (
         <section className="mt-6 border border-warn/40 bg-panel p-5">

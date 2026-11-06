@@ -162,10 +162,33 @@ def test_the_demo_store_settings_are_locked_when_deployed(app):
 def test_the_demo_admin_token_unlocks_the_settings(tmp_path):
     app = create_app(settings(tmp_path, demo_admin_token="t0ken-for-the-presenter"))
     with client_for(app, None) as c:
-        assert c.get("/store/admin?token=wrong").status_code == 403
+        locked = c.get("/store/admin")
+        assert locked.status_code == 403 and 'type="password"' in locked.text and "/admin/unlock" in locked.text
+        wrong = c.post("/store/admin/unlock", data={"token": "wrong"}, follow_redirects=False)
+        assert wrong.status_code == 403 and 'type="password"' in wrong.text and "fh_admin" not in wrong.headers.get("set-cookie", "")
+        r = c.post("/store/admin/unlock", data={"token": "t0ken-for-the-presenter"}, follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"].endswith("/admin")
+        cookie = r.headers["set-cookie"]
+        assert "HttpOnly" in cookie and "SameSite=strict" in cookie and "Secure" in cookie
+        assert c.get("/store/admin").status_code == 200  # the cookie now carries it
+        assert c.put("/store/admin/flaws.json", json={"flaws": {}}).status_code == 200
+
+
+def test_the_admin_token_header_still_works(tmp_path):
+    app = create_app(settings(tmp_path, demo_admin_token="t0ken-for-the-presenter"))
+    with client_for(app, None) as c:
+        h = {"X-Admin-Token": "t0ken-for-the-presenter"}
+        assert c.put("/store/admin/flaws.json", json={"flaws": {}}, headers=h).status_code == 200
+        assert c.put("/store/admin/flaws.json", json={"flaws": {}}, headers={"X-Admin-Token": "nope"}).status_code == 403
+
+
+def test_a_token_in_the_url_unlocks_nothing(tmp_path):
+    app = create_app(settings(tmp_path, demo_admin_token="t0ken-for-the-presenter"))
+    with client_for(app, None) as c:
         r = c.get("/store/admin?token=t0ken-for-the-presenter")
-        assert r.status_code == 200 and "HttpOnly" in r.headers["set-cookie"]
-        assert c.put("/store/admin/flaws.json", json={"flaws": {}}).status_code == 200  # the cookie now carries it
+        assert r.status_code == 403 and "fh_admin" not in r.headers.get("set-cookie", "")
+        assert c.put("/store/admin/flaws.json?token=t0ken-for-the-presenter", json={"flaws": {}}).status_code == 403
+        assert c.get("/store/admin").status_code == 403  # and no cookie was left behind
 
 
 def test_security_headers_on_every_response(app):
@@ -264,6 +287,7 @@ def test_runs_from_before_ownership_are_hidden_not_made_public(tmp_path):
     db = tmp_path / "old.db"
     run = make_run(db, None)
     conn = sqlite3.connect(db)  # turn it back into a database from before the owner column existed
+    conn.execute("DROP INDEX idx_runs_owner_store_id")  # an old database has no such index either
     conn.execute("ALTER TABLE runs DROP COLUMN owner_hash")
     conn.commit()
     conn.close()

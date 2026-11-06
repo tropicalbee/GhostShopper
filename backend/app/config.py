@@ -30,7 +30,7 @@ class Settings:
     # Developer options on POST /api/runs (llm, cassette, record, flaws, checkout, browser, max_steps, paypal)
     # and an unlocked demo store settings page. Off unless the server runs on localhost or DEV_OPTIONS=1.
     dev_options: bool = False
-    # Unlocks /store/admin on a deployed server for the presenter (?token=... once, then a cookie).
+    # Unlocks /store/admin on a deployed server for the presenter (typed once into its unlock form, then a cookie).
     demo_admin_token: str = ""
     runs_dir: Path = REPO_ROOT / "runs"  # screenshots, one folder per run
     frontend_dist: Path = REPO_ROOT / "frontend" / "dist"

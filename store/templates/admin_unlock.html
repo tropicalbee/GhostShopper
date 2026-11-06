@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Settings locked | {{ store_name }}{% endblock %}
+{% block content %}
+<h1>Settings locked</h1>
+{% if wrong %}<p>That password was not right.</p>{% endif %}
+<form method="post" action="{{ base }}/admin/unlock">
+  <label>Password <input type="password" name="token" autocomplete="off" required></label>
+  <button type="submit">Unlock</button>
+</form>
+{% endblock %}
