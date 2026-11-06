@@ -32,12 +32,12 @@ The LLM chooses every action. Code evaluates the checks, never the LLM.
 1. The agent has to be on checkout. Wait for a visible `<paypal-button>`: paypal_button_found.
 2. Click it and wait for the popup: popup_opened. If the browser blocked it, that's not the store's fault.
 3. Screenshot the popup before typing anything. Then work through whatever PayPal shows: email and Next, password and Log In, then approve. Once the window closes, payment_approved.
-4. If PayPal shows a CAPTCHA, a verification step or a form we don't recognize, stop and mark the run `awaiting_human`. A person completes the window, in a headed browser or through Kernel's live view, and the run picks up again when it closes. If nobody does it in time, payment_approved fails as not the store's fault.
+4. If PayPal shows a CAPTCHA, a verification step or a form we don't recognize, stop and mark the run `awaiting_human`. A person completes the window, in a headed browser or through Kernel's live view, and the run picks up again when it closes. If nobody does it in time, payment_approved fails as not the store's fault. If PayPal shows its own error page, payment_approved ends at once with code paypal_error_page (not the store's fault).
 5. Wait for the store's thanks page, an error, or a cancellation. A declined card is the buyer's side and is excluded; a capture error is the store's.
 6. Confirm through `GET /api/paypal/orders/{id}` that the order and capture are COMPLETED, and link the order to the run: capture_completed.
 7. Verify through `GET /api/paypal/orders/{id}/verify` that the order matches the advertised price, the capture matches the order, the currencies and capture ids match, and net = gross - fee: payment_verified.
 
-Modes: with `PAYPAL_MODE=mock` the server serves a mock SDK and popup (using PayPal's element ids) and a fake Orders client. You pick a scenario with `PUT /mock-paypal/scenario`: `ok`, `no_button`, `popup_blocked`, `approval_stuck`, `capture_declined`, `captcha`, `verification_required`, `capture_amount_mismatch` or `fee_mismatch`. `PAYPAL_MODE=sandbox` is the default and the real thing; it needs the PayPal and buyer credentials or the run won't start.
+Modes: with `PAYPAL_MODE=mock` the server serves a mock SDK and popup (using PayPal's element ids) and a fake Orders client. You pick a scenario with `PUT /mock-paypal/scenario`: `ok`, `no_button`, `popup_blocked`, `approval_stuck`, `capture_declined`, `captcha`, `verification_required`, `seller_login`, `capture_amount_mismatch` or `fee_mismatch`. `PAYPAL_MODE=sandbox` is the default and the real thing; it needs the PayPal and buyer credentials or the run won't start.
 
 ## After a run
 

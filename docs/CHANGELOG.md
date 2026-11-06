@@ -54,3 +54,9 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - The 10 flaw toggles still work. The ambiguous buttons and the price image were restyled to look like a real shop.
 - Hand-made market fixtures for the 8 new SKUs, new click ids in the 5 hand-written cassettes, and related products no longer list sold-out items.
 - The stylesheet URL carries a content hash so browsers pick up CSS changes.
+
+## 2026-11-07 (first real sandbox purchase)
+- First real PayPal sandbox purchase by the agent: order created, approved in the popup, captured and verified (100/100).
+- The agent detects PayPal's own error page, decodes the issue name from the URL and fails `payment_approved` at once with code `paypal_error_page`. It counts as environment, so the score is not hurt.
+- New mock scenario `seller_login`, with tests for it and for decoding error-page URLs. 234 tests pass.
+- `.env.example` notes that the buyer must be the personal sandbox account and both sandbox accounts should be US.

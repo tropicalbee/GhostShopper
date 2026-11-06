@@ -2,6 +2,33 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-07 (first real sandbox purchase)
+
+### Run 14: the PayPal button was missing after 20 seconds
+A headless run scored 75/100 with the store failure `paypal_button_missing`. A separate headless page load right after showed the button rendering fine, with no console errors. This looks like a slow first load of the v6 SDK. Not fixed. If it repeats, the button timeout should go up.
+
+### Runs 15 and 16: approval timed out
+The button was found and the popup opened, then both runs failed with "Approval did not complete within 120s (stuck waiting for the PayPal window to close)". The code was `approval_timeout` (environment), so the score stayed 100/100 on 82 of 100 points. A step-by-step headed script showed the sandbox login page loads fine, so the page itself was not the problem.
+
+![Popup at Taking you to PayPal](screenshots/2026-11-07-sandbox/run15-popup-taking-you-to-paypal.png)
+
+![Store checkout dimmed behind the PayPal overlay while the popup was open](screenshots/2026-11-07-sandbox/run15-store-waiting-on-popup.png)
+
+![The sandbox login page, loaded fine](screenshots/2026-11-07-sandbox/sandbox-login-page.png)
+
+Watching the headed browser, the user saw PayPal's error page at `/checkoutweb/genericError` with the text "You are logging in to the account of the seller for this purchase". The `code` query parameter is base64 of the issue name and decoded to CANNOT_PAY_SELF. Root cause: `SANDBOX_BUYER_EMAIL` and `SANDBOX_BUYER_PASSWORD` in `.env` were the seller (business) sandbox account. Fix: use the personal sandbox account as the buyer.
+
+### Run 17: stuck again, with a different error
+With the buyer fixed, the headed run timed out the same way. The browser showed a generic PayPal page, "Things don't appear to be working at the moment". Its code decoded to UNSUPPORTED_PAY..., but the URL was cut off in the screenshot, so the full issue name is unknown. Root cause: the payee was the India business sandbox account (the developer account was created with country India), which can't take this payment. Fix: a new US business sandbox account, a new REST app linked to it, the new client ID and secret in `.env`, a US personal buyer, and a server restart because it reads the keys at startup.
+
+### Run 18: it worked
+Outcome purchased, readiness 100/100, nothing excluded. The order and capture numbers are in PROGRESS.md.
+
+![Confirmation page from run 18](screenshots/2026-11-07-sandbox/run18-thanks-page.png)
+
+### The agent blamed a timeout for an account setup error
+In all three stuck runs the failure said the approval timed out, when the real cause was on PayPal's error page. `paypal_flow.py` now polls for `/checkoutweb/genericError` after clicking approve, decodes the `code` into the issue name and fails `payment_approved` at once with `paypal_error_page` (environment, no points lost). CANNOT_PAY_SELF has its own hint: the buyer login is the seller's own account. `failures.py` and `plain.py` got the fix text and a plain "not your fault" line. The mock scenario `seller_login` and a unit test for decoding error-page URLs cover it.
+
 ## 2026-11-06 (store redesign)
 
 ### The bad-store e2e test gave up instead of reaching checkout

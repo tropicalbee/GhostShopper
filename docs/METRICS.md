@@ -138,3 +138,34 @@ Before the meta description was added, SEO was 90 on every page. Performance was
 | Store tests plus agent and checkout e2e, after the last CSS tweaks | 42 passed |
 | Hallmark sloplint on rendered pages and `store/static/style.css` | 0 FAIL |
 | Impeccable detect | 0 findings |
+
+## Real sandbox runs (2026-11-07)
+
+All runs used `--llm scripted --flaws off --checkout --paypal sandbox`. Runs 14 and 15 were headless, 16 to 18 headed.
+
+| Run | Result | Score |
+|---|---|---|
+| 14 | `paypal_button_missing` after the 20 s button timeout (store failure) | 75 / 100 |
+| 15 | `approval_timeout` after 120 s (environment) | 100 / 100 on 82 of 100 points |
+| 16 | `approval_timeout` after 120 s (environment) | 100 / 100 on 82 of 100 points |
+| 17 | `approval_timeout` after 120 s (environment) | 100 / 100 on 82 of 100 points |
+| 18 | purchased, nothing excluded | 100 / 100 |
+
+Run 18 payment
+
+| What | Value |
+|---|---|
+| Order status / capture status | COMPLETED / COMPLETED |
+| Gross | USD 24.00 |
+| PayPal fee | 1.33 |
+| Net | 22.67 |
+| Order created / captured | 19:49:52 UTC / 19:50:05 UTC (13 s) |
+| Agent steps | 9 |
+| Order, capture, amount, fees | all verified |
+
+Other numbers
+
+| What | Value |
+|---|---|
+| Credential smoke test | OAuth token 200, a 1.00 USD order created 201 CREATED |
+| Full test suite after the `paypal_error_page` change | 234 passed (277.6 s) |

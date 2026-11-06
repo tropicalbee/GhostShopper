@@ -11,7 +11,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] PayPal v6 button on the checkout page
 - [x] FastAPI health, create-order, capture-order (Orders v2 sandbox), orders saved to SQLite
 - [x] Tests for the API and store toggles
-- [ ] Manual sandbox purchase with the test buyer (needs .env credentials; user)
+- [x] Manual sandbox purchase with the test buyer (done as agent run 18 on Nov 7)
 - [x] git init and first commits (user)
 
 ## D2 (Nov 6, done early on Nov 5): shopper agent navigation and failure logging
@@ -33,7 +33,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] PAYPAL_MODE=mock: fake Orders client, mock SDK and popup with failure scenarios
 - [x] Human-approval fallback for CAPTCHA, verification and unknown PayPal pages (tested on the mock popup)
 - [x] Mock: the fixed store buys and scores 100; the bad store buys and scores 49 (rules .3)
-- [ ] Live sandbox checkout run (user; see PROGRESS.md "How to run Day 3 live")
+- [x] Live sandbox checkout run (run 18, Nov 7: order captured, 100/100)
 - [x] Kernel browser behind the same tool layer (tested locally over CDP; live run needs a key and a public URL)
 
 ## D4 (Nov 8, built with mocks on Nov 5): Channel3 and verification
@@ -71,6 +71,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] Serve the frontend build from FastAPI
 - [x] Prep: setup scripts, Dockerfile, .dockerignore, render.yaml, GitHub Actions workflow
 - [x] README draft: problem, audience, how it works, setup, run, tools, built-during-hackathon
+- [ ] Record a before/after pair against the real sandbox
 - [ ] Render free tier deploy, env vars set, sandbox purchase on the hosted URL
 - [ ] Hosted URL in the README
 - [ ] Fresh-clone test

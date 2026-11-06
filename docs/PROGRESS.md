@@ -1,5 +1,31 @@
 # Progress
 
+## 2026-11-07 (first real sandbox purchase)
+
+### Done
+- The agent completed a real PayPal sandbox purchase (run 18, `--llm scripted --flaws off --checkout --paypal sandbox --headed`). Order 8J47533473464405G, capture 53F09889606962708, USD 24.00 gross, PayPal fee 1.33, net 22.67. Order, capture, amount and fees all verified. Readiness 100/100 with nothing excluded. Nine agent steps, 13 seconds from order creation to capture.
+- Runs 14 to 17 failed first, and two of them were account setup problems, not store problems. Details in issues-and-fixes.md.
+- The agent now recognizes PayPal's own error page and fails `payment_approved` right away with code `paypal_error_page`, with the decoded issue name in the evidence. It is classed as environment, so it does not cost points. Before this, the same problem showed up as a 120 second timeout that hid the cause.
+- New mock scenario `seller_login` that sends the popup to a mock error page. Tests: 234 passed (METRICS.md).
+- `.env.example` now says the buyer must be the personal sandbox account and both sandbox accounts should be US.
+
+![The real sandbox login page loaded fine](screenshots/2026-11-07-sandbox/sandbox-login-page.png)
+
+![The confirmation page from run 18](screenshots/2026-11-07-sandbox/run18-thanks-page.png)
+
+### In progress
+- Nothing open in code.
+
+### Next
+1. Watch for the slow button load seen in run 14. If it repeats, raise the button timeout.
+2. Record a before/after pair against the real sandbox for the demo.
+3. Back to D6: deploy and README.
+
+### Blockers
+- None.
+
+---
+
 ## 2026-11-06 (late session: demo store redesign)
 
 ### Done

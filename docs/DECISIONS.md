@@ -169,3 +169,9 @@ Rules `2026-11-05.3`, 100 points in total.
 - Reviews use initial avatars. Stock photo faces on fictional reviewers felt wrong.
 - Checkout and details pages keep exactly three controls before the form or PayPal button, so their ids (e4 to e7, and the PayPal button at e4) stay stable. Cassette ids were shifted only for the shop pages.
 - The new SKUs got hand-made market fixtures, labelled "Not real market data" like the existing four. We turned down narrowing `test_market.py`, which requires a recording per catalog product.
+
+## 2026-11-07: Real sandbox checkout
+
+- The demo uses US sandbox accounts (business payee and personal buyer) with USD. We turned down the India sandbox business account: the payment failed with UNSUPPORTED_PAY..., and India accounts have real-world limits on receiving payments.
+- A PayPal error page is classed as environment, not the store's fault. Payments only run on our own demo store, and the error comes from account setup. We turned down classing it as a store failure, and leaving it as a 120 second timeout that hides the cause.
+- We are not using PayPal's AI-Toolkit (github.com/paypal/AI-Toolkit) for now. The shopper agent has to pay through the store's own PayPal button like a real shopper, and the backend already calls Orders v2 directly. It could be revisited for the verify step.
