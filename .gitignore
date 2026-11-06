@@ -33,3 +33,4 @@ runs/
 .idea/
 .DS_Store
 Thumbs.db
+.impeccable/mocks/
