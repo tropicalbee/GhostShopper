@@ -41,6 +41,8 @@ class FakePayPalClient:
     def __init__(self):
         self.orders: dict[str, dict[str, Any]] = {}
         self.scenario: str = "ok"
+        self.captures: dict[str, dict[str, str]] = {}  # capture id -> amount, so a refund can return it
+        self.refunds: dict[str, dict[str, Any]] = {}
 
     async def aclose(self) -> None:
         pass
@@ -66,13 +68,15 @@ class FakePayPalClient:
         net = gross - fee - (Decimal("0.50") if self.scenario == "fee_mismatch" else 0)
         order["status"] = "COMPLETED"
         money = lambda v: {"currency_code": amount["currency_code"], "value": v}  # noqa: E731
+        capture_id = "MOCKCAP" + uuid.uuid4().hex[:10].upper()
+        self.captures[capture_id] = money(_money(gross))
         return {
             "id": order_id,
             "status": "COMPLETED",
             "purchase_units": [{
                 "reference_id": order["purchase_unit"].get("reference_id"),
                 "payments": {"captures": [{
-                    "id": "MOCKCAP" + uuid.uuid4().hex[:10].upper(),
+                    "id": capture_id,
                     "status": "COMPLETED",
                     "amount": money(_money(gross)),
                     "final_capture": True,
@@ -84,6 +88,20 @@ class FakePayPalClient:
                 }]},
             }],
         }
+
+    async def refund_capture(self, capture_id: str) -> dict[str, Any]:
+        amount = self.captures.get(capture_id)
+        if amount is None:
+            raise PayPalError(404, {"name": "RESOURCE_NOT_FOUND", "details": [{"issue": "INVALID_RESOURCE_ID"}]})
+        refund = {"id": "MOCKREF" + uuid.uuid4().hex[:10].upper(), "status": "COMPLETED", "amount": dict(amount)}
+        self.refunds[refund["id"]] = refund
+        return refund
+
+    async def get_refund(self, refund_id: str) -> dict[str, Any]:
+        refund = self.refunds.get(refund_id)
+        if refund is None:
+            raise PayPalError(404, {"name": "RESOURCE_NOT_FOUND", "details": [{"issue": "INVALID_RESOURCE_ID"}]})
+        return refund
 
 
 SDK_JS = r"""// MOCK PayPal v6 SDK (PAYPAL_MODE=mock). Not the real SDK; no PayPal servers involved.

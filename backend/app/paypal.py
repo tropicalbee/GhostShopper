@@ -65,6 +65,14 @@ class PayPalClient:
             raise PayPalError(resp.status_code, body)
         return body
 
+    async def _get(self, path: str) -> dict[str, Any]:
+        token = await self._access_token()
+        resp = await self._http.get(path, headers={"Authorization": f"Bearer {token}"})
+        body = _json(resp)
+        if resp.status_code != 200:
+            raise PayPalError(resp.status_code, body)
+        return body
+
     async def create_order(self, purchase_unit: dict[str, Any]) -> dict[str, Any]:
         return await self._post(
             "/v2/checkout/orders",
@@ -79,6 +87,17 @@ class PayPalClient:
             {},
             {"PayPal-Request-Id": f"capture-{order_id}", "Prefer": "return=representation"},
         )
+
+    async def refund_capture(self, capture_id: str) -> dict[str, Any]:
+        # An empty body refunds the full captured amount. The key makes a retried refund return the same one.
+        return await self._post(
+            f"/v2/payments/captures/{capture_id}/refund",
+            {},
+            {"PayPal-Request-Id": f"refund-{capture_id}", "Prefer": "return=representation"},
+        )
+
+    async def get_refund(self, refund_id: str) -> dict[str, Any]:
+        return await self._get(f"/v2/payments/refunds/{refund_id}")
 
 
 def _json(resp: httpx.Response) -> dict[str, Any]:

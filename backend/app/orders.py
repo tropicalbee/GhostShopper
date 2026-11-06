@@ -115,6 +115,57 @@ async def capture_order(order_id: str, request: Request, paypal: PayPalClient = 
     return summary
 
 
+def _owned_by(db_path, run_id: int | None, owner: str) -> bool:
+    if run_id is None:
+        return False
+    with db.connect(db_path) as conn:
+        row = conn.execute("SELECT owner_hash FROM runs WHERE id = ?", (run_id,)).fetchone()
+    return row is not None and row["owner_hash"] == owner
+
+
+@router.post("/orders/{order_id}/refund")
+async def refund_order(order_id: str, request: Request, paypal: PayPalClient = Depends(get_paypal)):
+    """Give the sandbox payment back in full, then read the refund from PayPal and check it. Not part of the score."""
+    rate_limit(request, "api_limiter")  # each call costs PayPal requests
+    if not ORDER_ID_RE.match(order_id):
+        raise HTTPException(status_code=400, detail={"error": "BAD_ORDER_ID", "message": "Malformed order id"})
+    db_path = request.app.state.settings.database_path
+    order = db.get_order(db_path, order_id)
+    if order is None or not _owned_by(db_path, order["run_id"], request.state.owner):
+        # Only the browser that ran the check may refund; shared examples and other browsers' orders look unknown.
+        raise HTTPException(status_code=404, detail={"error": "UNKNOWN_ORDER", "message": "No such order"})
+    if not order["capture_id"] or order["capture_status"] != "COMPLETED":
+        raise HTTPException(status_code=409, detail={"error": "NOT_CAPTURED", "message": "This order has no completed payment to refund"})
+    if order["refund_id"]:
+        raise HTTPException(status_code=409, detail={"error": "ALREADY_REFUNDED", "message": "This order was already refunded"})
+
+    try:
+        issued = await paypal.refund_capture(order["capture_id"])
+        refund = await paypal.get_refund(issued["id"])
+    except PayPalError as exc:
+        raise _paypal_http_error(exc) from exc
+
+    db.record_refund(db_path, order_id, refund)
+    amount, currency = refund["amount"]["value"], refund["amount"]["currency_code"]
+    captured = order["gross_amount"] or order["amount"]
+    mismatches = []
+    if refund["status"] != "COMPLETED":
+        mismatches.append(f"Refund status is {refund['status']}, expected COMPLETED")
+    if Decimal(amount) != Decimal(captured):
+        mismatches.append(f"Refunded {amount}, but {captured} was captured")
+    if currency != order["currency"]:
+        mismatches.append(f"Refund currency is {currency}, expected {order['currency']}")
+    return {
+        "order_id": order_id,
+        "refund_id": refund["id"],
+        "status": refund["status"],
+        "amount": amount,
+        "currency": currency,
+        "verified": not mismatches,
+        "mismatches": mismatches,
+    }
+
+
 @router.get("/orders/{order_id}/verify")
 def verify_order(order_id: str, request: Request):
     """Order <-> capture <-> advertised amount <-> fees. Used by the agent after a purchase."""

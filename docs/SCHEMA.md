@@ -22,6 +22,10 @@ Everything is redacted for secrets before it's written (`agent/recorder.py`). Co
 | created_at, captured_at | TEXT | |
 | capture_response | TEXT | raw JSON, used by verification |
 | run_id | INTEGER | the run that bought it; null for manual purchases |
+| refund_id | TEXT | PayPal refund id, set once the test payment is refunded |
+| refund_status | TEXT | COMPLETED, PENDING, CANCELLED or FAILED |
+| refund_amount, refund_currency | TEXT | what PayPal says it returned |
+| refunded_at | TEXT | |
 
 ## runs
 | field | type | notes |

@@ -53,7 +53,8 @@ class Timeouts:
 
 
 MOCK_TIMEOUTS = Timeouts(button_s=10, popup_s=5, approval_s=8, capture_s=8, human_s=20)
-LIVE_TIMEOUTS = Timeouts(button_s=20, popup_s=15, approval_s=120, capture_s=45, human_s=600)
+# button_s: the first v6 SDK load once took over 20s (run 14), so 30s.
+LIVE_TIMEOUTS = Timeouts(button_s=30, popup_s=15, approval_s=120, capture_s=45, human_s=600)
 
 # Fake login for the mock popup only (it accepts any non-empty value). Not a real account.
 MOCK_BUYER = BuyerCredentials("mock-buyer@example.test", "mock-password")

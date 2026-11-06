@@ -83,6 +83,20 @@ export type Order = {
   gross_amount: string | null;
   paypal_fee: string | null;
   net_amount: string | null;
+  refund_id: string | null;
+  refund_status: string | null;
+  refund_amount: string | null;
+  refund_currency: string | null;
+};
+
+export type Refund = {
+  order_id: string;
+  refund_id: string;
+  status: string;
+  amount: string;
+  currency: string;
+  verified: boolean;
+  mismatches: string[];
 };
 
 export type Run = {
@@ -181,6 +195,7 @@ export const api = {
   deleteRun: (id: number) => request<null>(`/api/runs/${id}`, { method: "DELETE" }),
   devSummary: (id: number) => request<{ markdown: string }>(`/api/runs/${id}/developer-summary`),
   market: (sku: string) => request<Market>(`/api/market/${sku}`),
+  refund: (orderId: string) => request<Refund>(`/api/paypal/orders/${orderId}/refund`, { method: "POST" }),
   rubric: () => request<Rubric>("/api/rubric"),
   start: (body: Record<string, unknown>) =>
     request<{ run_id: number }>("/api/runs", { method: "POST", body: JSON.stringify(body) }),

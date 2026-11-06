@@ -23,7 +23,12 @@ CREATE TABLE IF NOT EXISTS orders (
     net_amount       TEXT,
     captured_at      TEXT,
     capture_response TEXT,
-    run_id           INTEGER
+    run_id           INTEGER,
+    refund_id        TEXT,
+    refund_status    TEXT,
+    refund_amount    TEXT,
+    refund_currency  TEXT,
+    refunded_at      TEXT
 );
 
 CREATE TABLE IF NOT EXISTS runs (
@@ -121,7 +126,8 @@ UNCLAIMED = "unclaimed"  # owner_hash of runs made before checks belonged to a b
 
 # Columns added after a table first shipped; CREATE TABLE IF NOT EXISTS won't add them to old databases.
 ADDED_COLUMNS = {
-    "orders": {"run_id": "INTEGER"},
+    "orders": {"run_id": "INTEGER", "refund_id": "TEXT", "refund_status": "TEXT", "refund_amount": "TEXT",
+               "refund_currency": "TEXT", "refunded_at": "TEXT"},
     "runs": {"end_reason": "TEXT", "awaiting": "TEXT", "live": "INTEGER NOT NULL DEFAULT 0", "platform": "TEXT",
              "platform_evidence": "TEXT", "owner_hash": "TEXT"},
     "checks": {"code": "TEXT", "cause": "TEXT"},
@@ -205,6 +211,16 @@ def record_capture(db_path: Path, order_id: str, capture: dict[str, Any], raw: d
                 json.dumps(raw),
                 order_id,
             ),
+        )
+
+
+def record_refund(db_path: Path, order_id: str, refund: dict[str, Any]) -> None:
+    with connect(db_path) as conn:
+        conn.execute(
+            "UPDATE orders SET refund_id = ?, refund_status = ?, refund_amount = ?, refund_currency = ?,"
+            " refunded_at = ? WHERE order_id = ?",
+            (refund["id"], refund["status"], refund["amount"]["value"], refund["amount"]["currency_code"],
+             _now(), order_id),
         )
 
 
