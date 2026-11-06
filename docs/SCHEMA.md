@@ -85,6 +85,16 @@ One row per check per run (`UNIQUE(run_id, check_key)`; the first outcome wins).
 | excluded | TEXT | JSON list of excluded checks |
 | rules_version | TEXT | `scoring.RULES_VERSION` |
 
+## Indexes and pragmas
+Every connection (the store's too) sets WAL, `synchronous=NORMAL` and a 5000 ms busy timeout. Indexes, all created idempotently in `db.py`:
+
+| index | columns | serves |
+|---|---|---|
+| idx_runs_owner_store_id | runs(owner_hash, store_url, id) | a browser's list and the before and after lookup |
+| idx_runs_started_at | runs(started_at) | retention purge and ordering |
+| idx_steps_run_idx | steps(run_id, idx) | a run's steps in order |
+| idx_orders_run | orders(run_id) | the order for a run |
+
 ## flaw_proposals
 LLM ideas for new flaws. They don't count in any benchmark until someone implements them as a toggle with a ground-truth label.
 

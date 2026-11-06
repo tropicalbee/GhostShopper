@@ -1,6 +1,6 @@
 # Video script (under 3:00)
 
-Setup before recording: `python -m backend.app.seed` (bad store), server running in sandbox mode with real credentials, browser windows sized for capture. Dashboard screens are named in the table (Home, Live check, Results, Advanced, Before and after). On the hosted server, open `/store/admin?token=<DEMO_ADMIN_TOKEN>` once in the recording browser so the store's settings unlock, and start both runs from the same browser so the before and after pairs them.
+Setup before recording: `python -m backend.app.seed` (bad store), server running in sandbox mode with real credentials, browser windows sized for capture. Dashboard screens are named in the table (Home, Live check, Results, Advanced, Before and after). On the hosted server, open `/store/admin` once in the recording browser and type the `DEMO_ADMIN_TOKEN` into the unlock form so the store's settings unlock, and start both runs from the same browser so the before and after pairs them.
 
 | Time | On screen | Narration |
 |---|---|---|

@@ -40,3 +40,9 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - Checks are private to the browser that ran them, with "My checks", delete, and a 30-day retention. Before and after compares your own previous check of the same store.
 - The Ledger redesign: white, square and ruled, soft ink, Geist and Geist Mono, colour only for status. The shopper's path shows where an AI shopper got stuck and fills live during a check. A sidebar on desktop and a menu on phones, from 360px phones to wide screens.
 - Hardening for a public server: developer options and the demo store settings locked, rate limits, security headers and CSP, server-side request forgery checks on every request, and the dashboard served by FastAPI.
+- The shopper's LLM provider is configurable: Groq, OpenAI, OpenRouter, Together, Ollama, any OpenAI-compatible URL, or Anthropic, through `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY` and `LLM_BASE_URL`. Adding one is a registry entry.
+- Run starts can no longer race, a timed-out start is cancelled, and unclosed LLM clients are closed.
+- Explain on shared example checks is refused. The demo store's settings unlock through a form and a cookie instead of a token in the URL.
+- SQLite in WAL mode with a busy timeout and indexes, an in-memory cache for finished runs and market checks, a paged runs list, gzip, and per-path cache headers.
+- Frontend speed: fewer re-renders while polling, My checks loads 20 at a time, skeletons for every loading region, and a meta description. Lighthouse is 100 across the board on desktop.
+- Fixed the failures table's oversized and clipped rows, and flattened the dialog backdrops.

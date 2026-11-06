@@ -2,6 +2,32 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-06 (robustness pass)
+
+### Two starts could both pass the "already running" check
+The check and the lock were separated by an await, so two requests arriving together both saw a free slot. The lock is now taken with no await after the check and released when the run's task ends.
+
+### A start that timed out still ran a check
+The client got an error after 30 seconds, but the task kept going and later produced a check nobody asked for. A timed-out start now cancels its task.
+
+### LLM clients were never closed
+Start validation and explain built a client and dropped it. They close it now. `prepare()` also builds the payment handler before the LLM, so a payment error can't leave an open client behind.
+
+### Anyone could rewrite an example's fix text
+Explain on a shared example check was open to every visitor, so one person could replace the example's wording and spend the server's LLM quota. It answers 403 now.
+
+### The admin token ended up in logs and history
+Passing the token in the `/store/admin` URL put it in access logs and the browser history. The URL form is gone. The page shows a plain unlock form that posts to `/store/admin/unlock` and sets an httpOnly, SameSite=Strict cookie. The `X-Admin-Token` header still works.
+
+### Concurrent writers could fail with "database is locked"
+Each connection used the default journal mode and no wait for a busy database. Every connection, the store's included, now uses WAL, `synchronous=NORMAL` and a 5 second busy timeout.
+
+### Ownership checks built the whole run
+File, delete and explain loaded the full run payload to see who owned it. They read the owner column only now.
+
+### The failures table drew huge or clipped rows
+AG Grid sets each cell's line height to the row height, so wrapped text spread out. Every column now forces normal leading and the same top padding (`CELL` in `FailuresGrid.tsx`). The Technical fix column hides under 900px so Evidence stays in view.
+
 ## 2026-11-06 (the Ledger redesign)
 
 ### The failures table hid the evidence

@@ -8,15 +8,15 @@ One FastAPI process (one Render free web service):
 browser ──> FastAPI (backend/app/main.py)
               ├── /api/health
               ├── /api/paypal/orders, /orders/{id}/capture   Orders v2 (sandbox)
-              ├── /api/runs ...            (D2+) agent runs, steps, failures, scores
+              ├── /api/runs ...            agent runs, steps, failures, scores (paged: limit, before)
               ├── /store/...               demo store (store/app.py, mounted sub-app)
               └── /                        dashboard build (D5/D6: frontend/dist)
 SQLite file (DATABASE_PATH)
-Shopper agent: Groq LLM  <->  tools  <->  Playwright (local) | Kernel browser (real runs)
+Shopper agent: LLM (configurable provider)  <->  tools  <->  Playwright (local) | Kernel browser (real runs)
 ```
 
 - `store/`: Fernhill Ceramics, a plain server-rendered shop (Jinja2). Flaw toggles in SQLite table `store_flaws`, edited at `/store/admin` or `PUT /store/admin/flaws.json`.
-- `backend/`: API, PayPal client, agent (`backend/app/agent/`: `loop` tool-calling loop, `browser` Playwright tools, `checks` + `engine` deterministic detectors, `paypal_flow` checkout, `llm` Groq/replay, `recorder` SQLite), `scoring` (pure).
+- `backend/`: API, PayPal client, agent (`backend/app/agent/`: `loop` tool-calling loop, `browser` Playwright tools, `checks` + `engine` deterministic detectors, `paypal_flow` checkout, `llm` provider layer and replay, `recorder` SQLite), `scoring` (pure).
 - `PAYPAL_MODE=mock` swaps in `paypal_mock.py`: fake Orders client + mock v6 SDK/popup at `/mock-paypal/*`. Reported by `/api/health`. Default is `sandbox`.
 - `frontend/`: React + Vite + TS, AG Grid Community. Dev server proxies `/api` and `/store` to :8000.
 
@@ -30,7 +30,7 @@ Python 3.11+ (dev on 3.13), FastAPI, httpx, Jinja2, SQLite (stdlib `sqlite3`), p
 |---|---|---|
 | PayPal JS Web SDK v6 | Store's PayPal button | `https://www.sandbox.paypal.com/web-sdk/v6/core`; `paypal.createInstance({clientId, components:["paypal-payments"]})`, `findEligibleMethods`, `createPayPalOneTimePaymentSession({onApprove,onCancel,onError})`, `session.start({presentationMode:"auto"}, createOrderPromise)`. |
 | PayPal Orders v2 | Server create + capture | `POST /v1/oauth2/token` (client credentials), `POST /v2/checkout/orders` (intent CAPTURE, items + breakdown), `POST /v2/checkout/orders/{id}/capture`. Fees from `captures[0].seller_receivable_breakdown`. Sandbox host hardcoded: `api-m.sandbox.paypal.com`. |
-| Groq | LLM for navigation and fix explanations | Free tier, OpenAI-compatible `POST /openai/v1/chat/completions` with `tools`, via httpx (retries 429). Model set by `GROQ_MODEL`. Without it, runs replay recorded cassettes (`--llm mock`). |
+| LLM provider | Navigation and fix explanations | `ChatModel` base class in `agent/llm.py`. `OpenAICompatibleChat` covers Groq (free tier, the default we develop on), OpenAI, OpenRouter, Together, Ollama and any OpenAI-compatible URL. `AnthropicChat` translates to and from the Anthropic Messages API and sends no temperature or forced `tool_choice`. Providers are entries in `PROVIDERS`. Config: `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL`; `GROQ_API_KEY` and `GROQ_MODEL` still work. Missing config is an error. `--llm mock` replays cassettes. |
 | Kernel | Hosted browser for real runs | Local Playwright in dev. Same tool layer, different browser factory. |
 | Channel3 | Market check: similar products | D4. |
 
@@ -40,6 +40,13 @@ Python 3.11+ (dev on 3.13), FastAPI, httpx, Jinja2, SQLite (stdlib `sqlite3`), p
 - Capture only orders this server created (checked in SQLite).
 - Missing credentials return explicit errors (503 `PAYPAL_NOT_CONFIGURED`, "PayPal is not configured" on the checkout page). No sample-data fallback.
 - Failures are detected by deterministic checks in the tool layer, not by the LLM. The score is a pure function of the recorded failures and checkout result.
+
+## Server behaviour
+
+- SQLite uses WAL, `synchronous=NORMAL` and a 5 second busy timeout on every connection, with indexes listed in SCHEMA.md. One connection per request.
+- Finished runs are cached in process (LRU of 128) and market checks for 10 minutes per SKU. Both assume one process, like the run lock and the rate limiter, so the app runs as a single instance.
+- Responses over 1,000 bytes are gzipped. `/assets/*` is immutable for a year, `/api/rubric` is public for an hour, other `/api` responses are `private, no-store`.
+- The demo store's settings unlock through a form at `/store/admin` that posts to `/store/admin/unlock` and sets an httpOnly, SameSite=Strict cookie. `X-Admin-Token` also works. A token in the URL is not accepted.
 
 ## Constraints
 

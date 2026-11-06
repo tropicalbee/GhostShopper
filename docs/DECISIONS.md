@@ -134,3 +134,27 @@ Rules `2026-11-05.3`, 100 points in total.
 - The shopper's path replaced the gauge and the stage bars. It shows the same numbers, but as the route a shopper takes, with the reason written where it got stuck. A gauge only says "how much".
 - Navigation is a left sidebar on desktop and a hamburger sheet on phones, at the user's request. It earns its place by listing the browser's recent checks, so a merchant can get back to a store in one click.
 - ui-ux-pro-max suggested Swiss minimalism for this kind of product (kept) with a navy palette and Fira fonts (declined: the user pinned monochrome and the shadcn look).
+
+
+## 2026-11-06: Any AI provider, speed and the things we left alone
+
+### Provider layer
+- `ChatModel` is an abstract base class, and the OpenAI chat-completions message and tool format is the one format inside the agent. `OpenAICompatibleChat` covers Groq, OpenAI, OpenRouter, Together, Ollama and any OpenAI-compatible URL. `AnthropicChat` translates to and from the Anthropic Messages API. It sends no temperature and no forced `tool_choice`, because current Claude models reject them.
+- A provider is one entry in the `PROVIDERS` registry (name, adapter class, default base URL, whether a key is required). A provider with a new wire format needs one adapter class on top of that. Cassettes, the recorder and the loop didn't change, since they already speak the canonical format.
+- Config comes from `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY` and `LLM_BASE_URL`. `GROQ_API_KEY` and `GROQ_MODEL` keep working when the provider is empty or `groq`, so an existing `.env` doesn't break. A missing key, model or base URL is an `LLMConfigError`, never a fallback to mock.
+- `make_llm` takes `live` or `mock`; `groq` stays as an alias for `live`. Both adapters use httpx directly, so there is no provider SDK dependency.
+
+### Caching and headers
+- Finished runs sit in an in-process LRU of 128, and market checks are cached for 10 minutes per SKU. Explain, delete and purge invalidate the run cache. Both are single-process shortcuts. A CLI explain in another process won't invalidate the server's cache until the server restarts.
+- `/assets/*` is `public, max-age=31536000, immutable` because build output is content-hashed. `/api/rubric` is public for an hour. Every other `/api` response is `private, no-store`, since it is one browser's data. A response that sets a fresh owner cookie is never public.
+- GZip applies to responses over 1,000 bytes. Starlette can't exclude by content type, so PNG screenshots are compressed too, for little gain.
+- `GET /api/runs` pages with `limit` (1 to 100, default 50) and `before` (a run id). It stays a JSON array so existing callers keep working.
+
+### Admin unlock
+- The URL token is gone because it lands in access logs and history. `/store/admin` shows a form that posts to `/store/admin/unlock` and sets an httpOnly, SameSite=Strict cookie. The `X-Admin-Token` header still works for scripts.
+
+### Things we turned down
+- Load balancer. The app is one instance by design: the run lock and the rate limiter live in memory and SQLite sits on local disk. A second instance would break all three. Scaling would need a shared lock or queue, a shared rate-limit store, and Postgres or a single writer service.
+- SQLite connection pool. A connection per request is the pattern SQLite recommends. WAL plus a busy timeout is the robustness fix.
+- Input debouncing. No input in the dashboard does work per keystroke.
+- Vendor chunk split. We tried it and reverted it: rolldown's forced groups broke React and CommonJS initialisation at runtime. The lazy Advanced chunk is already the split that matters.

@@ -5,7 +5,7 @@
 1. Open the dashboard at `/`, paste the store's link and press "Check my store" (or try the demo store).
 2. Steps appear in plain words as they happen.
 3. When the run ends, the dashboard shows the score and sub-scores, the failures with their evidence, the fix list (most points first), what wasn't the store's fault, the payment verification and the market check.
-4. Apply the fixes. In the demo that means switching flaws off at `/store/admin` (open locally, or with `?token=` on a deployed server).
+4. Apply the fixes. In the demo that means switching flaws off at `/store/admin` (open locally; on a deployed server, type the `DEMO_ADMIN_TOKEN` into the unlock form once).
 5. Check again and open "See before and after": the score goes up, the failures go away, and the purchase is captured.
 
 Checks belong to the browser that started them (an httpOnly cookie, no accounts). "My checks" lists them, and nobody else can open them. Runs from the CLI or the seed command have no owner and are the shared examples everyone can read.

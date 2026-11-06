@@ -98,6 +98,7 @@ Not valid until run live. These came from replayed cassettes, so they test the h
 | 2026-11-06 dashboard | 168 | all passed | 187 s |
 | 2026-11-06 checks per browser | 189 (21 access tests) | all passed | 177 s |
 | 2026-11-06 Ledger redesign | 190 | all passed | 178 s |
+| 2026-11-06 providers, hardening, speed | 228 (173 without a browser, 55 in a real browser) | all passed | 57 s and 207 s |
 
 ## Frontend build (2026-11-06)
 
@@ -105,3 +106,24 @@ Not valid until run live. These came from replayed cassettes, so they test the h
 |---|---|---|
 | Main (Home, Live, Results, Before and after) | 625 kB | 195 kB |
 | Advanced view (AG Grid, charts), loaded on demand | 1,343 kB | 374 kB |
+
+## Frontend build (2026-11-06, after the speed pass)
+
+The table above is the earlier build, for comparison.
+
+| Chunk | Size | Gzipped |
+|---|---|---|
+| Main JS | 347.31 kB | 110.54 kB |
+| Advanced view (AG Grid, charts), loaded on demand | 1,622.64 kB | 456.49 kB |
+| CSS | 62.43 kB | not measured |
+
+## Lighthouse (2026-11-06)
+
+Scores are performance / accessibility / best practices / SEO.
+
+| Page | Desktop | Mobile |
+|---|---|---|
+| `/` | 100 / 100 / 100 / 100 | 93 / 100 / 100 / 100 |
+| `/#/checks` | 100 / 100 / 100 / 100 | 95 / 100 / 100 / 100 |
+
+Before the meta description was added, SEO was 90 on every page. Performance was 92 on `/` mobile, 97 on `/#/checks` desktop and 79 on `/#/checks` mobile. The 79 was partly noise from parallel CPU load.

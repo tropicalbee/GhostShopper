@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-11-06 (Day 5, fourth session: any AI provider, robustness, speed)
+
+### Done
+- The shopper's LLM is no longer tied to Groq. `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY` and `LLM_BASE_URL` pick a provider: Groq, OpenAI, OpenRouter, Together, Ollama, any OpenAI-compatible URL, or Anthropic. `GROQ_API_KEY` and `GROQ_MODEL` still work. A missing key or model is an explicit error. The CLI takes `--llm live`. New `test_llm_providers.py`.
+- Run starts: two near-simultaneous starts could both pass the "already running" check, and a start that timed out still ran a check later. Both fixed. LLM clients that were built and never closed are closed now.
+- Explain on a shared example check answers 403. The demo store's settings no longer take the admin token in the URL: `/store/admin` shows an unlock form and sets a cookie.
+- SQLite runs in WAL mode with a busy timeout, and four indexes cover the list, before and after, steps and orders lookups. Finished runs and market checks are cached in memory. `GET /api/runs` pages with `limit` and `before`. Responses over 1,000 bytes are gzipped, and `Cache-Control` is set per path.
+- Frontend: polling skips renders when nothing changed, the hot paths are memoised, My checks loads 20 at a time, and every loading region has a skeleton in its final shape. Added a meta description.
+- The failures table no longer renders huge or clipped rows, and the sidebar's running row reads "Check N, running". Details are in issues-and-fixes.md.
+- Tests: 228 passed (173 without a browser, 55 in a real browser). Lighthouse is 100 on all four at desktop and 93 to 100 on mobile (METRICS.md has the table).
+
+### Not done
+- Cleanup for the interactive walkthrough and unused UI files. Run from `frontend/`: `rm src/components/Walkthrough.tsx`, `rm -r src/assets/walkthrough`, `rm src/components/ui/sonner.tsx src/components/ui/tooltip.tsx src/components/ui/card.tsx src/components/ui/badge.tsx src/components/ui/separator.tsx`, `npm uninstall sonner next-themes`, then `npm run build`.
+- A live run with Groq or Anthropic. No key is set here, so the provider code has only been tested against fake servers and cassettes.
+- No load balancer, connection pool or input debouncing, on purpose. DECISIONS.md has the reasons.
+
+### Next
+1. Run the cleanup commands, then a live check with your key.
+2. Deploy (D6) with `DEMO_ADMIN_TOKEN` set.
+
 ## 2026-11-06 (Day 5, third session: the Ledger redesign)
 
 ### Done

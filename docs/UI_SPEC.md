@@ -82,6 +82,7 @@ A ruled grid on top, tabs underneath.
 - This browser's checks, newest first: score, store, date. Tapping one opens its results.
 - Each row has a Delete button with a confirm dialog ("Delete this check?", "Keep it" or "Delete").
 - One line explains it: "Saved in this browser only. Other people can't see them." Under the list: how many days checks are kept, and that clearing cookies removes them from the list.
+- The list loads 20 at a time. A "Show more" button at the end fetches the next page (`GET /api/runs` with `before`).
 - Empty: "You haven't checked a store yet." with a "Check my store" button.
 - Shared example checks show the label "Example check (shared demo, not yours)" and are never listed here.
 
@@ -89,7 +90,7 @@ A ruled grid on top, tabs underneath.
 
 | State | What shows |
 |---|---|
-| Loading | Skeleton cards in the final layout |
+| Loading | Skeletons in the shape of the final region (results, compare, history, market, My checks, sidebar), so the page doesn't jump when data arrives |
 | Link can't be checked | The plain 400 message under the link box |
 | Check already running | "A check is already running. Try again when it finishes." |
 | Site blocked us | Results with "We couldn't check your store this time" and why. Not the store's fault. |

@@ -43,7 +43,8 @@ The script creates `.venv`, installs the dependencies and Chromium inside `.venv
 |---|---|
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Sandbox checkout (developer.paypal.com > Apps & Credentials > Sandbox) |
 | `SANDBOX_BUYER_EMAIL`, `SANDBOX_BUYER_PASSWORD` | The sandbox buyer the agent logs in as. Never logged, stored or screenshotted. |
-| `GROQ_API_KEY`, `GROQ_MODEL` | The live LLM, e.g. `openai/gpt-oss-120b` or `llama-3.3-70b-versatile` |
+| `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL` | The live LLM. Providers: `groq`, `openai`, `openrouter`, `together`, `ollama` (local, no key), `anthropic`, or `openai-compatible` with your own `LLM_BASE_URL`. The model must support tool calling. |
+| `GROQ_API_KEY`, `GROQ_MODEL` | Still work as the live LLM when `LLM_PROVIDER` is empty or `groq`, e.g. `openai/gpt-oss-120b` or `llama-3.3-70b-versatile` |
 | `KERNEL_API_KEY` and `BROWSER_PROVIDER=kernel` | Cloud browser. The store must be reachable on a public URL. |
 | `CHANNEL3_API_KEY` | Live market check. Without it you get recorded fixtures, labelled as such. |
 
@@ -56,8 +57,8 @@ Everything also runs without keys, on mocks: `PAYPAL_MODE=mock` gives you a fake
 .venv\Scripts\python -m backend.app.seed                               # demo state: the 4 classic flaws on
 
 # bad store, then fixes, then rerun and compare
-.venv\Scripts\python -m backend.app.agent --llm groq --flaws keep --checkout --paypal sandbox --headed
-.venv\Scripts\python -m backend.app.agent --llm groq --flaws off  --checkout --paypal sandbox --headed
+.venv\Scripts\python -m backend.app.agent --llm live --flaws keep --checkout --paypal sandbox --headed
+.venv\Scripts\python -m backend.app.agent --llm live --flaws off  --checkout --paypal sandbox --headed
 .venv\Scripts\python -m backend.app.agent.compare --last
 ```
 
@@ -67,7 +68,7 @@ Other commands:
 - Market check: `python -m backend.app.market FH-MUG-01`
 - Detection benchmark: `python -m backend.app.eval benchmark --matrix classic`
 - API: `POST /api/runs`, `GET /api/runs`, `GET /api/runs/{id}`, `GET /api/runs/{id}/compare`, `DELETE /api/runs/{id}`, `POST /api/runs/{id}/explain`, `GET /api/market/{sku}`, `GET /api/paypal/orders/{id}/verify`. Each browser only sees its own checks plus the shared examples from the CLI and seed command.
-- On a deployed server (`APP_BASE_URL` not localhost) the developer options on `POST /api/runs` are refused and `/store/admin` is locked. Set `DEMO_ADMIN_TOKEN` and open `/store/admin?token=...` once to change the demo store's flaws. See `.env.example`.
+- On a deployed server (`APP_BASE_URL` not localhost) the developer options on `POST /api/runs` are refused and `/store/admin` is locked. Set `DEMO_ADMIN_TOKEN`, open `/store/admin` and type it into the unlock form once to change the demo store's flaws. See `.env.example`.
 - Tests: `.venv\Scripts\python -m pytest`
 
 ## Tools we used, and how
@@ -76,7 +77,7 @@ Other commands:
 |---|---|
 | PayPal JS SDK v6 | `<paypal-button>` on the demo store's checkout, with a one-time payment session (`presentationMode: "auto"`) |
 | PayPal Orders v2 (sandbox) | Creating the order on the server (priced from the catalog, never by the browser) and capturing it; fees come from `seller_receivable_breakdown` |
-| Groq | The shopper's tool-calling LLM. It also rewords fixes and rates explanation quality, and none of that touches the score. |
+| Groq (or another provider) | The shopper's tool-calling LLM; Groq is what we develop on, and `LLM_PROVIDER` switches it. It also rewords fixes and rates explanation quality, and none of that touches the score. |
 | Kernel | Optional cloud browser over CDP. Its live view lets a person finish PayPal's own checks. |
 | Channel3 | Product search for the market check |
 | Playwright | Local browser automation behind the same tools as Kernel |
