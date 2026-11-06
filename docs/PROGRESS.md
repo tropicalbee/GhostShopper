@@ -21,13 +21,14 @@ Screenshots are in `docs/screenshots/2026-11-07-features/`: the [purchase run at
 - Headless API runs do not get past the sandbox password step (run 19), so the hosted app will need Kernel or a human check for real payments.
 
 ### Next
-1. Deploy on Render (Nov 8).
+1. Settle the two blockers below first, then deploy on Render (Nov 8).
 2. README.
 3. Video.
 4. Devpost.
 
-### Blockers
-- None.
+### Blockers (start the next session here)
+1. The hosted app can't pay on its own yet. Render runs the agent in a headless browser, and run 19 showed headless runs stop at the sandbox password step. On the local machine, the headed run 20 also needed a hand click on Complete Purchase. Options: run real payments in a Kernel browser with headless off (it has a live view) and use the existing "a person approves" fallback when PayPal stops the agent; or keep the hosted demo on mock PayPal and show the real sandbox purchase in the video only. First step: one headed local run to confirm the new Complete Purchase selectors, then one Kernel run.
+2. The demo story clashes. The fixed demo store scores 100/100 for AI shoppers but only 28/100 for PayPal readiness, because it has no Pay Later messaging, no Venmo, no card or guest checkout and no PayPal on the product page. A judge may read that as a contradiction. Options: add those as new store toggles so "apply fixes" lifts both numbers, or present PayPal readiness as the next step after the store is agent-ready. Needs the user's decision.
 
 ---
 
