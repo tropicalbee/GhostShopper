@@ -33,7 +33,8 @@ def server(tmp_path):
         yield srv
 
 
-async def checkout_run(server, cassette, flaws="off", scenario="ok", checkout=True, hook=None, timeouts=None) -> dict:
+async def checkout_run(server, cassette, flaws="off", scenario="ok", checkout=True, hook=None, timeouts=None,
+                       budget=None) -> dict:
     store_url = f"{server.url}/store/"
     async with httpx.AsyncClient() as http:
         (await http.put(f"{server.url}/mock-paypal/scenario", json={"scenario": scenario})).raise_for_status()
@@ -43,7 +44,7 @@ async def checkout_run(server, cassette, flaws="off", scenario="ok", checkout=Tr
     if payment and timeouts:
         payment.timeouts = timeouts
     cfg = RunConfig(store_url=store_url, db_path=server.db_path, flaws=snapshot, runs_dir=server.runs_dir,
-                    checkout=checkout, paypal_mode="mock" if checkout else "off")
+                    checkout=checkout, paypal_mode="mock" if checkout else "off", budget=budget)
     llm = ReplayLLM(cassette if hasattr(cassette, "read_text") else resolve_cassette(cassette))
     return load_run(server.db_path, await run_shopper(cfg, llm, payment))
 

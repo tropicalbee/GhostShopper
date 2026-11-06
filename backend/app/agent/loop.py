@@ -3,6 +3,7 @@
 import asyncio
 import time
 from dataclasses import dataclass, field
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
@@ -74,15 +75,21 @@ Rules:
 - Finish by calling finish with the outcome, the price and stock you read, and a short summary of anything that blocked or slowed you."""
 
 
-def goal_text(target: str | None, store_url: str, checkout: bool, live: bool = False) -> str:
+def goal_text(target: str | None, store_url: str, checkout: bool, live: bool = False,
+              budget: Decimal | None = None) -> str:
     if live:
         what = f"the product '{target}'" if target else "a product (any product the store sells)"
         return (f"Visit the store at {store_url} like a shopper. Find {what}, read its price and stock status, "
                 f"add it to the cart and go to the cart or checkout, then use check_paypal_button. "
                 f"This is a live store: never pay, never log in, never fill in personal details.")
     if checkout:
+        limit = ""
+        if budget is not None:
+            limit = (f" Your spending limit is ${budget} (US dollars). Never pay more than that: if the checkout total "
+                     f"is higher, do not call pay_with_paypal; call finish with outcome gave_up and say the total "
+                     f"was over the limit. The limit is also checked by the system, which will refuse an over-limit payment.")
         return (f"Buy one '{target}' from the store at {store_url}. Find it, read its price and stock status, "
-                f"go to checkout, pay with pay_with_paypal, and report the order number.")
+                f"go to checkout, pay with pay_with_paypal, and report the order number.{limit}")
     return (f"Find the product '{target}' in the store at {store_url}, read its price and stock status, "
             f"and get to the checkout page. Do not pay.")
 
@@ -114,6 +121,7 @@ class RunConfig:
     runs_dir: Path = field(default_factory=lambda: REPO_ROOT / "runs")
     session_factory: Callable[[], BrowserSession] | None = None  # tests: inject a session (e.g. fake Kernel)
     owner_hash: str | None = None  # the browser that started the run; None = shared example
+    budget: Decimal | None = None  # spending limit in USD; the shopper never pays above it (checked in code)
 
 
 async def run_shopper(
@@ -134,7 +142,7 @@ async def run_shopper(
     rec = RunRecorder.start(
         cfg.db_path,
         store_url=cfg.store_url,
-        goal=goal_text(cfg.target_product, cfg.store_url, cfg.checkout, cfg.live),
+        goal=goal_text(cfg.target_product, cfg.store_url, cfg.checkout, cfg.live, cfg.budget),
         target_product=cfg.target_product,
         checkout=cfg.checkout,
         paypal_mode=cfg.paypal_mode if cfg.checkout else "off",
@@ -145,6 +153,7 @@ async def run_shopper(
         secrets=payment.secrets if payment else (),
         live=cfg.live,
         owner_hash=cfg.owner_hash,
+        budget=f"{cfg.budget:.2f}" if cfg.budget is not None else None,
     )
     if on_start:
         on_start(rec.run_id)
@@ -159,11 +168,13 @@ async def run_shopper(
         async with session_cm as session:
             tools = PageTools(session, cfg.store_url, shots_dir)
             engine = CheckEngine(rec, cfg.target_product, tools, live=cfg.live,
-                                 paypal_probe=tools.paypal_button_state if cfg.live else None)
+                                 paypal_probe=tools.paypal_button_state if cfg.live else None,
+                                 budget=cfg.budget if cfg.checkout else None)
             specs = BROWSE_TOOLS + ([PAY_TOOL] if cfg.checkout else []) + ([CHECK_PAYPAL_TOOL] if cfg.live else [])
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": goal_text(cfg.target_product, cfg.store_url, cfg.checkout, cfg.live)},
+                {"role": "user", "content": goal_text(cfg.target_product, cfg.store_url, cfg.checkout, cfg.live,
+                                                       cfg.budget)},
             ]
             nudges = 0
             done = False

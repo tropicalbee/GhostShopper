@@ -5,10 +5,13 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, Respons
 import { Label, ScoreFigure, ShopperPath, StatusLine } from "@/components/bits";
 import { DeveloperDialog } from "@/components/dialogs";
 import { FailuresGrid } from "@/components/FailuresGrid";
+import { PayPalReadiness } from "@/components/PayPalReadiness";
+import { ProductFeed } from "@/components/ProductFeed";
 import { RunHead, ViewSwitch } from "@/components/RunHead";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api, DEMO_SKU, sameSeries, startCheck, type Health, type Refund, type Run, type RunSummary } from "@/lib/api";
+import { RefundTest, refundedOf } from "@/components/RefundTest";
+import { api, DEMO_SKU, sameSeries, startCheck, type Health, type Run, type RunSummary } from "@/lib/api";
 import { go, useFetch } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 
@@ -37,51 +40,6 @@ function WhatTheShopperDid({ run }: { run: Run }) {
       {run.feed.length > lines.length && <p className="mt-2 text-[13px] text-muted-foreground">Every step is in the Agent steps tab below.</p>}
     </>
   );
-}
-
-// Gives the test payment back and shows what PayPal reports. The refund is not part of the score.
-function RefundTest({ orderId, currency, refunded }: { orderId: string; currency: string; refunded: Refund | null }) {
-  const [result, setResult] = useState<Refund | null>(refunded);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const refund = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      setResult(await api.refund(orderId));
-    } catch (e) {
-      setError((e as Error).message);
-    }
-    setBusy(false);
-  };
-  if (result) {
-    return (
-      <div className="mt-4 text-sm" role="status">
-        <p>Refund {result.status.toLowerCase()}: <span className="num">{result.amount} {result.currency || currency}</span></p>
-        {result.verified ? (
-          <p className="mt-1 font-medium text-good">Money returned: verified</p>
-        ) : (
-          <ul className="mt-1 text-bad">{result.mismatches.map((m) => <li key={m}>{m}</li>)}</ul>
-        )}
-      </div>
-    );
-  }
-  return (
-    <div className="mt-4">
-      <Button variant="outline" onClick={refund} disabled={busy} className="h-10">
-        {busy ? "Refunding…" : "Refund test payment"}
-      </Button>
-      {error && <p role="alert" className="mt-2 text-sm text-bad">{error}</p>}
-    </div>
-  );
-}
-
-function refundedOf(o: NonNullable<Run["order"]>): Refund | null {
-  if (!o.refund_id || !o.refund_status || !o.refund_amount) return null;
-  const mismatches = [];
-  if (o.refund_status !== "COMPLETED") mismatches.push(`Refund status is ${o.refund_status}`);
-  if (o.refund_amount !== (o.gross_amount ?? o.amount)) mismatches.push(`Refunded ${o.refund_amount}, but ${o.gross_amount ?? o.amount} was captured`);
-  return { order_id: o.order_id, refund_id: o.refund_id, status: o.refund_status, amount: o.refund_amount, currency: o.refund_currency ?? o.currency, verified: !mismatches.length, mismatches };
 }
 
 function PaymentLedger({ run }: { run: Run }) {
@@ -312,6 +270,8 @@ export function Advanced({ run, runs, health }: { run: Run; runs: RunSummary[] |
           {[
             ["failures", "Failures", failed],
             ["steps", "Agent steps", run.steps.length],
+            ["paypal", "PayPal readiness", null],
+            ["feed", "Product feed", null],
             ["history", "History", null],
             ["market", "Market", null],
             ["fault", "Not the store's fault", notFault],
@@ -327,6 +287,12 @@ export function Advanced({ run, runs, health }: { run: Run; runs: RunSummary[] |
         </TabsContent>
         <TabsContent value="steps" className="mt-4">
           <Steps run={run} />
+        </TabsContent>
+        <TabsContent value="paypal" className="mt-4">
+          <PayPalReadiness run={run} />
+        </TabsContent>
+        <TabsContent value="feed" className="mt-4">
+          <ProductFeed run={run} />
         </TabsContent>
         <TabsContent value="history" className="mt-4">
           <History run={run} runs={runs} />

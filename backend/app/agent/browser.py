@@ -134,6 +134,25 @@ FACTS_JS = r"""
   }));
   const PAYPAL_SEL = 'paypal-button, iframe[src*="paypal.com"], iframe[title*="PayPal" i], [data-funding-source="paypal"], ' +
                      '.paypal-buttons, #paypal-button-container, [id*="paypal-button" i], [aria-label*="PayPal" i]';
+  // PayPal setup signals for the PayPal readiness panel (agent/paypal_readiness.py reads them).
+  const ppButtons = [...document.querySelectorAll(PAYPAL_SEL)].slice(0, 6).map(el => {
+    const r = el.getBoundingClientRect();
+    return { selector: cssPath(el), visible: visible(el) && r.width >= 20 && r.height >= 14 };
+  });
+  const ppElements = [...document.querySelectorAll('*')]
+    .filter(el => /^(paypal|venmo|pp)-/i.test(el.localName)).slice(0, 12)
+    .map(el => ({ tag: el.localName, visible: visible(el) }));
+  const ppGlobal = window.paypal;
+  const paypal_signals = {
+    scripts: [...document.scripts].map(s => s.src).filter(s => /paypal\.com|paypalobjects\.com|\/mock-paypal\//i.test(s)).slice(0, 10),
+    elements: ppElements,
+    buttons: ppButtons,
+    pp_message_count: document.querySelectorAll('[data-pp-message]').length,
+    funding_sources: [...new Set([...document.querySelectorAll('[data-funding-source]')]
+      .map(e => (e.getAttribute('data-funding-source') || '').toLowerCase()))].slice(0, 8),
+    globals: ppGlobal ? ['Messages', 'HostedButtons', 'Buttons', 'CardFields', 'createInstance'].filter(k => k in ppGlobal) : [],
+    card_text: ((document.body ? document.body.innerText.slice(0, 6000) : '').match(/debit or credit card|pay with (a )?(debit |credit )?card/i) || [])[0] || null,
+  };
   const BOT_RE = /just a moment|checking your browser|verify (that )?you are (a )?human|verify you're human|attention required|are you a robot|ddos protection|security check to access|please complete the security check/i;
   const head = document.title + ' ' + (document.body ? document.body.innerText.slice(0, 3000) : '');
   const meta = (sel) => { const m = document.querySelector(sel); return m ? m.getAttribute('content') : null; };
@@ -145,8 +164,11 @@ FACTS_JS = r"""
     sale_percent: pct ? Number(pct) : null,
     has_payment_button: !!document.querySelector(PAYPAL_SEL),
     og_type: meta('meta[property="og:type"]'),
+    meta_description: meta('meta[name="description"]'),
+    canonical: (document.querySelector('link[rel="canonical"]') || {}).href || null,
     bot_check: BOT_RE.test(head) || !!document.querySelector(
       '#challenge-form, .cf-browser-verification, #cf-challenge-running, iframe[src*="challenges.cloudflare.com"], .g-recaptcha, .h-captcha'),
+    paypal_signals,
     platform_signals: {
       generator: meta('meta[name="generator"]'),
       scripts: [...document.scripts].map(s => s.src).filter(Boolean).slice(0, 60),

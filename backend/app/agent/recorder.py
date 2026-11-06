@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .. import db
+from ..feed import build_feed
 from ..failures import ENVIRONMENT, NOT_TESTED_ENVIRONMENT, NOT_TESTED_STORE, STORE, cause_of
 from ..scoring import CHECKS, EXCLUDED, FAIL, NOT_TESTED, PASS, Score
 
@@ -74,16 +75,17 @@ class RunRecorder:
         secrets: Iterable[str] = (),
         live: bool = False,
         owner_hash: str | None = None,  # the browser that started it; None = shared example (CLI, seed)
+        budget: str | None = None,  # spending limit in USD, e.g. "30.00"
     ) -> "RunRecorder":
         db.init_db(db_path)
         redact = Redactor(secrets)
         with db.connect(db_path) as conn:
             cur = conn.execute(
                 "INSERT INTO runs (started_at, status, browser, store_url, goal, target_product, checkout,"
-                " paypal_mode, flaws_snapshot, llm, model, live, owner_hash)"
-                " VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " paypal_mode, flaws_snapshot, llm, model, live, owner_hash, budget)"
+                " VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (_now(), browser, store_url, redact(goal), target_product or "", int(checkout), paypal_mode,
-                 json.dumps(flaws) if flaws is not None else None, llm, model, int(live), owner_hash),
+                 json.dumps(flaws) if flaws is not None else None, llm, model, int(live), owner_hash, budget),
             )
             run_id = cur.lastrowid
         return cls(db_path, run_id, redact)
@@ -167,6 +169,15 @@ class RunRecorder:
         with db.connect(self.db_path) as conn:
             conn.execute("UPDATE runs SET platform = ?, platform_evidence = ? WHERE id = ?",
                          (detected["platform"], json.dumps(detected.get("evidence") or []), self.run_id))
+
+    def set_paypal_readiness(self, readiness: dict[str, Any] | None) -> None:
+        with db.connect(self.db_path) as conn:
+            conn.execute("UPDATE runs SET paypal_readiness = ? WHERE id = ?",
+                         (json.dumps(readiness) if readiness else None, self.run_id))
+
+    def set_product_snapshot(self, snapshot: dict[str, Any] | None) -> None:
+        with db.connect(self.db_path) as conn:
+            conn.execute("UPDATE runs SET product_snapshot = ? WHERE id = ?", (self._redact.json(snapshot), self.run_id))
 
     def set_awaiting(self, info: dict[str, Any] | None) -> None:
         """Pause marker for human approval; None resumes the run."""
@@ -268,8 +279,9 @@ def _build_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
         checks = conn.execute("SELECT * FROM checks WHERE run_id = ? ORDER BY id", (run_id,)).fetchall()
         score = conn.execute("SELECT * FROM scores WHERE run_id = ?", (run_id,)).fetchone()
     out = dict(run)
-    for key in ("flaws_snapshot", "agent_report", "awaiting", "platform_evidence"):
+    for key in ("flaws_snapshot", "agent_report", "awaiting", "platform_evidence", "paypal_readiness"):
         out[key] = _loads(out.get(key))
+    out["product_feed"] = build_feed(_loads(out.pop("product_snapshot", None)))
     out["steps"] = [{**dict(r), "args": _loads(r["args"])} for r in steps]
     out["checks"] = [{**dict(r), "evidence": _loads(r["evidence"]), "status": status_of(r["passed"], r["cause"])}
                      for r in checks]

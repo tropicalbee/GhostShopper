@@ -112,3 +112,15 @@ def test_paypal_refund_error_is_passed_through(client, fake, tmp_path):
     assert r.status_code == 422
     assert r.json()["detail"]["issue"] == "CAPTURE_FULLY_REFUNDED"
     assert db.get_order(tmp_path / "test.db", order_id)["refund_id"] is None
+
+
+def test_run_payload_carries_order_times_and_the_refund_after_it_happens(client):
+    order_id = place_order(client)
+    with db.connect(client.app.state.settings.database_path) as conn:
+        run_id = conn.execute("SELECT run_id FROM orders WHERE order_id = ?", (order_id,)).fetchone()[0]
+    before = client.get(f"/api/runs/{run_id}").json()["order"]  # also fills the finished-run cache
+    assert before["created_at"] and before["captured_at"] and before["refunded_at"] is None
+    assert before["refund_id"] is None
+    body = client.post(f"/api/paypal/orders/{order_id}/refund").json()
+    after = client.get(f"/api/runs/{run_id}").json()["order"]
+    assert after["refund_id"] == body["refund_id"] and after["refunded_at"] == body["refunded_at"]

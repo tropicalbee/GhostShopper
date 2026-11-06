@@ -3,7 +3,10 @@ import { memo, useMemo, useState } from "react";
 
 import { platformName, ScoreFigure, ShopperPath, StatusLine } from "@/components/bits";
 import { DeveloperDialog, ShowMeDialog } from "@/components/dialogs";
+import { PayPalReadiness } from "@/components/PayPalReadiness";
+import { ProductFeedLine } from "@/components/ProductFeedLine";
 import { RunHead, ViewSwitch } from "@/components/RunHead";
+import { YourMoney } from "@/components/YourMoney";
 import { Button } from "@/components/ui/button";
 import { sameSeries, startCheck, type Health, type PlainFix, type Run, type RunSummary } from "@/lib/api";
 import { go, useCountUp } from "@/lib/hooks";
@@ -151,6 +154,10 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
               <StatusLine level="good" text="Nothing to fix. AI shoppers can buy from your store." className="text-lg" />
             </div>
           )}
+
+          {card && <YourMoney run={run} className="mt-8" />}
+          {card && <PayPalReadiness run={run} className="mt-6" />}
+          {card && <ProductFeedLine run={run} className="mt-6" />}
 
           <div className="mt-6 flex flex-col gap-2.5 sm:hidden">
             <Button onClick={again} disabled={busy} className="h-12 text-base">

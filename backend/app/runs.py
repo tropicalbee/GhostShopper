@@ -23,6 +23,7 @@ from .agent.recorder import invalidate_run, list_runs, load_run
 from .agent.service import RunConfigError, RunRequest, ServerInfo, execute, prepare, resolve_target
 from .agent.site import allow_private_hosts
 from .devsummary import developer_summary
+from .feed import feed_csv
 from .ratelimit import rate_limit
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -42,6 +43,9 @@ class StartRun(BaseModel):
     paypal: Literal["mock", "sandbox"] | None = None
     browser: Literal["local", "kernel"] | None = None
     max_steps: int | None = Field(default=None, ge=1, le=60)
+    # Open to everyone (not a developer option): a spending limit in USD, like "30.00". Only matters when the
+    # shopper pays, which is on the demo store.
+    budget: str | None = Field(default=None, max_length=20)
 
 
 def _error(status: int, code: str, message: str) -> HTTPException:
@@ -88,7 +92,7 @@ async def start_run(body: StartRun, request: Request):
     state = request.app.state
     settings = state.settings
     rate_limit(request, "run_limiter")
-    chosen = body.model_fields_set - {"store_url"}
+    chosen = body.model_fields_set - {"store_url", "budget"}
     if chosen and not settings.dev_options:
         raise _error(400, "RUN_CONFIG", f"Only store_url can be set on this server (not {', '.join(sorted(chosen))}).")
     demo = not body.store_url
@@ -102,6 +106,7 @@ async def start_run(body: StartRun, request: Request):
         paypal=body.paypal or ("mock" if settings.paypal_mode == "mock" else "sandbox"),
         browser=body.browser,
         max_steps=body.max_steps or 25,
+        budget=body.budget,
     )
     server = ServerInfo(settings.paypal_mode, state.paypal is not None)
     try:
@@ -213,6 +218,18 @@ async def explain(run_id: int, body: ExplainBody, request: Request):
 def get_developer_summary(run_id: int, request: Request):
     """'Send to my developer': failures, evidence, selectors and suggested code, as Markdown."""
     return {"run_id": run_id, "markdown": developer_summary(_readable(request, run_id))}
+
+
+@router.get("/{run_id}/feed.csv")
+def get_product_feed(run_id: int, request: Request):
+    """The product feed row for PayPal's agent programs, built from what the shopper read. A file to download,
+    never a submission: PayPal has no public sandbox API for Store Sync."""
+    product_feed = _readable(request, run_id)["product_feed"]
+    if product_feed is None:
+        raise _error(409, "NO_PRODUCT_READ", "The shopper never reached a product page in this check, so there is nothing to put in a feed.")
+    return Response(feed_csv(product_feed), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="ghostshopper-feed-check-{run_id}.csv"',
+                             "Cache-Control": "private, no-store"})
 
 
 @router.get("/{run_id}/files/{name}")

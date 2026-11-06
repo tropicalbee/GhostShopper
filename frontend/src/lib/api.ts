@@ -87,6 +87,9 @@ export type Order = {
   refund_status: string | null;
   refund_amount: string | null;
   refund_currency: string | null;
+  created_at: string;
+  captured_at: string | null;
+  refunded_at: string | null;
 };
 
 export type Refund = {
@@ -97,6 +100,53 @@ export type Refund = {
   currency: string;
   verified: boolean;
   mismatches: string[];
+  refunded_at?: string | null;
+};
+
+export type PayPalItem = {
+  key: string;
+  label: string;
+  status: "detected" | "partial" | "not_confirmed" | "missing";
+  points: number;
+  max: number;
+  evidence: string[];
+  note: string;
+};
+
+export type PayPalRecommendation = { key: string; title: string; why: string; docs_url: string; points: number };
+
+// Shape follows backend/app/agent/paypal_readiness.py (build_readiness).
+export type PayPalReadiness = {
+  version: string;
+  score: number;
+  paypal_found: boolean;
+  status: "good" | "warn" | "bad";
+  sdk: { version: "v5" | "v6"; src: string | null; mock: boolean; components: string[]; currency: string | null; intent: string | null } | null;
+  steps_to_paypal: number | null;
+  placement: { product: boolean; cart: boolean; checkout: boolean };
+  pages_scanned: { url: string; kind: string; button: boolean }[];
+  checklist: PayPalItem[];
+  recommendations: PayPalRecommendation[];
+};
+
+export type FeedField = {
+  field: string;
+  required: boolean;
+  status: "found" | "partial" | "missing";
+  value: string | null;
+  source: string | null;
+  note: string | null;
+  fix: string | null;
+};
+
+// Shape follows backend/app/feed.py (build_feed). null when the shopper never read a product page.
+export type ProductFeed = {
+  row: Record<string, string>;
+  fields: FeedField[];
+  required_found: number;
+  required_total: number;
+  ready: boolean;
+  source_url: string | null;
 };
 
 export type Run = {
@@ -111,14 +161,17 @@ export type Run = {
   model: string | null;
   paypal_mode: string;
   checkout: number;
+  budget: string | null; // the shopper's spending limit in USD, like "30.00"
   target_product: string;
   started_at: string;
   awaiting: { stage: string; reason: string; instructions: string; popup_url?: string } | null;
   feed: FeedLine[];
   steps: Step[];
-  checks: { check_key: string; stage: string; status: string; cause: string | null; reason: string | null }[];
+  checks: { check_key: string; stage: string; status: string; cause: string | null; reason: string | null; code?: string | null; evidence?: Record<string, unknown> | null }[];
   order: Order | null;
   scorecard: Scorecard | null;
+  paypal_readiness: PayPalReadiness | null; // null on checks made before this existed
+  product_feed: ProductFeed | null; // null when no product page was read, and on checks made before this existed
   mine: boolean; // started from this browser
   example: boolean; // a shared example check, readable by everyone
 };
@@ -202,9 +255,10 @@ export const api = {
 };
 
 // The server picks the shopper (live AI when Groq is configured, otherwise the labelled scripted one) and,
-// on the demo store, the PayPal purchase. A store link is the only thing a visitor chooses.
-export function startCheck(storeUrl: string | null) {
-  return api.start(storeUrl ? { store_url: storeUrl } : {});
+// on the demo store, the PayPal purchase. A visitor chooses a store link and, optionally, a spending limit.
+// A spending limit only matters where the shopper pays, which is the demo store.
+export function startCheck(storeUrl: string | null, budget?: string | null) {
+  return api.start({ ...(storeUrl ? { store_url: storeUrl } : {}), ...(budget ? { budget } : {}) });
 }
 
 // Two checks belong together when they are of the same store and from the same browser (or both examples).

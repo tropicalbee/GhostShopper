@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Callable, Literal
 
@@ -34,6 +35,28 @@ class RunRequest:
     max_steps: int = 25
     headless: bool = True
     browser: str | None = None  # local | kernel; None = BROWSER_PROVIDER (default local)
+    budget: str | None = None  # spending limit in USD, e.g. "30.00"; None = no limit. See parse_budget.
+
+
+MAX_BUDGET = Decimal("10000")
+
+
+def parse_budget(value: str | None) -> Decimal | None:
+    """A spending limit as a positive USD amount with at most two decimals. None or blank = no limit."""
+    if value is None or not str(value).strip():
+        return None
+    text = str(value).strip().lstrip("$").strip()
+    try:
+        amount = Decimal(text)
+    except InvalidOperation:
+        raise RunConfigError(f"The spending limit must be an amount in US dollars, like 30.00 (not {value!r}).") from None
+    if not amount.is_finite() or amount <= 0:
+        raise RunConfigError("The spending limit must be more than 0.")
+    if amount != amount.quantize(Decimal("0.01")):
+        raise RunConfigError("The spending limit can have at most two decimal places, like 30.00.")
+    if amount > MAX_BUDGET:
+        raise RunConfigError(f"The spending limit can be at most {MAX_BUDGET:.2f}.")
+    return amount.quantize(Decimal("0.01"))
 
 
 def flaw_selection(mode: str) -> dict[str, bool] | None:
@@ -110,6 +133,7 @@ def prepare(req: RunRequest, store_url: str, db_path: Path, server: ServerInfo |
     if live and req.llm == "mock":
         raise RunConfigError("Replayed runs only fit the demo store. Use the live agent (groq) or the scripted navigator.")
     flaw_selection(req.flaws)  # raises on unknown flaw keys
+    parse_budget(req.budget)
     try:
         resolve_provider(req.browser)
     except BrowserConfigError as exc:
@@ -158,6 +182,7 @@ async def execute(
         headless=req.headless,
         browser=req.browser,
         owner_hash=owner_hash,
+        budget=parse_budget(req.budget) if req.checkout else None,
         **({"runs_dir": runs_dir} if runs_dir else {}),
     )
     try:

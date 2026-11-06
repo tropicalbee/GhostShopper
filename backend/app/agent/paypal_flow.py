@@ -18,6 +18,7 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, Awaitable, Callable
 from urllib.parse import parse_qs, urlparse
 
@@ -181,10 +182,15 @@ class PayPalCheckout:
 
     async def pay(self, tools: PageTools, rec: RunRecorder, engine: CheckEngine) -> str:
         page = tools.page
-        if not checks.is_checkout_page(await tools.facts()):
+        facts = await tools.facts()
+        if not checks.is_checkout_page(facts):
             raise ToolError("pay_with_paypal works only on the checkout page. Go to checkout first.")
         if rec.is_recorded("paypal_button_found"):
             raise ToolError("Payment was already attempted in this run.")
+        # The spending limit is enforced here, in code, before the PayPal button is touched.
+        refused = await engine.stop_if_over_budget(facts)
+        if refused:
+            return f"{refused} Do not try again; call finish and tell the customer why."
         t = self.timeouts
 
         # 1. PayPal button rendered by the SDK.
@@ -286,25 +292,43 @@ class PayPalCheckout:
         rec.record_check("capture_completed", True, f"Order {order_id} captured ({order.get('capture_id')}).",
                          {"url": page.url, **summary})
 
-        # 5. Verification: order <-> capture <-> advertised amount <-> fees.
+        # 5. Verification: order <-> capture <-> advertised amount <-> fees, and the spending limit if there is one.
         verification = await self._backend_get(f"/api/paypal/orders/{order_id}/verify")
+        budget_evidence = self._budget_evidence(engine.budget, order)
+        extra = {"budget": budget_evidence} if budget_evidence else {}
         if verification is None:
             rec.record_check("payment_verified", False, "The backend could not verify the order.",
-                             {"order_id": order_id}, code="verification_unavailable")
+                             {"order_id": order_id, **extra}, code="verification_unavailable")
+        elif verification["ok"] and budget_evidence and not budget_evidence["within"]:
+            rec.record_check("payment_verified", False,
+                             f"Captured {budget_evidence['captured']} is over the {budget_evidence['limit']} spending limit.",
+                             {"order_id": order_id, "checked": verification["checked"], **extra}, code="amount_mismatch")
         elif verification["ok"]:
-            rec.record_check("payment_verified", True, "Order, capture, advertised amount and fees all match.",
-                             {"order_id": order_id, "checked": verification["checked"]})
+            rec.record_check("payment_verified", True,
+                             "Order, capture, advertised amount and fees all match"
+                             + (f", and {budget_evidence['captured']} is within the {budget_evidence['limit']} limit."
+                                if budget_evidence else "."),
+                             {"order_id": order_id, "checked": verification["checked"], **extra})
         else:
             first = verification["mismatches"][0]
             rec.record_check("payment_verified", False,
                              "; ".join(m["detail"] for m in verification["mismatches"]),
                              {"order_id": order_id, "mismatches": verification["mismatches"],
-                              "checked": verification["checked"]}, code=verification["code"] or first["code"])
+                              "checked": verification["checked"], **extra}, code=verification["code"] or first["code"])
         approved_note = " A human completed PayPal's extra check." if approved_by == "human" else ""
-        verdict = "verified" if verification and verification["ok"] else "NOT verified"
+        verdict = ("verified" if verification and verification["ok"]
+                   and not (budget_evidence and not budget_evidence["within"]) else "NOT verified")
         return (f"Payment complete.{approved_note} Order {order_id}, capture {order.get('capture_id')}, status "
                 f"{order.get('status')}, amount {order.get('amount')} {order.get('currency')}, "
                 f"PayPal fee {order.get('paypal_fee')}, net {order.get('net_amount')}. Payment {verdict}.")
+
+    @staticmethod
+    def _budget_evidence(budget: Decimal | None, order: dict[str, Any]) -> dict[str, Any] | None:
+        """Was the captured amount within the spending limit? None when the run has no limit."""
+        if budget is None:
+            return None
+        captured = Decimal(str(order.get("gross_amount") or order.get("amount")))
+        return {"limit": f"{budget:.2f}", "captured": f"{captured:.2f}", "within": captured <= budget}
 
     async def _login_and_approve(self, popup: Page, rec: RunRecorder, tools: PageTools) -> str:
         """Returns 'agent' | 'human' | 'human_timeout'. Raises _Stuck on approval timeout, _ErrorPage if

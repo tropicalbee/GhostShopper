@@ -81,6 +81,8 @@ FAILURE_TYPES: dict[str, FailureType] = {
                     "createOrder() promise without awaiting it first."),
         FailureType("popup_blocked_by_browser", "popup_opened", ENVIRONMENT,
                     "No store change needed: the shopper's browser blocked the PayPal window."),
+        FailureType("over_budget", "paypal_button_found", ENVIRONMENT,
+                    "No store change needed: the checkout total is above the shopper's spending limit, so it did not pay."),
         FailureType("approval_timeout", "payment_approved", ENVIRONMENT,
                     "No store change needed: the PayPal approval did not finish in time on PayPal's side."),
         FailureType("human_approval_timeout", "payment_approved", ENVIRONMENT,

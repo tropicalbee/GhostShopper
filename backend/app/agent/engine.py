@@ -1,9 +1,12 @@
 """Applies the deterministic detectors to every page the agent lands on, and records check outcomes."""
 
+from decimal import Decimal
 from typing import Any, Awaitable, Callable, Protocol
 
 from ..scoring import EXCLUDED, FAIL, PASS
+from .. import feed
 from . import checks
+from .paypal_readiness import PayPalCollector, page_kind
 from .platform import detect_platform
 from .recorder import RunRecorder
 
@@ -17,7 +20,7 @@ PaypalProbe = Callable[[], Awaitable[dict[str, Any]]]
 
 class CheckEngine:
     def __init__(self, recorder: RunRecorder, target_product: str | None, shots: Screenshotter,
-                 live: bool = False, paypal_probe: PaypalProbe | None = None):
+                 live: bool = False, paypal_probe: PaypalProbe | None = None, budget: Decimal | None = None):
         self.rec = recorder
         self.target = target_product  # None on live stores: any product page counts
         self.shots = shots
@@ -27,7 +30,10 @@ class CheckEngine:
         self.checkout_seen = False
         self.blocked = False  # the site's bot check stopped us
         self.platform_done = False
+        self.paypal = PayPalCollector()
         self.checkout_url: str | None = None
+        self.budget = budget  # the shopper's spending limit in USD; enforced here, never by the LLM
+        self.checkout_total: Decimal | None = None
         self.product_price = None  # first text price on the product page, for the checkout comparison
         self._form_pages: list[dict[str, Any]] = []
 
@@ -49,6 +55,9 @@ class CheckEngine:
             detected = detect_platform(facts["platform_signals"])
             self.rec.set_platform(detected)
             self.platform_done = detected["platform"] != "unknown"
+        if facts.get("paypal_signals") is not None and not facts.get("bot_check"):
+            self.paypal.add(url, page_kind(url, checks.is_product_page(facts, self.target), checks.is_checkout_page(facts)),
+                            facts["paypal_signals"])
         if facts.get("bot_check"):
             # A bot check is the site's choice, not a store defect: record it once and stop the run.
             if not self.blocked:
@@ -64,6 +73,8 @@ class CheckEngine:
             if not self.product_seen:
                 self.product_seen = True
                 self.product_price = checks.first_price(facts)
+                self.rec.set_product_snapshot(
+                    feed.snapshot_from_facts(facts, checks._products_in_jsonld(facts.get("jsonld") or [])))
                 await self._record(checks.Outcome("product_found", True, f"Reached '{facts.get('title')}'.",
                                                   {"url": url, "title": facts.get("title")}), step_id)
                 for outcome in checks.evaluate_product_page(facts):
@@ -71,6 +82,7 @@ class CheckEngine:
         elif checks.is_checkout_page(facts) and not self.checkout_seen:
             self.checkout_seen = True
             self.checkout_url = url
+            self.checkout_total = checks.checkout_total(facts)
             await self._record(checks.Outcome("checkout_reached", True, f"Reached checkout: {facts.get('title')}.", {"url": url}), step_id)
             if self.product_seen:
                 await self._record(checks.evaluate_path_to_checkout(url, self._form_pages), step_id)
@@ -86,6 +98,8 @@ class CheckEngine:
             return "The PayPal button was already checked: " + ("ready." if row["passed"] == 1 else "not usable.")
         state = await self.paypal_probe()
         ev = {k: state.get(k) for k in ("selector", "covered_by", "visible", "clickable", "disabled")}
+        if state.get("found"):
+            self.paypal.note_button(self.checkout_url, bool(state.get("visible")), state.get("selector"))
         if not state.get("found"):
             outcome = checks.Outcome("paypal_button_found", False, "No PayPal button on the cart or checkout page.",
                                      ev, "paypal_button_missing")
@@ -102,6 +116,25 @@ class CheckEngine:
         await self._record(outcome, step_id)
         return outcome.reason
 
+    async def stop_if_over_budget(self, facts: dict[str, Any], step_id: int | None = None) -> str | None:
+        """Before any payment: None if the checkout total is within the spending limit (or there is none).
+        Otherwise records the failed check, which is not the store's fault, and returns what to tell the shopper.
+        A total we can't read is treated as over, because the limit can't be checked."""
+        if self.budget is None:
+            return None
+        total = checks.checkout_total(facts)
+        if total is not None and total <= self.budget:
+            return None
+        if total is None:
+            reason = f"The checkout total could not be read, so it could not be checked against the ${self.budget} spending limit."
+        else:
+            reason = f"The checkout total ${total} is over the ${self.budget} spending limit, so the shopper did not pay."
+        await self._record(checks.Outcome(
+            "paypal_button_found", False, reason,
+            {"url": facts.get("url"), "budget": str(self.budget), "checkout_total": str(total) if total is not None else None},
+            "over_budget"), step_id)
+        return f"Not paid: {reason}"
+
     def on_form_filled(self, facts: dict[str, Any]) -> None:
         """The agent had to fill a form. Counts as an extra step if it is between product and checkout."""
         if not self.product_seen or self.checkout_seen or checks.is_product_page(facts, self.target):
@@ -117,6 +150,7 @@ class CheckEngine:
         The outcome is decided from checks, never from what the LLM claimed in finish().
         """
         rec = self.rec
+        rec.set_paypal_readiness(self.paypal.result())
         if error is None and not self.blocked:
             if not self.product_seen:
                 what = f"a page for '{self.target}'" if self.target else "a product page"
@@ -129,6 +163,11 @@ class CheckEngine:
                     await self.check_paypal(None)
                 except Exception:  # browser gone; leave it untested rather than guess
                     pass
+            if (checkout and self.checkout_seen and self.budget is not None and not rec.is_recorded("paypal_button_found")
+                    and (self.checkout_total is None or self.checkout_total > self.budget)):
+                # The shopper obeyed the limit and never tried to pay: say so, rather than blame the store.
+                await self.stop_if_over_budget({"url": self.checkout_url, "prices": (
+                    [{"value": str(self.checkout_total)}] if self.checkout_total is not None else [])})
             if checkout and self.checkout_seen and not rec.has_environment_failure():
                 rec.record_check("paypal_button_found", False,
                                  "The agent reached checkout but never started the PayPal payment.",

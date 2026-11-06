@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS runs (
     live            INTEGER NOT NULL DEFAULT 0,  -- 1 = a real store: browse-only, never pays
     platform        TEXT,                   -- shopify | wix | woocommerce | unknown
     platform_evidence TEXT,                 -- JSON list of the signals that decided it
+    paypal_readiness TEXT,                  -- JSON: PayPal setup checklist, recommendations and 0-100 figure
+    budget          TEXT,                   -- spending limit in USD ("30.00"), NULL = none
+    product_snapshot TEXT,                  -- JSON: what the shopper read on the product page (feeds the product feed)
     error           TEXT,
     owner_hash      TEXT                    -- SHA-256 of the browser's owner token; NULL = shared example
 );
@@ -129,7 +132,8 @@ ADDED_COLUMNS = {
     "orders": {"run_id": "INTEGER", "refund_id": "TEXT", "refund_status": "TEXT", "refund_amount": "TEXT",
                "refund_currency": "TEXT", "refunded_at": "TEXT"},
     "runs": {"end_reason": "TEXT", "awaiting": "TEXT", "live": "INTEGER NOT NULL DEFAULT 0", "platform": "TEXT",
-             "platform_evidence": "TEXT", "owner_hash": "TEXT"},
+             "platform_evidence": "TEXT", "owner_hash": "TEXT", "paypal_readiness": "TEXT", "budget": "TEXT",
+             "product_snapshot": "TEXT"},
     "checks": {"code": "TEXT", "cause": "TEXT"},
     "scores": {"possible": "INTEGER", "outcome": "INTEGER", "excluded": "TEXT"},
 }

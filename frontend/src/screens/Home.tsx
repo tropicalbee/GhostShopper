@@ -19,12 +19,20 @@ export function Home() {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [budget, setBudget] = useState("");
+  const [budgetError, setBudgetError] = useState<string | null>(null);
 
   const start = async (storeUrl: string | null) => {
+    const limit = budget.trim().replace(/^\$/, "");
+    if (!storeUrl && limit && !(/^\d{1,5}(\.\d{1,2})?$/.test(limit) && Number(limit) > 0)) {
+      setBudgetError("Type an amount in dollars above 0, like 30 or 24.50, or leave it empty.");
+      return;
+    }
+    setBudgetError(null);
     setBusy(true);
     setError(null);
     try {
-      const { run_id } = await startCheck(storeUrl);
+      const { run_id } = await startCheck(storeUrl, storeUrl ? null : limit);
       go(`/run/${run_id}`);
     } catch (e) {
       setError((e as Error).message);
@@ -81,7 +89,34 @@ export function Home() {
           )}
         </form>
 
-        <div className="mt-5 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:gap-6">
+        <div className="mt-6 text-sm">
+          <div>
+            <label htmlFor="spending-limit" className="font-medium">
+              Spending limit for the demo purchase <span className="font-normal text-muted-foreground">(optional)</span>
+            </label>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-muted-foreground" aria-hidden>
+                $
+              </span>
+              <Input
+                id="spending-limit"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="30.00"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                aria-invalid={!!budgetError}
+                aria-describedby="spending-limit-help"
+                className="h-10 w-28 border-line shadow-none"
+              />
+            </div>
+            <p id="spending-limit-help" role={budgetError ? "alert" : undefined} className={budgetError ? "mt-1 text-bad" : "mt-1 text-[13px] text-muted-foreground"}>
+              {budgetError ?? "The shopper won't pay if the checkout total is above this. The demo mug costs $24.00."}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:gap-6">
           <button
             type="button"
             onClick={() => start(null)}

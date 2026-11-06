@@ -12,6 +12,7 @@ from store import catalog
 from store.flaws import FlawStore
 
 from . import db
+from .agent.recorder import invalidate_run
 from .paypal import PayPalClient, PayPalError, summarize_capture
 from .ratelimit import rate_limit
 from .verification import verify_payment
@@ -146,6 +147,8 @@ async def refund_order(order_id: str, request: Request, paypal: PayPalClient = D
         raise _paypal_http_error(exc) from exc
 
     db.record_refund(db_path, order_id, refund)
+    invalidate_run(db_path, order["run_id"])  # a finished run's cached payload carries its order
+    refunded_at = db.get_order(db_path, order_id)["refunded_at"]
     amount, currency = refund["amount"]["value"], refund["amount"]["currency_code"]
     captured = order["gross_amount"] or order["amount"]
     mismatches = []
@@ -163,6 +166,7 @@ async def refund_order(order_id: str, request: Request, paypal: PayPalClient = D
         "currency": currency,
         "verified": not mismatches,
         "mismatches": mismatches,
+        "refunded_at": refunded_at,
     }
 
 

@@ -6,7 +6,7 @@ import type { Fix } from "@/lib/api";
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Quartz in the Ledger style: flat, square, hairline rows, a heading rule, the page's own greys.
-const theme = themeQuartz.withParams({
+export const theme = themeQuartz.withParams({
   fontFamily: "inherit",
   fontSize: 14,
   foregroundColor: "#18181b",
@@ -32,7 +32,7 @@ const theme = themeQuartz.withParams({
 
 // AG Grid sets each cell's line-height to the row height; wrapped text needs normal leading and the same
 // top padding in every column so a row's first lines align.
-const CELL = "leading-snug! py-3!";
+export const CELL = "leading-snug! py-3!";
 
 const STAGE: Record<string, string> = { discover: "Find", details: "Details", checkout: "Checkout", payment: "Payment", outcome: "Finish" };
 

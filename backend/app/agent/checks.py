@@ -284,6 +284,13 @@ def first_price(facts: dict[str, Any]) -> Decimal | None:
     return _dec(prices[0]["value"]) if prices else None
 
 
+def checkout_total(facts: dict[str, Any]) -> Decimal | None:
+    """What the checkout page asks the shopper to pay: the largest price shown as text (the order total is never
+    smaller than a line in it). None if no price is readable."""
+    values = [v for v in (_dec(p["value"]) for p in text_prices(facts)) if v is not None]
+    return max(values) if values else None
+
+
 def evaluate_path_to_checkout(checkout_url: str, form_pages: list[dict[str, Any]]) -> Outcome:
     """form_pages: forms the agent had to submit between the product page and checkout."""
     if not form_pages:

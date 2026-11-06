@@ -197,6 +197,7 @@ NOT_YOUR_FAULT: dict[str, str] = {
     "live_store_browse_only": "We only test real payments on our own demo store, so we stopped at your PayPal button and didn't pay.",
     "capture_declined": "The test buyer's card was declined. Nothing to fix in your store.",
     "popup_blocked_by_browser": "The browser blocked the PayPal window. Nothing to fix in your store.",
+    "over_budget": "The total was above the spending limit you set, so the shopper did not pay. Nothing to fix in your store.",
     "approval_timeout": "PayPal took too long to finish. Nothing to fix in your store.",
     "human_approval_timeout": "PayPal asked for a person to confirm and nobody did in time. Nothing to fix in your store.",
     "paypal_error_page": "PayPal showed an error page during the test payment. Nothing to fix in your store.",
