@@ -46,3 +46,11 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - SQLite in WAL mode with a busy timeout and indexes, an in-memory cache for finished runs and market checks, a paged runs list, gzip, and per-path cache headers.
 - Frontend speed: fewer re-renders while polling, My checks loads 20 at a time, skeletons for every loading region, and a meta description. Lighthouse is 100 across the board on desktop.
 - Fixed the failures table's oversized and clipped rows, and flattened the dialog backdrops.
+
+## 2026-11-06 (store redesign)
+- New design for the demo store: Shopify-style layout in Montserrat, with a navbar, hero, product grid, category banners, studio section and a dark footer. It works on phones, tablets and desktop.
+- 12 products in 4 categories with real local photos, a credits page, and fictional reviews with ratings.
+- Minimal checkout header and step trail. A sold-out product shows a disabled button and an email link.
+- The 10 flaw toggles still work. The ambiguous buttons and the price image were restyled to look like a real shop.
+- Hand-made market fixtures for the 8 new SKUs, new click ids in the 5 hand-written cassettes, and related products no longer list sold-out items.
+- The stylesheet URL carries a content hash so browsers pick up CSS changes.

@@ -1,5 +1,33 @@
 # Progress
 
+## 2026-11-06 (late session: demo store redesign)
+
+### Done
+- The demo store (Fernhill Ceramics) looked bad, so it got a new design: a plain Shopify-style shop in Montserrat, white page, teal accent, dark footer. CLAUDE.md says the store should stay plain; that rule was set aside for this redesign. All 10 flaw toggles still work.
+- Catalog grew from 4 to 12 products in 4 categories. The original 4 SKUs, names and prices are unchanged, and the mug is still first. Real photos are saved locally in `store/static/img/`, with credits on a new `/store/credits` page.
+- Every product has fictional reviews and ratings (1 to 8 per product, initial avatars, star breakdown). The footer says it is a demo store for GhostShopper.
+- New navbar (Shop all, four categories, Our studio, phone menu), a home page with hero, product grid, category banners and studio section, and a minimal checkout header with a step trail. No cart and no newsletter button.
+- The sold-out Espresso Cup Set shows a disabled "Sold out" button and an "Email me when it's back" link.
+- Flaws were restyled and still behave the same. The ambiguous buttons look like a real theme's button row, and the price image now uses clean stroke digits.
+- Eight hand-made market fixtures were added for the new SKUs so `test_market.py` still passes. The five hand-written cassettes got new click ids for the new navbar.
+- Checked every store page at 390, 768 and 1024 px wide with no horizontal overflow. The stylesheet URL now carries a content hash.
+- Tests: 228 passed after the redesign and after each later round (METRICS.md).
+
+### In progress
+- Nothing open in code.
+
+### Next
+1. Restart the server. The old one ran without `--reload`, so it served old code.
+2. Delete the files the redesign left unused: `store/static/img/latte-mug.jpg`, `store/static/img/hero-shelf.jpg`, `backend/app/market_recordings/FH-MUG-06.json`, and the old `mug`, `dripper`, `bowl` and `espresso` `.svg` files in `store/static/img/`.
+3. Decide about `.impeccable/mocks/` (old dashboard mockups the app does not need): delete it or add it to `.gitignore`.
+4. CLAUDE.md still says the store must stay plain. Update that line if the new look stays.
+5. Then back to D6: deploy and README.
+
+### Blockers
+- None.
+
+---
+
 ## 2026-11-06 (Day 5, fourth session: any AI provider, robustness, speed)
 
 ### Done

@@ -158,3 +158,14 @@ Rules `2026-11-05.3`, 100 points in total.
 - SQLite connection pool. A connection per request is the pattern SQLite recommends. WAL plus a busy timeout is the robustness fix.
 - Input debouncing. No input in the dashboard does work per keystroke.
 - Vendor chunk split. We tried it and reverted it: rolldown's forced groups broke React and CommonJS initialisation at runtime. The lazy Advanced chunk is already the split that matters.
+
+## 2026-11-06: Demo store redesign
+
+- The store looks like a standard Shopify theme, based on screenshots of a ceramics shop template ("Cerametica"). We turned down bolder art direction options. This overrides the "keep the store plain" line in CLAUDE.md for now.
+- Product photos are saved locally in `store/static/img/`. Hotlinking Unsplash would break offline and Kernel runs and the JSON-LD image URL. Drawn illustrations looked worse. Credits are on `/store/credits`.
+- The catalog has 12 products, not 13. A 13th left one card alone on the last row of the grid.
+- The navbar has no cart and no newsletter button. The store has no cart (Buy now goes straight to checkout), and a mini cart would break the scope lock of one product flow. The newsletter signup lives in the footer.
+- The store shows no "demo flaws on" badge. The flaws are explained only at `/store/admin`.
+- Reviews use initial avatars. Stock photo faces on fictional reviewers felt wrong.
+- Checkout and details pages keep exactly three controls before the form or PayPal button, so their ids (e4 to e7, and the PayPal button at e4) stay stable. Cassette ids were shifted only for the shop pages.
+- The new SKUs got hand-made market fixtures, labelled "Not real market data" like the existing four. We turned down narrowing `test_market.py`, which requires a recording per catalog product.

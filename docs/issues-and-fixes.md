@@ -2,6 +2,29 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-06 (store redesign)
+
+### The bad-store e2e test gave up instead of reaching checkout
+An earlier uncommitted redesign added extra header links, and `test_agent_e2e.py` ended with `gave_up` instead of `reached_checkout`. The mock-LLM cassettes click by element id (e1, e2, ...), and `FACTS_JS` in `browser.py` numbers elements in DOM order across the whole page. More header links meant every id after them moved. The new design keeps the header small and the checkout controls in a fixed order. After approval, the five hand-written cassettes got new ids for the shop pages only: home mug link e9 (was e5), product Buy now and Continue e10 (was e5), Go e12 (was e7).
+
+### The fixed store scored 77 instead of 80
+`test_fixed_store_passes_every_browse_check` failed on `stock_consistent`. The "You may also like" row on the mug page showed the sold-out espresso set with a "Sold out" badge, and the detector read that as the mug's own stock. Related products now skip sold-out items (`store/app.py`).
+
+### The carafe photo was a blank wall
+The wrong Unsplash photo id was picked from a contact sheet. The right one was downloaded and checked by eye.
+
+### `/store/credits` returned `{"detail":"Not Found"}` and the new CSS looked missing
+The local server ran without `--reload`, so it was serving old code, and the stylesheet link had a fixed `?v=8`. Restarting fixes the first. The link now carries the first 10 hex characters of the file's sha256, computed at startup in `store/app.py`.
+
+### Phone and tablet layout problems
+The phone nav row was cut off mid-word, the flawed button row wrapped the arrow onto its own line, and the tablet product and checkout pages were cramped in two columns. Phones now get a `<details>` menu, the buttons sit in a 2x2 grid, and product and checkout stack to one column below 900px.
+
+### The footer signup could not be a `<button>`
+`test_ambiguous_buttons_toggle` in `store/tests/test_store.py` asserts the flawed product page contains no `<button` at all. The signup is an `<input type="submit">`.
+
+### A test run reported exit 0 with 13 failures
+pytest was piped through `tail`, which hid its exit code. Later runs record pytest's own exit code.
+
 ## 2026-11-06 (robustness pass)
 
 ### Two starts could both pass the "already running" check

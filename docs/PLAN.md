@@ -58,6 +58,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] Checks private per browser, per-store before and after, hardening for a public server
 - [x] Ledger redesign (user-picked from two mocks), sidebar and phone menu, every screen size
 - [x] Provider-agnostic LLM layer, backend robustness and speed pass, frontend loading and polling work (Nov 6, fourth session)
+- [x] Demo store redesign: 12 products, photos, reviews, responsive pages, flaws kept (Nov 6, late session)
 - [ ] Decide how live-store payment checks count (default in code: excluded)
 
 ## Evaluation (added Nov 5, between D4 and D5)

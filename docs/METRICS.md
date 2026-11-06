@@ -127,3 +127,14 @@ Scores are performance / accessibility / best practices / SEO.
 | `/#/checks` | 100 / 100 / 100 / 100 | 95 / 100 / 100 / 100 |
 
 Before the meta description was added, SEO was 90 on every page. Performance was 92 on `/` mobile, 97 on `/#/checks` desktop and 79 on `/#/checks` mobile. The 79 was partly noise from parallel CPU load.
+
+## Store redesign (2026-11-06)
+
+| What | Value |
+|---|---|
+| Full test suite after the redesign and after each later round | 228 passed (about 4 minutes) |
+| Day 2 fixed-store cassette run, with the related-products bug | 77 / 100 |
+| Day 2 fixed-store cassette run, after the fix | 80 / 100 (payment is not part of a Day 2 run) |
+| Store tests plus agent and checkout e2e, after the last CSS tweaks | 42 passed |
+| Hallmark sloplint on rendered pages and `store/static/style.css` | 0 FAIL |
+| Impeccable detect | 0 findings |
