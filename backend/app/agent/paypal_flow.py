@@ -66,8 +66,13 @@ SELECTORS = {
     "next": ["#btnNext", "button:has-text('Next')"],
     "password": ["#password", "input[name=login_password]", "input[type=password]"],
     "login": ["#btnLogin", "button:has-text('Log In')"],
-    "approve": ["#payment-submit-btn", "button[data-id=payment-submit-btn]",
-                "button:has-text('Complete Purchase')", "button:has-text('Pay Now')"],
+    # The hermes review page ("Pay with" list, "Complete Purchase" at the bottom): its id is unconfirmed, so match
+    # by test id, by role and name, and by visible text as well.
+    "approve": ["#payment-submit-btn", "button[data-id=payment-submit-btn]", "#consentButton",
+                "[data-testid=consentButton]", "[data-testid=submit-button]", "[data-testid*=submit i]",
+                "role=button[name=/complete purchase|pay now|agree and pay/i]",
+                "button:has-text('Complete Purchase')", "button:has-text('Pay Now')",
+                "input[type=submit][value*='Complete Purchase' i]", "[role=button]:has-text('Complete Purchase')"],
 }
 BLOCKER_SELECTORS = ["iframe[src*=captcha i]", "iframe[title*=captcha i]", "[id*=captcha i]", "[class*=captcha i]",
                      "iframe[src*=recaptcha]", "iframe[src*=hcaptcha]"]
@@ -204,6 +209,8 @@ class PayPalCheckout:
                                     {"url": page.url, "selector": "paypal-button", "status_text": status})
         rec.record_check("paypal_button_found", True, "PayPal button visible on checkout.",
                          {"url": page.url, "selector": "paypal-button"})
+        # The page scan can run before the SDK draws the button; this sighting is the reliable one.
+        engine.paypal.note_button(page.url, True, "paypal-button")
 
         # 2. Click opens the PayPal window.
         try:
@@ -411,8 +418,10 @@ class PayPalCheckout:
         for sel in SELECTORS[group]:
             loc: Locator = page.locator(sel).first
             try:
-                if await loc.is_visible():
-                    await loc.click()
+                if await loc.count() and await loc.is_visible():
+                    # The review page keeps the button at the bottom of a scrolling area.
+                    await loc.scroll_into_view_if_needed(timeout=3000)
+                    await loc.click(timeout=5000)
                     return True
             except PlaywrightError:
                 pass

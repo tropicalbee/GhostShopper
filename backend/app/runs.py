@@ -42,6 +42,7 @@ class StartRun(BaseModel):
     checkout: bool | None = None  # demo store only
     paypal: Literal["mock", "sandbox"] | None = None
     browser: Literal["local", "kernel"] | None = None
+    headed: bool | None = None  # show the local browser window (the real sandbox login works headed)
     max_steps: int | None = Field(default=None, ge=1, le=60)
     # Open to everyone (not a developer option): a spending limit in USD, like "30.00". Only matters when the
     # shopper pays, which is on the demo store.
@@ -107,6 +108,7 @@ async def start_run(body: StartRun, request: Request):
         browser=body.browser,
         max_steps=body.max_steps or 25,
         budget=body.budget,
+        headless=not body.headed,
     )
     server = ServerInfo(settings.paypal_mode, state.paypal is not None)
     try:

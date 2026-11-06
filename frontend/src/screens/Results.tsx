@@ -86,7 +86,7 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
       />
       {error && <p role="alert" className="mt-4 text-sm text-bad">{error}</p>}
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-12 lg:gap-12">
+      <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
         <aside className="lg:col-span-5">
           {card ? (
             <section className="border bg-panel p-6 lg:sticky lg:top-20">
