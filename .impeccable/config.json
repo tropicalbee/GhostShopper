@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "files": [
+          "store/static/style.css"
+        ],
+        "createdAt": "2026-11-05T09:12:04.162Z",
+        "reason": "Project brief in CLAUDE.md: demo store must stay plain and realistic like a real small-merchant site and must never be polished with design skills; Arial is intentional there"
+      },
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-11-05T14:25:53.194Z",
+        "reason": "Claude: single-line display figure (96px score) and label title in a decision sketch; no multi-line text uses the tight leading"
+      },
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/r1-facts-soft.html"
+        ],
+        "createdAt": "2026-11-05T14:35:30.550Z",
+        "reason": "Claude: single-line display figure (92px score) and label title in a decision sketch; no multi-line text uses the tight leading"
+      },
+      {
+        "rule": "overused-font",
+        "value": "montserrat",
+        "files": [
+          "store/static/style.css"
+        ],
+        "createdAt": "2026-11-06T16:12:15.712Z",
+        "reason": "Claude: matches the Montserrat type in the reference shop screenshots the user supplied for the store redesign"
+      }
+    ]
+  }
+}
