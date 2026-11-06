@@ -85,6 +85,9 @@ FAILURE_TYPES: dict[str, FailureType] = {
                     "No store change needed: the PayPal approval did not finish in time on PayPal's side."),
         FailureType("human_approval_timeout", "payment_approved", ENVIRONMENT,
                     "No store change needed: PayPal asked for a human check and nobody approved it in time."),
+        FailureType("paypal_error_page", "payment_approved", ENVIRONMENT,
+                    "No store change needed: PayPal showed its error page (the issue is in the evidence), usually "
+                    "a sandbox account setup problem such as the buyer login being the seller's account."),
         FailureType("approval_cancelled", "payment_approved", ENVIRONMENT,
                     "No store change needed: the payment was cancelled in the PayPal window."),
         FailureType("capture_declined", "capture_completed", ENVIRONMENT,

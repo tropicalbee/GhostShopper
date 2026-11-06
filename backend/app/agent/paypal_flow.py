@@ -12,6 +12,7 @@ capture is confirmed as usual.
 """
 
 import asyncio
+import base64
 import inspect
 import re
 import time
@@ -73,11 +74,37 @@ BLOCKER_TEXT = re.compile(
     r"we sent (you )?a code|confirm (it'?s|it is) you|are you a robot|i'?m not a robot", re.I)
 ISSUE_RE = re.compile(r"\(([A-Z_]{4,})\)")
 
+# PayPal's popup error page: /checkoutweb/genericError?code=<base64 issue name>.
+ERROR_PAGE_PATH = "/checkoutweb/genericError"
+ERROR_PAGE_HINTS = {
+    "CANNOT_PAY_SELF": "The sandbox buyer login is the seller's own account; use the personal sandbox account.",
+}
+
 HumanHook = Callable[[dict[str, Any], Page], Awaitable[None] | None]
 
 
 class _Stuck(Exception):
     pass
+
+
+class _ErrorPage(Exception):
+    def __init__(self, issue: str):
+        super().__init__(issue)
+        self.issue = issue
+
+
+def error_page_issue(url: str) -> str | None:
+    """The decoded issue name if url is PayPal's error page ('UNKNOWN' if the code can't be read), else None."""
+    u = urlparse(url)
+    if not u.path.endswith(ERROR_PAGE_PATH):
+        return None
+    code = (parse_qs(u.query).get("code") or [""])[0]
+    try:
+        decoded = base64.urlsafe_b64decode(code + "=" * (-len(code) % 4)).decode("ascii", "replace")
+    except ValueError:
+        decoded = ""
+    match = re.match(r"[A-Z][A-Z_]{3,}", decoded)
+    return match.group(0) if match else "UNKNOWN"
 
 
 def _origin(url: str) -> str:
@@ -90,8 +117,10 @@ def _now() -> str:
 
 
 async def popup_state(popup: Page) -> str:
-    """blocker | approve | password | email | unknown_form | loading. Blockers win over everything:
+    """error | blocker | approve | password | email | unknown_form | loading. Blockers win over every form:
     if PayPal asks for a human check we never try to continue around it."""
+    if error_page_issue(popup.url):
+        return "error"
     try:
         for sel in BLOCKER_SELECTORS:
             if await popup.locator(sel).first.is_visible():
@@ -205,6 +234,12 @@ class PayPalCheckout:
             return await self._fail(rec, tools, "payment_approved", "approval_timeout",
                                     f"Approval did not complete within {t.approval_s:.0f}s (stuck {exc}).",
                                     {"url": page.url})
+        except _ErrorPage as exc:
+            await self._close(popup)
+            hint = ERROR_PAGE_HINTS.get(exc.issue)
+            return await self._fail(rec, tools, "payment_approved", "paypal_error_page",
+                                    f"PayPal showed its error page ({exc.issue})." + (f" {hint}" if hint else ""),
+                                    {"url": page.url, "issue": exc.issue})
         if approved_by == "human_timeout":
             return await self._fail(rec, tools, "payment_approved", "human_approval_timeout",
                                     f"PayPal asked for a human check and nobody completed it within {t.human_s:.0f}s.",
@@ -271,7 +306,8 @@ class PayPalCheckout:
                 f"PayPal fee {order.get('paypal_fee')}, net {order.get('net_amount')}. Payment {verdict}.")
 
     async def _login_and_approve(self, popup: Page, rec: RunRecorder, tools: PageTools) -> str:
-        """Returns 'agent' | 'human' | 'human_timeout'. Raises _Stuck on approval timeout."""
+        """Returns 'agent' | 'human' | 'human_timeout'. Raises _Stuck on approval timeout, _ErrorPage if
+        PayPal shows its error page."""
         deadline = time.monotonic() + self.timeouts.approval_s
         typed: set[str] = set()
         state = "loading"
@@ -279,18 +315,25 @@ class PayPalCheckout:
             if popup.is_closed():
                 return "agent"
             state = await popup_state(popup)
+            if state == "error":
+                raise _ErrorPage(error_page_issue(popup.url) or "UNKNOWN")
             if state in ("blocker", "unknown_form"):
                 reason = ("PayPal is asking for a CAPTCHA or extra verification." if state == "blocker"
                           else "PayPal showed a page the agent does not recognize.")
                 return await self._await_human(popup, rec, tools, state, reason)
             if state == "approve":
                 await self._click_first(popup, "approve")
-                remaining = max(deadline - time.monotonic(), 1)
-                try:
-                    if not popup.is_closed():
-                        await popup.wait_for_event("close", timeout=remaining * 1000)
-                except PlaywrightTimeout as exc:
-                    raise _Stuck("waiting for the PayPal window to close") from exc
+                # Poll rather than wait for close: PayPal may answer the approval with its error page.
+                while not popup.is_closed():
+                    issue = error_page_issue(popup.url)
+                    if issue:
+                        raise _ErrorPage(issue)
+                    if time.monotonic() > deadline:
+                        raise _Stuck("waiting for the PayPal window to close")
+                    try:
+                        await popup.wait_for_timeout(250)
+                    except PlaywrightError:
+                        break  # closed while waiting
                 return "agent"
             if state == "email" and "email" not in typed:
                 await self._fill_first(popup, "email", self._buyer.email)

@@ -199,6 +199,7 @@ NOT_YOUR_FAULT: dict[str, str] = {
     "popup_blocked_by_browser": "The browser blocked the PayPal window. Nothing to fix in your store.",
     "approval_timeout": "PayPal took too long to finish. Nothing to fix in your store.",
     "human_approval_timeout": "PayPal asked for a person to confirm and nobody did in time. Nothing to fix in your store.",
+    "paypal_error_page": "PayPal showed an error page during the test payment. Nothing to fix in your store.",
     "approval_cancelled": "The payment was cancelled in the PayPal window.",
     "fee_inconsistent": "PayPal's fee figures didn't add up. Nothing to fix in your store.",
     "fee_missing": "PayPal didn't send fee details. Nothing to fix in your store.",

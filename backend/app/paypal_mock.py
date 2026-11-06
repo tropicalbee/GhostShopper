@@ -4,6 +4,7 @@ No PayPal servers are contacted. The popup imitates the sandbox login/approve pa
 so the agent's PayPal flow runs unchanged. Scenarios simulate the checkout failures the score checks for.
 """
 
+import base64
 import html
 import json
 import uuid
@@ -19,9 +20,11 @@ from .paypal import PayPalError
 MOCK_CLIENT_ID = "mock-client-id"
 MOCK_SDK_PATH = "/mock-paypal/sdk.js"
 SCENARIOS = ("ok", "no_button", "popup_blocked", "approval_stuck", "capture_declined",
-             "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch")
+             "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch", "seller_login")
 Scenario = Literal["ok", "no_button", "popup_blocked", "approval_stuck", "capture_declined",
-                   "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch"]
+                   "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch", "seller_login"]
+# seller_login: the buyer logs in with the seller's account and PayPal answers with its error page.
+SELLER_LOGIN_ERROR_CODE = base64.urlsafe_b64encode(b"CANNOT_PAY_SELF").decode().rstrip("=")
 
 # PayPal US standard checkout rate, used only to make fake fee numbers realistic.
 FEE_RATE = Decimal("0.0349")
@@ -180,6 +183,7 @@ button{{width:100%;padding:12px;margin-top:8px;border:0;border-radius:20px;backg
   document.getElementById('btnLogin').onclick = function () {{
     var pw = document.getElementById('password');
     if (pw.value) {{ pw.value = ''; document.getElementById('email').value = '';
+      if (scenario === 'seller_login') {{ location.href = '/mock-paypal/checkoutweb/genericError?code={error_code}'; return; }}
       show(scenario === 'verification_required' ? 'step-verify' : 'step-review'); }}
   }};
   document.getElementById('btnVerify').onclick = function () {{ if (/^\\d{{6}}$/.test(document.getElementById('otpCode').value)) show('step-review'); }};
@@ -214,7 +218,14 @@ def mock_router(fake: FakePayPalClient) -> APIRouter:
             action = '<button id="payment-submit-btn" type="button">Complete Purchase</button>'
         return POPUP_HTML.format(amount=html.escape(amount["value"]), currency=html.escape(amount["currency_code"]),
                                  review_action=action, order_id_json=json.dumps(token),
-                                 scenario_json=json.dumps(fake.scenario))
+                                 scenario_json=json.dumps(fake.scenario), error_code=SELLER_LOGIN_ERROR_CODE)
+
+    @router.get("/checkoutweb/genericError", response_class=HTMLResponse)
+    def error_page():
+        return ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>PayPal (MOCK)</title></head>"
+                "<body><p>You are logging in to the account of the seller for this purchase. "
+                "Please change your login information and try again.</p>"
+                "<button type=\"button\">Log Out</button></body></html>")
 
     @router.get("/scenario")
     def get_scenario():

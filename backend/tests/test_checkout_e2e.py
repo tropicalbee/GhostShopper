@@ -109,6 +109,7 @@ async def test_bad_store_purchase_succeeds_but_scores_49(server):
     # Not the store's fault: excluded with every check they prevented, score renormalized.
     ("popup_blocked", "popup_opened", "popup_blocked_by_browser", "environment", 100, 79),
     ("approval_stuck", "payment_approved", "approval_timeout", "environment", 100, 82),
+    ("seller_login", "payment_approved", "paypal_error_page", "environment", 100, 82),
     ("capture_declined", "capture_completed", "capture_declined", "environment", 100, 85),
 ])
 async def test_checkout_failures_are_scored_by_cause(server, scenario, failed, code, cause, score, possible):
@@ -140,6 +141,23 @@ async def test_checkout_failures_are_scored_by_cause(server, scenario, failed, c
         assert any("INSTRUMENT_DECLINED" in line and "Excluded from the score" in line for line in card["summary"])
     if scenario == "popup_blocked":
         assert "browser blocked it" in c["reason"]
+    if scenario == "seller_login":
+        assert c["evidence"]["issue"] == "CANNOT_PAY_SELF"
+        assert "seller's own account" in c["reason"]
+
+
+@pytest.mark.parametrize("url,issue", [
+    # Codes as PayPal's sandbox sent them (base64 of the issue name, unpadded).
+    ("https://www.sandbox.paypal.com/checkoutweb/genericError?code=Q0FOTk9UX1BBWV9TRUxG", "CANNOT_PAY_SELF"),
+    ("https://www.sandbox.paypal.com/checkoutweb/genericError?code=VU5TVVBQT1JURURfUEFZ", "UNSUPPORTED_PAY"),
+    ("https://www.sandbox.paypal.com/checkoutweb/genericError?code=%%%", "UNKNOWN"),
+    ("https://www.sandbox.paypal.com/checkoutweb/genericError", "UNKNOWN"),
+    ("https://www.sandbox.paypal.com/checkoutnow?token=ABC", None),
+])
+def test_error_page_issue_is_decoded_from_the_url(url, issue):
+    from backend.app.agent.paypal_flow import error_page_issue
+
+    assert error_page_issue(url) == issue
 
 
 @requires_browser
