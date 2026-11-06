@@ -1,5 +1,36 @@
 # Progress
 
+## 2026-11-07 (live test of the PayPal features)
+
+### Done
+- Ran the new features against the real sandbox through the API with one cookie. Numbers are in METRICS.md.
+- Purchase (run 20): purchased, 100/100, order 3A787775X68465154, capture 5V4554169H1404341, USD 24.00 gross, 1.33 fee, 22.67 net. The agent stalled on PayPal's review page and the user clicked Complete Purchase, so it was hand-assisted.
+- Refund: 5R334917CM111954P, COMPLETED, USD 24.00, verified. The run payload showed the refund right after, so the cache clears.
+- Budget 20.00 (run 21): no order, `over_budget`, environment, score 100 on 75 of 100 points.
+- Product feed CSV: 11 columns, 7 of 7 required found on the good store, 3 of 7 on the flawed store (run 22, readiness 0).
+- PayPal docs links: all six answer 200 (some redirect).
+- UI checked at 1440 and 375 px with no console errors.
+- Fixed the Complete Purchase selectors, added a dev `headed` run option, fixed the readiness button count and a 375 px overflow. Details in issues-and-fixes.md.
+- PayPal budget used: 3 agent runs, 1 refund.
+
+Screenshots are in `docs/screenshots/2026-11-07-features/`: the [purchase run at 1440](screenshots/2026-11-07-features/run20-purchase-simple-1440.png), the [same run at 375](screenshots/2026-11-07-features/run20-purchase-simple-375.png), its [PayPal readiness tab](screenshots/2026-11-07-features/run20-purchase-tab-readiness-1440.png), the [budget run](screenshots/2026-11-07-features/run21-budget-simple-1440.png), the [flawed run](screenshots/2026-11-07-features/run22-flawed-simple-1440.png), its [readiness panel](screenshots/2026-11-07-features/run22-flawed-tab-readiness-1440.png) and its [product feed](screenshots/2026-11-07-features/run22-flawed-tab-feed-1440.png).
+
+### Not verified
+- The Complete Purchase fix has not been confirmed live. One headed run should purchase with no hand click.
+- The readiness button fix was only checked by tests, and the 375 px fix on a rebuilt page. Runs 20 and 21 still show readiness 28.
+- Headless API runs do not get past the sandbox password step (run 19), so the hosted app will need Kernel or a human check for real payments.
+
+### Next
+1. Deploy on Render (Nov 8).
+2. README.
+3. Video.
+4. Devpost.
+
+### Blockers
+- None.
+
+---
+
 ## 2026-11-07 (PayPal features, second session)
 
 ### Done

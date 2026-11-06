@@ -55,6 +55,13 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - Hand-made market fixtures for the 8 new SKUs, new click ids in the 5 hand-written cassettes, and related products no longer list sold-out items.
 - The stylesheet URL carries a content hash so browsers pick up CSS changes.
 
+## 2026-11-07 (live test fixes)
+- Live test of the refund, budget, product feed and readiness panel against the real sandbox. The refund verified; budget and feed behaved as designed.
+- The agent has more ways to find PayPal's Complete Purchase button and scrolls it into view before clicking. Needs one live confirm.
+- `POST /api/runs` accepts a dev-only `headed` option so API runs can use a visible browser.
+- PayPal readiness counts the button the agent actually clicked, instead of trusting a page scan that can run before the button draws.
+- The Simple results view no longer overflows at phone width.
+
 ## 2026-11-07 (first real sandbox purchase)
 - First real PayPal sandbox purchase by the agent: order created, approved in the popup, captured and verified (100/100).
 - The agent detects PayPal's own error page, decodes the issue name from the URL and fails `payment_approved` at once with code `paypal_error_page`. It counts as environment, so the score is not hurt.

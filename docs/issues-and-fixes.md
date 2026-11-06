@@ -2,6 +2,25 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-07 (live test of the PayPal features)
+
+### Run 20: the agent did not click Complete Purchase (hand-assisted)
+The popup reached PayPal's review page (`sandbox.paypal.com/webapps/hermes`, a "Pay with" list and a Complete Purchase button at the bottom). The agent marked it `unknown_form`, handed over to a human, and the user clicked Complete Purchase by hand 4 min 40 s after the order was created. The payment then captured and verified, so the run counts as purchased but was not autonomous. Root cause: none of the `approve` selectors matched the hermes button as visible, and the page has radio inputs, so the state fell through to `unknown_form`. The real id was never confirmed (the old comment said unverified). Fix in `paypal_flow.py`: more approve selectors (`#consentButton`, test ids, a role and name match, input submit, role=button text), and `_click_first` now scrolls the button into view and uses a 5 s click timeout. Needs one live confirm in a later run; no extra PayPal run was spent on it.
+
+### Run 19: headless run stuck at the password step
+Through the API the browser is headless. The popup took the email but did not finish the password step, and the run failed `approval_timeout` after 120 s (environment, no points lost). Order 9M109243TS5211110 stayed CREATED. The API had no way to ask for a visible browser. Fix: a dev-only `headed` field on `POST /api/runs` (`runs.py`), refused on a deployed server like the other dev options. Headed runs got through.
+
+### PayPal readiness said the button was only partly there
+Run 20 clicked the PayPal button, yet readiness showed the button as "partial" (8/20) and "PayPal early in the path" as missing, so the figure was 28 and the panel advised "Make the PayPal button visible". Root cause: the page scan ran before the SDK drew the button, and the demo store's checkout never told the collector that the agent had seen it (only the live-store probe did). Fix: `paypal_flow.py` calls `engine.paypal.note_button` once the button is visible. Runs 20 and 21 keep the old figure because they ran before the fix. Not re-run live.
+
+### Results page was wider than a phone
+At 375 px the Simple view laid out 448 px wide and clipped text on the right (the headline, the money panel, the readiness bars). The page did not scroll sideways because the body clips overflow, so a scroll check said 0. Root cause: the grid in `Results.tsx` had no column template below `lg`, so one wide child stretched the single auto column. Fix: `grid-cols-1`. After the fix the content is 375 px wide.
+
+### Not a bug: readiness tab screenshots
+Full-page screenshots taken after clicking the PayPal readiness tab showed the Failures grid. The tab was selected and its panel had the right content; the capture was stale. The saved readiness tab images for runs 20 and 22 are panel only. The run 21 one is a full-page capture and may show Failures.
+
+---
+
 ## 2026-11-07 (first real sandbox purchase)
 
 ### Run 14: the PayPal button was missing after 20 seconds

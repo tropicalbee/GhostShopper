@@ -77,7 +77,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] Serve the frontend build from FastAPI
 - [x] Prep: setup scripts, Dockerfile, .dockerignore, render.yaml, GitHub Actions workflow
 - [x] README draft: problem, audience, how it works, setup, run, tools, built-during-hackathon
-- [ ] End-to-end test in a browser, including refund and budget against the real sandbox (user)
+- [x] End-to-end test in a browser, including refund and budget against the real sandbox (purchase was hand-assisted; one live confirm of the Complete Purchase fix left)
 - [ ] Record a before/after pair against the real sandbox
 - [ ] Render free tier deploy, env vars set, sandbox purchase on the hosted URL
 - [ ] Hosted URL in the README

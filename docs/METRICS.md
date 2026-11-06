@@ -171,4 +171,43 @@ Other numbers
 | Full test suite after the `paypal_error_page` change | 234 passed (277.6 s) |
 | Full test suite after the five PayPal features | 287 passed, 0 skipped (browser e2e ran) |
 | Frontend build after the five PayPal features | clean |
-| Refund and budget against the real sandbox | not run yet |
+
+## Live test of the PayPal features (2026-11-07)
+
+Runs started through `POST /api/runs` with one cookie, `--llm scripted`, real sandbox. Times are UTC as stored.
+
+| Run | Setup | Result | Score |
+|---|---|---|---|
+| 19 | headless, flaws off, checkout | `approval_timeout` after 120 s, stuck at the password step (environment), order 9M109243TS5211110 left CREATED | 100 / 100 on 82 of 100 points |
+| 20 | headed, flaws off, checkout | purchased, hand-assisted (see below) | 100 / 100 |
+| 21 | headed, budget 20.00 | `over_budget`, no order, outcome blocked, 15 s | 100 / 100 on 75 of 100 points |
+| 22 | flaws on, no checkout, no PayPal call | gave up, 25 steps, 14 s | 18 / 100 |
+
+Run 20 payment
+
+| What | Value |
+|---|---|
+| Order / capture | 3A787775X68465154 / 5V4554169H1404341, both COMPLETED |
+| Gross / fee / net | USD 24.00 / 1.33 / 22.67 (effective fee 5.54%) |
+| Order created / captured | 21:08:26 / 21:13:06 (4 min 40 s: the agent stalled on the review page and the user clicked Complete Purchase) |
+| Refund | 5R334917CM111954P, COMPLETED, USD 24.00, `verified: true`, no mismatches |
+| Refund time | 5.8 s for the API call, done 21:13:38 |
+| Cache check | `GET /api/runs/20` right after the refund shows the refund fields |
+
+PayPal readiness and product feed
+
+| Run | PayPal readiness | Product feed |
+|---|---|---|
+| 20 (good store) | 28 / 100: button partial 8/20 (the scan ran before the button drew), SDK v6 20/20, the rest missing | 7 of 7 required columns, 11 columns, gtin, mpn and condition missing |
+| 21 | 28 / 100, same pattern | same |
+| 22 (flaws on) | 0 / 100, no PayPal found on 6 pages | 3 of 7 required (id, description, price and availability missing) |
+
+Feed CSV for run 20 (`/api/runs/20/feed.csv`): 200, `text/csv`, header `id,title,description,link,image_link,price,availability,brand,gtin,mpn,condition`, one row, price `24.00 USD`. Run 22 has the same header and a row with only title, link and image_link filled.
+
+Docs links used by the readiness panel: all six return 200. The v6, Pay Later, Venmo, checkout and card URLs each redirect to a current page. None is a 404.
+
+UI at 1440 px and 375 px: no console errors or warnings on runs 20, 21 and 22. At 375 px the Simple view was 448 px wide before the fix and 375 px after. Advanced is tablet width and up by design, so it has no 375 px tabs.
+
+PayPal budget used: 3 agent runs (19, 20, 21) and 1 refund.
+
+After the live-test fixes: pytest 287 passed, 0 skipped (312.9 s); frontend build clean.
