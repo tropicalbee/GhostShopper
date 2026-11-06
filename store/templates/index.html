@@ -1,15 +1,103 @@
 {% extends "base.html" %}
-{% from "_macros.html" import price, photo_alt with context %}
+{% from "_macros.html" import card, stars with context %}
+{% set nav_current = category or "all" %}
 {% block content %}
-<h1>Shop all</h1>
-<p class="intro">Everything is made by hand in our two-person studio. Pieces ship within 3 business days.</p>
-<div class="grid">
-{% for p in products %}
-  <div class="card">
-    <a href="{{ base }}/products/{{ p.slug }}"><img class="thumb" src="{{ base }}/static/img/{{ p.image }}" alt="{{ photo_alt(p) }}"></a>
-    <a class="card-title" href="{{ base }}/products/{{ p.slug }}">{{ p.name }}</a>
-    <div class="card-price">{{ price(p) }}{% if not p.in_stock %} <span class="soldout">Sold out</span>{% endif %}</div>
+<section class="hero">
+  <img class="hero-img" src="{{ base }}/static/img/hero-vases.jpg" alt="Three speckled stone grey bottle vases holding dried poppy stems" width="2000" height="860">
+  <div class="container hero-inner">
+    <div class="hero-copy">
+      <h1>Handmade stoneware for every day</h1>
+      <p>Mugs, bowls and vases thrown by hand in our two-person studio in Asheville.</p>
+      <div class="hero-actions">
+        <a class="btn btn-light" href="#shop">Shop the collection</a>
+        <a class="btn btn-ghost" href="#studio">Meet the studio</a>
+      </div>
+    </div>
   </div>
-{% endfor %}
-</div>
+</section>
+
+<section class="perks" aria-label="Why shop with us">
+  <div class="container perks-row">
+    <div class="perk">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9h17v13H3zM20 13h5l4 4v5h-9zM8.5 26a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM23.5 26a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>
+      <div><h2>Ships in 3 business days</h2><p>Packed in recycled paper</p></div>
+    </div>
+    <div class="perk">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l11 4v8c0 7-4.7 11.6-11 14-6.3-2.4-11-7-11-14V7zM11 16l3.5 3.5L21 13"/></svg>
+      <div><h2>Breakage covered</h2><p>Broken in transit, we replace it</p></div>
+    </div>
+    <div class="perk">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 6h14M10 6c0 5-3 7-3 12a9 9 0 0 0 18 0c0-5-3-7-3-12M8 20h16"/></svg>
+      <div><h2>Made by hand</h2><p>Every glaze varies a little</p></div>
+    </div>
+    <div class="perk">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 7h24v18H4zM4 8l12 9 12-9"/></svg>
+      <div><h2>Real people</h2><p>We reply within a day</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="collection container" id="shop">
+  <header class="section-head">
+    <h2>{{ categories[category] if category else "Shop all" }}</h2>
+    <p class="section-sub">{{ products | length }} products{% if category %}, <a href="{{ base }}/#shop">see everything</a>{% endif %}</p>
+  </header>
+  <div class="grid">
+  {% for p in products %}
+    {{ card(p, lazy=loop.index > 4) }}
+  {% endfor %}
+  </div>
+</section>
+
+<section class="promos container" aria-label="Collections">
+  <a class="promo promo-on-light" href="{{ base }}/?category=vases#shop">
+    <img src="{{ base }}/static/img/bud-vase-pair.jpg" alt="Two white bud vases with blossom stems on an oak tray" width="1200" height="800" loading="lazy">
+    <span class="promo-copy">
+      <span class="promo-title">Vases</span>
+      <span class="promo-text">Bud vases and bottles for a single stem or a dried bunch.</span>
+      <span class="btn btn-small">Shop vases</span>
+    </span>
+  </a>
+  <a class="promo promo-on-dark" href="{{ base }}/?category=coffee-tea#shop">
+    <img src="{{ base }}/static/img/carafe-cups.jpg" alt="A speckled white bottle carafe with two small handleless cups" width="1200" height="1200" loading="lazy">
+    <span class="promo-copy">
+      <span class="promo-title">Coffee &amp; tea</span>
+      <span class="promo-text">Drippers, carafes and cups for a slower morning.</span>
+      <span class="btn btn-small">Shop coffee &amp; tea</span>
+    </span>
+  </a>
+</section>
+
+<section class="reviews-band">
+  <div class="container">
+    <header class="section-head">
+      <h2>What customers say</h2>
+    </header>
+    <div class="quote-grid">
+      {% for p in all_products if p.sku in ("FH-MUG-01", "FH-PLT-10", "FH-VAS-13") %}
+      {% set r = p.reviews[0] %}
+      <figure class="quote">
+        <img src="{{ base }}/static/img/{{ p.image }}" alt="{{ p.name }}" width="160" height="160" loading="lazy">
+        {{ stars(r.rating) }}
+        <blockquote><p>{{ r.body }}</p></blockquote>
+        <figcaption>{{ r.author }}, {{ r.location }}<br><a href="{{ base }}/products/{{ p.slug }}">{{ p.name }}</a></figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="studio container" id="studio">
+  <img src="{{ base }}/static/img/potter-wheel.jpg" alt="A potter's clay-covered hands shaping a pot on the wheel" width="1200" height="900" loading="lazy">
+  <div class="studio-card">
+    <h2>Two potters, one kiln</h2>
+    <p>We started Fernhill in a garage in 2019. Today we throw everything on two wheels by the river in Asheville and fire about once a month, so every batch is small.</p>
+    <h3>Hear about the next kiln opening</h3>
+    <form class="inline-form" onsubmit="event.preventDefault(); this.outerHTML = '<p class=&quot;form-done&quot;>Thanks! You are on the list.</p>';">
+      <label class="visually-hidden" for="signup-email">Email</label>
+      <input id="signup-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+      <button type="submit" class="btn">Sign up</button>
+    </form>
+  </div>
+</section>
 {% endblock %}

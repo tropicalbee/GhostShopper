@@ -1,0 +1,37 @@
+{#- Shared chrome for the checkout pages. Keep exactly three controls before the page's form or payment button
+    (logo, "Continue shopping", the product link in the steps): the recorded agent runs address them by position. -#}
+{%- from "_macros.html" import logo, photo_alt, photo_src with context -%}
+
+{%- macro checkout_header() -%}
+<header class="checkout-header">
+  <div class="container checkout-header-row">
+    {{ logo() }}
+    <a class="checkout-back" href="{{ base }}/">Continue shopping</a>
+  </div>
+</header>
+{%- endmacro -%}
+
+{%- macro steps(product, current) -%}
+<nav class="steps" aria-label="Checkout steps">
+  <ol>
+    <li><a href="{{ base }}/products/{{ product.slug }}">{{ product.name }}</a></li>
+    {%- if flaws.extra_checkout_step %}
+    <li{% if current == "details" %} aria-current="step"{% endif %}>Your details</li>
+    {%- endif %}
+    <li{% if current == "payment" %} aria-current="step"{% endif %}>Payment</li>
+  </ol>
+</nav>
+{%- endmacro -%}
+
+{%- macro summary_item(product, note="Qty 1") -%}
+<div class="summary-item">
+  <span class="summary-thumb"><img src="{{ photo_src(product) }}" alt="{{ photo_alt(product) }}" width="64" height="64"><span class="qty-badge" aria-hidden="true">1</span></span>
+  <span class="summary-name">{{ product.name }}<span class="muted">{{ note }}</span></span>
+</div>
+{%- endmacro -%}
+
+{%- macro checkout_footer() -%}
+<footer class="checkout-footer">
+  <div class="container"><p>&copy; 2026 {{ store_name }}. Returns accepted within 30 days. A demo store for GhostShopper.</p></div>
+</footer>
+{%- endmacro -%}

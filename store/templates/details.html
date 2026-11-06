@@ -1,28 +1,40 @@
 {% extends "base.html" %}
 {% block title %}Your details | {{ store_name }}{% endblock %}
+{% block header %}{% from "_checkout.html" import checkout_header with context %}{{ checkout_header() }}{% endblock %}
+{% block footer %}{% from "_checkout.html" import checkout_footer with context %}{{ checkout_footer() }}{% endblock %}
 {% block content %}
-<h1>Your details</h1>
-<p>Step 1 of 2. We need a few things before you can pay.</p>
-{% if errors %}
-<div class="errors">
-  {% for e in errors %}<p>{{ e }}</p>{% endfor %}
+{% from "_checkout.html" import steps, summary_item with context %}
+<div class="container checkout">
+  <div class="checkout-main">
+    {{ steps(product, "details") }}
+    <h1>Your details</h1>
+    <p class="step-note">Step 1 of 2. We need a few things before you can pay.</p>
+    {% if errors %}
+    <div class="errors" role="alert">
+      {% for e in errors %}<p>{{ e }}</p>{% endfor %}
+    </div>
+    {% endif %}
+    <form class="details-form" method="post" action="{{ base }}/checkout/details">
+      <input type="hidden" name="sku" value="{{ product.sku }}">
+      <label>Email for order updates
+        <input type="email" name="email" value="{{ form.email or '' }}" autocomplete="email">
+      </label>
+      <label>How did you hear about us?
+        <select name="referral">
+          <option value="">Choose one</option>
+          {% for opt in referral_options %}
+          <option value="{{ opt }}" {% if form.referral == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" name="agree" value="yes"> I agree to the store policies</label>
+      <button type="submit">Next</button>
+    </form>
+  </div>
+
+  <aside class="checkout-summary" aria-label="Order summary">
+    <h2>Your order</h2>
+    {{ summary_item(product) }}
+  </aside>
 </div>
-{% endif %}
-<form class="details-form" method="post" action="{{ base }}/checkout/details">
-  <input type="hidden" name="sku" value="{{ product.sku }}">
-  <p>Item: {{ product.name }}</p>
-  <label>Email for order updates
-    <input type="email" name="email" value="{{ form.email or '' }}">
-  </label>
-  <label>How did you hear about us?
-    <select name="referral">
-      <option value="">-- choose one --</option>
-      {% for opt in referral_options %}
-      <option value="{{ opt }}" {% if form.referral == opt %}selected{% endif %}>{{ opt }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <label class="check"><input type="checkbox" name="agree" value="yes"> I agree to the store policies</label>
-  <button type="submit">Next</button>
-</form>
 {% endblock %}

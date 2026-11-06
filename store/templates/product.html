@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "_macros.html" import price, photo_alt with context %}
+{% from "_macros.html" import price, photo_alt, photo_src, stars, card with context %}
+{% set nav_current = product.category %}
 {% block title %}{{ product.name }} | {{ store_name }}{% endblock %}
 {% block meta %}<meta name="description" content="{{ product.summary }}">
 <link rel="canonical" href="{{ origin }}{{ base }}/products/{{ product.slug }}">{% endblock %}
@@ -11,57 +12,107 @@
 {% endif %}
 {% endblock %}
 {% block content %}
-<div class="crumbs"><a href="{{ base }}/">Shop</a> / {{ product.name }}</div>
-<div class="product">
-  <img class="product-img" src="{{ base }}/static/img/{{ product.image }}" alt="{{ photo_alt(product) }}">
-  <div class="product-info">
-    {% if flaws.no_structured_data %}
-    <div class="product-name">{{ product.name }}</div>
-    {% else %}
-    <h1>{{ product.name }}</h1>
-    {% endif %}
-    <div class="product-price">{{ price(product) }}
-      {%- if flaws.misleading_sale %}
-      <span class="was-price"><s>{{ "" if flaws.currency_missing else "$" }}{{ was_price }}</s></span>
-      <span class="sale-badge">50% off!</span>
-      {%- endif %}
-    </div>
-    {% if not flaws.no_structured_data %}
-    <p class="meta-line">SKU: {{ product.sku }} &middot; {{ "Out of stock" if listed_out else "In stock" }}</p>
-    {% endif %}
-    <p>{{ product.description }}</p>
-    <ul class="details">
-      {% for d in product.details %}<li>{{ d }}</li>{% endfor %}
-    </ul>
+<div class="container">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="{{ base }}/">Shop</a> <span aria-hidden="true">/</span> <a href="{{ base }}/?category={{ product.category }}#shop">{{ product.category_name }}</a> <span aria-hidden="true">/</span> <span aria-current="page">{{ product.name }}</span></nav>
 
-    {% if listed_out %}
-      <p class="soldout">Sold out{% if not buyable %}. Join the newsletter to hear when it's back.{% endif %}</p>
-    {% endif %}
-    {% if buyable %}
-    <div class="actions-wrap">
-    {% if flaws.ambiguous_buttons %}
-      <div class="actions">
-        <div class="act act-a" onclick="location.href='{{ base }}/products/{{ next_product.slug }}'">Continue</div>
-        <div class="act act-b" onclick="location.href='{{ base }}/newsletter'">Proceed</div>
-        <div class="act act-c" onclick="location.href='{{ buy_url }}'">Go</div>
-        <div class="act act-d" onclick="location.href='{{ base }}/'">&rarr;</div>
-      </div>
-    {% else %}
-      <form class="actions" action="{{ buy_url.split('?')[0] }}" method="get">
-        <input type="hidden" name="sku" value="{{ product.sku }}">
-        <button type="submit" class="buy">Buy now</button>
-        <a class="secondary" href="{{ base }}/">Back to shop</a>
-      </form>
-    {% endif %}
-    {% if show_cookie_banner %}
-      <div class="cookie-banner" id="cookie-banner">
-        <span>We use cookies to improve your experience.</span>
-        <button type="button" id="cookie-accept"
-                onclick="document.cookie='fh_cookies=1; path=/'; document.getElementById('cookie-banner').remove();">Accept</button>
-      </div>
-    {% endif %}
+  <div class="product">
+    <div class="product-media">
+      <img class="product-img" src="{{ photo_src(product) }}" alt="{{ photo_alt(product) }}" width="900" height="900">
     </div>
-    {% endif %}
+
+    <div class="product-info">
+      {% if flaws.no_structured_data %}
+      <div class="product-name">{{ product.name }}</div>
+      {% else %}
+      <h1>{{ product.name }}</h1>
+      {% endif %}
+      {% if product.rating %}
+      <p class="product-rating">{{ stars(product.rating) }} <span>{{ product.rating }} from {{ product.reviews | length }} reviews</span></p>
+      {% endif %}
+
+      <div class="product-price">{{ price(product) }}
+        {%- if flaws.misleading_sale %}
+        <span class="was-price"><s>{{ "" if flaws.currency_missing else "$" }}{{ was_price }}</s></span>
+        <span class="sale-badge">50% off!</span>
+        {%- endif %}
+      </div>
+      <p class="product-note">Shipping calculated at checkout.</p>
+      {% if not flaws.no_structured_data %}
+      <p class="meta-line"><span>SKU: {{ product.sku }}</span> <span class="stock {{ 'stock-out' if listed_out else 'stock-in' }}">{{ "Out of stock" if listed_out else "In stock" }}</span></p>
+      {% endif %}
+      <p class="product-summary">{{ product.summary }}</p>
+
+      {% if listed_out %}
+        <p class="soldout">Sold out{% if not buyable %}. Join the newsletter to hear when it's back.{% endif %}</p>
+      {% endif %}
+      {% if buyable %}
+      <div class="actions-wrap">
+      {% if flaws.ambiguous_buttons %}
+        <div class="actions">
+          <div class="act act-a" onclick="location.href='{{ base }}/products/{{ next_product.slug }}'">Continue</div>
+          <div class="act act-b" onclick="location.href='{{ base }}/newsletter'">Proceed</div>
+          <div class="act act-c" onclick="location.href='{{ buy_url }}'">Go</div>
+          <div class="act act-d" onclick="location.href='{{ base }}/'">&rarr;</div>
+        </div>
+      {% else %}
+        <form class="actions" action="{{ buy_url.split('?')[0] }}" method="get">
+          <input type="hidden" name="sku" value="{{ product.sku }}">
+          <button type="submit" class="buy">Buy now</button>
+          <a class="secondary" href="{{ base }}/">Back to shop</a>
+        </form>
+      {% endif %}
+      {% if show_cookie_banner %}
+        <div class="cookie-banner" id="cookie-banner">
+          <span>We use cookies to improve your experience.</span>
+          <button type="button" id="cookie-accept"
+                  onclick="document.cookie='fh_cookies=1; path=/'; document.getElementById('cookie-banner').remove();">Accept</button>
+        </div>
+      {% endif %}
+      </div>
+      {% endif %}
+
+      <ul class="product-perks">
+        <li>Ships from Asheville in 3 business days</li>
+        <li>Returns accepted within 30 days</li>
+        <li>Handmade, so size and glaze vary slightly</li>
+      </ul>
+
+      <div class="product-about">
+        <h2>About this piece</h2>
+        <p>{{ product.description }}</p>
+        <ul class="details">
+          {% for d in product.details %}<li>{{ d }}</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
+
+{% if product.reviews %}
+<section class="product-reviews container" aria-labelledby="reviews-head">
+  <header class="reviews-summary">
+    <h2 id="reviews-head">Customer reviews</h2>
+    <p>{{ stars(product.rating, "lg") }} <span>{{ product.rating }} out of 5, based on {{ product.reviews | length }} reviews</span></p>
+  </header>
+  <ol class="review-list">
+    {% for r in product.reviews %}
+    <li class="review">
+      {{ stars(r.rating) }}
+      <h3>{{ r.title }}</h3>
+      <p>{{ r.body }}</p>
+      <p class="review-meta">{{ r.author }}, {{ r.location }}, <time datetime="{{ r.date }}">{{ r.display_date }}</time></p>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
+
+<section class="related container" aria-labelledby="related-head">
+  <header class="section-head">
+    <h2 id="related-head">You may also like</h2>
+  </header>
+  <div class="grid">
+    {% for p in related %}{{ card(p) }}{% endfor %}
+  </div>
+</section>
 {% endblock %}

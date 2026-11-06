@@ -6,10 +6,42 @@
     "price": "24.00",
     "currency": "USD",
     "in_stock": true,
-    "image": "mug.svg",
+    "image": "speckled-mug.jpg",
+    "category": "mugs-cups",
     "summary": "Wheel-thrown 12 oz mug in our oatmeal speckle glaze.",
     "description": "Each mug is thrown by hand in our studio, trimmed, and glazed in a soft oatmeal speckle. Holds about 12 oz. Dishwasher and microwave safe. Because every piece is handmade, size and glaze will vary slightly.",
-    "details": ["Capacity: 12 oz (355 ml)", "Height: 3.75 in", "Stoneware, lead-free glaze", "Dishwasher and microwave safe"]
+    "details": [
+      "Capacity: 12 oz (355 ml)",
+      "Height: 3.75 in",
+      "Stoneware, lead-free glaze",
+      "Dishwasher and microwave safe"
+    ],
+    "reviews": [
+      {
+        "author": "Megan R.",
+        "location": "Portland, OR",
+        "rating": 5,
+        "date": "2026-09-14",
+        "title": "My new morning mug",
+        "body": "The speckle is even nicer in person and the handle fits three fingers. It keeps coffee warm longer than my old mugs."
+      },
+      {
+        "author": "Daniel K.",
+        "location": "Austin, TX",
+        "rating": 5,
+        "date": "2026-08-30",
+        "title": "Bought two more",
+        "body": "Got one as a gift for my sister, then ordered two for us. Each one is a little different, which I like."
+      },
+      {
+        "author": "Priya S.",
+        "location": "Raleigh, NC",
+        "rating": 4,
+        "date": "2026-07-22",
+        "title": "Lovely, slightly smaller than expected",
+        "body": "Beautiful glaze and very solid. It holds a regular coffee, not a big latte, so check the size if you like a large cup."
+      }
+    ]
   },
   {
     "sku": "FH-DRP-02",
@@ -18,10 +50,34 @@
     "price": "38.00",
     "currency": "USD",
     "in_stock": true,
-    "image": "dripper.svg",
+    "image": "dripper.jpg",
+    "category": "coffee-tea",
     "summary": "Single-cup ceramic dripper, fits #2 cone filters.",
-    "description": "A ceramic cone dripper with spiral ribs for an even pour. Sits on most mugs and carafes. Fits standard #2 paper filters (not included). Glazed matte charcoal outside, gloss white inside.",
-    "details": ["Fits #2 cone filters", "Base diameter: 4 in", "Stoneware", "Hand wash recommended"]
+    "description": "A ceramic cone dripper with spiral ribs for an even pour. Sits on most mugs and carafes. Fits standard #2 paper filters (not included). Glazed gloss white inside and out.",
+    "details": [
+      "Fits #2 cone filters",
+      "Base diameter: 4 in",
+      "Stoneware",
+      "Hand wash recommended"
+    ],
+    "reviews": [
+      {
+        "author": "Tom H.",
+        "location": "Denver, CO",
+        "rating": 5,
+        "date": "2026-09-02",
+        "title": "Even extraction",
+        "body": "The ribs keep the filter off the wall so it drains evenly. Heavier than plastic, which keeps it steady on the mug."
+      },
+      {
+        "author": "Alicia M.",
+        "location": "Chicago, IL",
+        "rating": 4,
+        "date": "2026-08-11",
+        "title": "Great, preheat it first",
+        "body": "Makes a clean cup. Ceramic soaks up heat, so rinse it with hot water before brewing."
+      }
+    ]
   },
   {
     "sku": "FH-BWL-03",
@@ -30,10 +86,34 @@
     "price": "52.00",
     "currency": "USD",
     "in_stock": true,
-    "image": "bowl.svg",
+    "image": "serving-bowl.jpg",
+    "category": "bowls-plates",
     "summary": "Wide 10 in serving bowl with a runny ash glaze.",
-    "description": "Our largest bowl, made for salads, pasta and fruit. The wood-ash glaze pools and runs during firing, so no two are the same. About 10 inches across and 3 inches deep.",
-    "details": ["Diameter: 10 in", "Depth: 3 in", "Stoneware, food safe", "Dishwasher safe"]
+    "description": "Our largest bowl, made for salads, pasta and fruit. The pale wood-ash glaze pools and runs during firing, so no two are the same. About 10 inches across and 3 inches deep.",
+    "details": [
+      "Diameter: 10 in",
+      "Depth: 3 in",
+      "Stoneware, food safe",
+      "Dishwasher safe"
+    ],
+    "reviews": [
+      {
+        "author": "Hannah L.",
+        "location": "Boston, MA",
+        "rating": 5,
+        "date": "2026-09-20",
+        "title": "Centerpiece of the table",
+        "body": "The glaze has a soft sea-glass color. Big enough for a salad for six and it looks great empty on the counter too."
+      },
+      {
+        "author": "Chris P.",
+        "location": "Asheville, NC",
+        "rating": 5,
+        "date": "2026-06-18",
+        "title": "Worth the wait",
+        "body": "Picked it up at the studio. Solid, smooth inside, and it has survived the dishwasher for months."
+      }
+    ]
   },
   {
     "sku": "FH-ESP-04",
@@ -42,9 +122,329 @@
     "price": "44.00",
     "currency": "USD",
     "in_stock": false,
-    "image": "espresso.svg",
+    "image": "espresso-cup.jpg",
+    "category": "mugs-cups",
     "summary": "Four 3 oz cups in mixed glazes. Back in stock soon.",
     "description": "A set of four small cups for espresso or cortado, each in a different glaze from our seasonal range. About 3 oz each. Colors vary from set to set.",
-    "details": ["Set of 4", "Capacity: 3 oz each", "Stoneware", "Dishwasher safe"]
+    "details": [
+      "Set of 4",
+      "Capacity: 3 oz each",
+      "Stoneware",
+      "Dishwasher safe"
+    ],
+    "reviews": [
+      {
+        "author": "Marco V.",
+        "location": "Philadelphia, PA",
+        "rating": 5,
+        "date": "2026-05-09",
+        "title": "Perfect size for a double",
+        "body": "Thick walls keep the shot hot. The four glazes look great together on the shelf."
+      },
+      {
+        "author": "Jess W.",
+        "location": "Seattle, WA",
+        "rating": 4,
+        "date": "2026-04-27",
+        "title": "Pretty set",
+        "body": "Lovely colors. I wish the blue one came as its own set."
+      }
+    ]
+  },
+  {
+    "sku": "FH-MUG-05",
+    "slug": "everyday-mug-chalk-white",
+    "name": "Everyday Mug, Chalk White",
+    "price": "22.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "everyday-mug.jpg",
+    "category": "mugs-cups",
+    "summary": "Our simplest mug in a satin chalk-white glaze.",
+    "description": "A straight-sided mug with a wide handle and a satin white glaze that is smooth to the touch. Holds about 11 oz. Made to stack two high in a cupboard.",
+    "details": [
+      "Capacity: 11 oz (325 ml)",
+      "Height: 3.5 in",
+      "Stoneware, satin glaze",
+      "Dishwasher and microwave safe"
+    ],
+    "reviews": [
+      {
+        "author": "Olivia T.",
+        "location": "Brooklyn, NY",
+        "rating": 5,
+        "date": "2026-09-25",
+        "title": "Simple and well made",
+        "body": "Exactly what I wanted, a plain white mug that feels handmade. The satin finish is really nice."
+      },
+      {
+        "author": "Sam D.",
+        "location": "Durham, NC",
+        "rating": 4,
+        "date": "2026-08-03",
+        "title": "Good everyday mug",
+        "body": "Sturdy and stacks well. Handle is a bit small for big hands."
+      }
+    ]
+  },
+  {
+    "sku": "FH-CUP-07",
+    "slug": "short-tea-cup",
+    "name": "Short Tea Cup",
+    "price": "26.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "tea-cup.jpg",
+    "category": "coffee-tea",
+    "summary": "A low 8 oz cup for tea, with a small loop handle.",
+    "description": "A short, wide tea cup with a thin rim and a small loop handle. Glazed gloss white so the color of your tea shows. Holds about 8 oz.",
+    "details": [
+      "Capacity: 8 oz (235 ml)",
+      "Height: 2.75 in",
+      "Stoneware, gloss glaze",
+      "Dishwasher safe"
+    ],
+    "reviews": [
+      {
+        "author": "Eleanor B.",
+        "location": "Richmond, VA",
+        "rating": 5,
+        "date": "2026-08-19",
+        "title": "Delicate rim",
+        "body": "The thin rim makes tea taste better, I swear. Lovely shape."
+      },
+      {
+        "author": "Kenji O.",
+        "location": "Oakland, CA",
+        "rating": 5,
+        "date": "2026-07-30",
+        "title": "Bought a set of four",
+        "body": "Ordered four over two orders and they match well. Good weight in the hand."
+      }
+    ]
+  },
+  {
+    "sku": "FH-CRF-08",
+    "slug": "speckled-carafe-and-cups",
+    "name": "Speckled Carafe and Cups",
+    "price": "78.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "carafe-cups.jpg",
+    "category": "coffee-tea",
+    "summary": "A 20 oz pouring carafe with two handleless cups.",
+    "description": "A tall carafe for water, sake or cold brew, with two handleless cups. All three are glazed in our white speckle over a toasted clay foot. The carafe holds about 20 oz.",
+    "details": [
+      "Carafe: 20 oz (590 ml)",
+      "Cups: 5 oz each",
+      "Stoneware, speckled glaze",
+      "Hand wash recommended"
+    ],
+    "reviews": [
+      {
+        "author": "Leah G.",
+        "location": "Minneapolis, MN",
+        "rating": 5,
+        "date": "2026-09-11",
+        "title": "Beautiful gift",
+        "body": "Gave it as a wedding gift and it was a hit. Pours without dripping."
+      },
+      {
+        "author": "Victor J.",
+        "location": "Atlanta, GA",
+        "rating": 4,
+        "date": "2026-07-05",
+        "title": "Lovely set",
+        "body": "Nice speckle and pours cleanly. The cups are small, closer to sake cups."
+      }
+    ]
+  },
+  {
+    "sku": "FH-BWL-09",
+    "slug": "nesting-bowls-set-of-2",
+    "name": "Nesting Bowls (Set of 2)",
+    "price": "40.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "nesting-bowls.jpg",
+    "category": "bowls-plates",
+    "summary": "Two cereal bowls that nest, one honey, one pattern.",
+    "description": "Two 6 inch bowls for cereal, rice or noodles. One is glazed in honey amber, the other carved with a simple diamond pattern under a blue-grey glaze. They nest for storage.",
+    "details": [
+      "Diameter: 6 in",
+      "Depth: 2.75 in",
+      "Stoneware, food safe",
+      "Dishwasher safe"
+    ],
+    "reviews": [
+      {
+        "author": "Nora C.",
+        "location": "Kansas City, MO",
+        "rating": 5,
+        "date": "2026-08-26",
+        "title": "Perfect cereal bowls",
+        "body": "Just the right size. The carved one is my favorite thing in the kitchen."
+      },
+      {
+        "author": "Will E.",
+        "location": "Pittsburgh, PA",
+        "rating": 4,
+        "date": "2026-06-21",
+        "title": "Pretty pair",
+        "body": "Good quality. I would buy a set of four if you made one."
+      }
+    ]
+  },
+  {
+    "sku": "FH-PLT-10",
+    "slug": "dinner-plates-sky-glaze",
+    "name": "Dinner Plates, Sky Glaze (Set of 4)",
+    "price": "96.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "dinner-plates.jpg",
+    "category": "bowls-plates",
+    "summary": "Four 10.5 in dinner plates in a soft sky-blue glaze.",
+    "description": "Four dinner plates with a gentle rim and a sky-blue glaze that breaks lighter at the edges. Each is about 10.5 inches across. Made in small batches, so the blue varies a little from plate to plate.",
+    "details": [
+      "Set of 4",
+      "Diameter: 10.5 in",
+      "Stoneware, food safe",
+      "Dishwasher and microwave safe"
+    ],
+    "reviews": [
+      {
+        "author": "Isabel M.",
+        "location": "Santa Fe, NM",
+        "rating": 5,
+        "date": "2026-09-17",
+        "title": "Gorgeous color",
+        "body": "The blue changes in different light. They feel substantial without being too heavy."
+      },
+      {
+        "author": "Patrick Q.",
+        "location": "Charleston, SC",
+        "rating": 5,
+        "date": "2026-08-08",
+        "title": "Well packed",
+        "body": "Arrived safely in lots of paper. Every plate is a little different, as described."
+      },
+      {
+        "author": "Dana Y.",
+        "location": "Madison, WI",
+        "rating": 4,
+        "date": "2026-05-30",
+        "title": "Lovely plates",
+        "body": "Beautiful, though they take up more cupboard space than my old set."
+      }
+    ]
+  },
+  {
+    "sku": "FH-VAS-11",
+    "slug": "bud-vase-matte-white",
+    "name": "Bud Vase, Matte White",
+    "price": "28.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "bud-vase.jpg",
+    "category": "vases",
+    "summary": "A small rounded vase for a single stem or sprig.",
+    "description": "A small, rounded bud vase in a matte white glaze with a narrow neck that holds a single stem upright. Glazed inside, so it holds water. About 5 inches tall.",
+    "details": [
+      "Height: 5 in",
+      "Opening: 0.75 in",
+      "Stoneware, matte glaze",
+      "Watertight"
+    ],
+    "reviews": [
+      {
+        "author": "Amy Z.",
+        "location": "Burlington, VT",
+        "rating": 5,
+        "date": "2026-09-03",
+        "title": "Simple and sweet",
+        "body": "Lives on my desk with whatever is growing outside. Matte glaze is lovely."
+      },
+      {
+        "author": "Luis R.",
+        "location": "Houston, TX",
+        "rating": 5,
+        "date": "2026-07-19",
+        "title": "Great small gift",
+        "body": "Bought three for friends. Nicely packed and arrived fast."
+      }
+    ]
+  },
+  {
+    "sku": "FH-VAS-12",
+    "slug": "bud-vase-pair-with-oak-tray",
+    "name": "Bud Vase Pair with Oak Tray",
+    "price": "58.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "bud-vase-pair.jpg",
+    "category": "vases",
+    "summary": "Two tall white bud vases on a shaped oak tray.",
+    "description": "Two slim bud vases in gloss white, sold with a shaped oak tray made by a woodworker down the road from our studio. The vases are about 7 inches tall.",
+    "details": [
+      "Vase height: 7 in",
+      "Tray: 12 x 6 in, solid oak",
+      "Stoneware, gloss glaze",
+      "Wipe the tray, do not soak"
+    ],
+    "reviews": [
+      {
+        "author": "Claire D.",
+        "location": "Providence, RI",
+        "rating": 5,
+        "date": "2026-08-14",
+        "title": "So pretty on the table",
+        "body": "The tray makes it feel finished. Looks great with a few dried stems."
+      },
+      {
+        "author": "Omar S.",
+        "location": "Detroit, MI",
+        "rating": 4,
+        "date": "2026-06-09",
+        "title": "Nice piece",
+        "body": "The oak is beautiful. One vase was a touch taller than the other, which is fine for handmade."
+      }
+    ]
+  },
+  {
+    "sku": "FH-VAS-13",
+    "slug": "bottle-vases-stone-grey",
+    "name": "Bottle Vases, Stone Grey (Set of 3)",
+    "price": "72.00",
+    "currency": "USD",
+    "in_stock": true,
+    "image": "bottle-vases.jpg",
+    "category": "vases",
+    "summary": "Three bottle-shaped vases in a speckled stone glaze.",
+    "description": "Three bottle vases in two heights, glazed in a speckled stone grey that shows the clay underneath. Good for dried flowers and single branches. The tallest is about 9 inches.",
+    "details": [
+      "Heights: 7 to 9 in",
+      "Set of 3",
+      "Stoneware, speckled glaze",
+      "Watertight"
+    ],
+    "reviews": [
+      {
+        "author": "Fiona K.",
+        "location": "Asheville, NC",
+        "rating": 5,
+        "date": "2026-09-22",
+        "title": "Stunning trio",
+        "body": "They look like they came from a gallery. The speckle is subtle and beautiful."
+      },
+      {
+        "author": "George T.",
+        "location": "Nashville, TN",
+        "rating": 5,
+        "date": "2026-08-01",
+        "title": "Love them",
+        "body": "Bought these for the mantel. Great with dried poppies."
+      }
+    ]
   }
 ]

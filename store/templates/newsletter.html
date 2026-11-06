@@ -1,10 +1,16 @@
 {% extends "base.html" %}
+{% set nav_current = "newsletter" %}
 {% block title %}Newsletter | {{ store_name }}{% endblock %}
 {% block content %}
-<h1>Join our list</h1>
-<p>Kiln openings, seconds sales and restocks, about once a month.</p>
-<form class="details-form" onsubmit="event.preventDefault(); this.innerHTML = '<p>Thanks! You are on the list.</p>';">
-  <label>Email <input type="email" name="email" required></label>
-  <button type="submit">Sign up</button>
-</form>
+<section class="signup signup-page container">
+  <img src="{{ base }}/static/img/studio-shelf.jpg" alt="Speckled and pale yellow stoneware bowls and cups on a wooden table" width="1200" height="900">
+  <div class="signup-card">
+    <h1>Join our list</h1>
+    <p>Kiln openings, seconds sales and restocks, about once a month.</p>
+    <form class="details-form" onsubmit="event.preventDefault(); this.innerHTML = '<p class=&quot;form-done&quot;>Thanks! You are on the list.</p>';">
+      <label>Email <input type="email" name="email" autocomplete="email" required></label>
+      <button type="submit">Sign up</button>
+    </form>
+  </div>
+</section>
 {% endblock %}

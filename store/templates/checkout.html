@@ -1,29 +1,48 @@
 {% extends "base.html" %}
-{% from "_macros.html" import price with context %}
 {% block title %}Checkout | {{ store_name }}{% endblock %}
+{% block header %}{% from "_checkout.html" import checkout_header with context %}{{ checkout_header() }}{% endblock %}
+{% block footer %}{% from "_checkout.html" import checkout_footer with context %}{{ checkout_footer() }}{% endblock %}
 {% block content %}
-<h1>Checkout</h1>
-<table class="summary">
-  <tr><th>Item</th><th>Qty</th><th>Price</th></tr>
-  <tr><td>{{ product.name }}</td><td>1</td><td>{{ price(product, unit_price) }}</td></tr>
-  <tr><td colspan="2">Shipping</td><td>Free</td></tr>
-  <tr class="total"><td colspan="2">Total</td><td>{{ price(product, unit_price) }}</td></tr>
-</table>
-
-{% if not buyable %}
-  <p class="soldout">Sorry, this item is sold out.</p>
-{% elif not paypal_client_id %}
-  <p class="errors" id="paypal-unavailable">Payment is unavailable: PayPal is not configured on this store (PAYPAL_CLIENT_ID is missing).</p>
-{% else %}
-  <p>Pay securely with PayPal.</p>
-  <div id="checkout"
-       data-sku="{{ product.sku }}"
-       data-client-id="{{ paypal_client_id }}"
-       data-thanks-url="{{ base }}/thanks">
-    <paypal-button id="paypal-button" type="pay" hidden></paypal-button>
-    <p id="checkout-status" class="status" role="status"></p>
+{% from "_macros.html" import price with context %}
+{% from "_checkout.html" import steps, summary_item with context %}
+<div class="container checkout">
+  <div class="checkout-main">
+    {{ steps(product, "payment") }}
+    <h1>Checkout</h1>
+    <section class="checkout-step">
+      <h2>Payment</h2>
+      {% if not buyable %}
+        <p class="soldout">Sorry, this item is sold out.</p>
+      {% elif not paypal_client_id %}
+        <p class="errors" id="paypal-unavailable">Payment is unavailable: PayPal is not configured on this store (PAYPAL_CLIENT_ID is missing).</p>
+      {% else %}
+        <p>Pay with your PayPal balance or a card. A PayPal window opens, and you come back here when you are done.</p>
+        <div id="checkout"
+             data-sku="{{ product.sku }}"
+             data-client-id="{{ paypal_client_id }}"
+             data-thanks-url="{{ base }}/thanks">
+          <paypal-button id="paypal-button" type="pay" hidden></paypal-button>
+          <p id="checkout-status" class="status" role="status"></p>
+        </div>
+      {% endif %}
+    </section>
+    <p class="secure-note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 9V6.5a4.5 4.5 0 0 1 9 0V9M4 9h12v9H4z"/></svg>Payments are processed by PayPal. We never see your card details.</p>
   </div>
-{% endif %}
+
+  <aside class="checkout-summary" aria-label="Order summary">
+    <h2>Order summary</h2>
+    <table class="summary">
+      <tr><th scope="col">Item</th><th scope="col">Qty</th><th scope="col">Price</th></tr>
+      <tr>
+        <td>{{ summary_item(product, product.category_name) }}</td>
+        <td>1</td>
+        <td>{{ price(product, unit_price) }}</td>
+      </tr>
+      <tr><td colspan="2">Shipping</td><td>Free</td></tr>
+      <tr class="total"><td colspan="2">Total</td><td>{{ price(product, unit_price) }}</td></tr>
+    </table>
+  </aside>
+</div>
 {% endblock %}
 {% block scripts %}
 {% if buyable and paypal_client_id %}

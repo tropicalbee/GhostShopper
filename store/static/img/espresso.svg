@@ -1,8 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
-  <rect width="400" height="400" fill="#efe7dc"/>
-  <ellipse cx="200" cy="300" rx="160" ry="12" fill="#d9cdbd"/>
-  <path d="M50 220 h60 v60 a10 10 0 0 1 -10 10 h-40 a10 10 0 0 1 -10 -10 z" fill="#b5523b"/>
-  <path d="M130 220 h60 v60 a10 10 0 0 1 -10 10 h-40 a10 10 0 0 1 -10 -10 z" fill="#3d6b8a"/>
-  <path d="M210 220 h60 v60 a10 10 0 0 1 -10 10 h-40 a10 10 0 0 1 -10 -10 z" fill="#e8dcc8" stroke="#b9a68c" stroke-width="2"/>
-  <path d="M290 220 h60 v60 a10 10 0 0 1 -10 10 h-40 a10 10 0 0 1 -10 -10 z" fill="#5a6b4a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <radialGradient id="shadowEsp" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="200" cy="305" rx="140" ry="18" fill="url(#shadowEsp)"/>
+  <!-- 4 Cortado / Espresso Cups in studio palette -->
+  <g transform="translate(75, 190)">
+    <rect x="0" y="0" width="46" height="58" rx="6" fill="#c05c46"/>
+    <ellipse cx="23" cy="0" rx="23" ry="7" fill="#dc7761"/>
+  </g>
+  <g transform="translate(135, 190)">
+    <rect x="0" y="0" width="46" height="58" rx="6" fill="#3d5a80"/>
+    <ellipse cx="23" cy="0" rx="23" ry="7" fill="#55759e"/>
+  </g>
+  <g transform="translate(195, 190)">
+    <rect x="0" y="0" width="46" height="58" rx="6" fill="#e5dfd3"/>
+    <ellipse cx="23" cy="0" rx="23" ry="7" fill="#f3eee4"/>
+  </g>
+  <g transform="translate(255, 190)">
+    <rect x="0" y="0" width="46" height="58" rx="6" fill="#4d624f"/>
+    <ellipse cx="23" cy="0" rx="23" ry="7" fill="#657d67"/>
+  </g>
 </svg>

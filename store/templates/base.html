@@ -1,29 +1,76 @@
+{%- set nav_current = nav_current | default("") -%}
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}{{ store_name }}{% endblock %}</title>
+<title>{% block title %}{{ store_name }} | Handmade stoneware{% endblock %}</title>
 {% if not flaws.no_structured_data %}{% block meta %}<meta name="description" content="Handmade stoneware mugs, bowls and coffee gear from {{ store_name }}.">{% endblock %}{% endif %}
-<link rel="stylesheet" href="{{ base }}/static/style.css">
+<link rel="preload" href="{{ base }}/static/fonts/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{ base }}/static/style.css?v=8">
 {% block head %}{% endblock %}
 </head>
 <body>
-<div class="topbar">Free US shipping on orders over $50 &middot; Studio closed Mondays</div>
+{% block header %}
+{% from "_macros.html" import logo with context %}
+<div class="announcement">Free US shipping on orders over $50</div>
 <header class="site-header">
-  <a class="logo" href="{{ base }}/">{{ store_name }}</a>
-  <nav>
-    <a href="{{ base }}/">Shop</a>
-    <a href="{{ base }}/newsletter">Newsletter</a>
-  </nav>
+  <div class="container header-row">
+    {{ logo() }}
+    <nav class="main-nav" aria-label="Main">
+      <a href="{{ base }}/#shop"{% if nav_current == "all" %} aria-current="page"{% endif %}>Shop all</a>
+      {% for slug, label in categories.items() %}<a href="{{ base }}/?category={{ slug }}#shop"{% if nav_current == slug %} aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}<a href="{{ base }}/#studio">Our studio</a>
+    </nav>
+    <a class="header-cta" href="{{ base }}/newsletter"{% if nav_current == "newsletter" %} aria-current="page"{% endif %}>Newsletter</a>
+  </div>
 </header>
+{% endblock %}
 <main>
 {% block content %}{% endblock %}
 </main>
+{% block footer %}
+{% from "_macros.html" import logo with context %}
 <footer class="site-footer">
-  <p>&copy; 2026 {{ store_name }} &middot; Small-batch pottery from Asheville, NC</p>
-  <p>Questions? hello@fernhill.example</p>
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      {{ logo("p") }}
+      <p>A two-person pottery studio in Asheville, North Carolina. Every piece is thrown, trimmed and glazed by hand, then fired in small batches.</p>
+    </div>
+    <div>
+      <h2 class="footer-head">Shop</h2>
+      <ul class="footer-links">
+        <li><a href="{{ base }}/#shop">Shop all</a></li>
+        {% for slug, label in categories.items() %}<li><a href="{{ base }}/?category={{ slug }}#shop">{{ label }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h2 class="footer-head">Help</h2>
+      <ul class="footer-links">
+        <li><a href="{{ base }}/newsletter">Restock alerts</a></li>
+        <li>Orders ship in 3 business days</li>
+        <li>Returns accepted within 30 days</li>
+        <li>Broken in transit? We replace it</li>
+      </ul>
+    </div>
+    <div>
+      <h2 class="footer-head">Visit</h2>
+      <ul class="footer-links">
+        <li>48 Riverside Drive, Asheville, NC</li>
+        <li>Tuesday to Saturday, 10am to 5pm</li>
+        <li>hello@fernhill.example</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bar">
+    <div class="container footer-bar-inner">
+      <p>&copy; 2026 {{ store_name }}. Payments by PayPal.</p>
+      <p>A demo store for GhostShopper. Photos from <a href="https://unsplash.com">Unsplash</a>, plus the dripper by <a href="https://commons.wikimedia.org/wiki/File:Kalita_Coffee_Dripper_Ceramic_101-Lotto.jpg">Quercus acuta</a> and the serving bowl by <a href="https://commons.wikimedia.org/wiki/File:BOWL,_Stoneware_withopalescent_blue_glaze.jpg">&#25516;&#33590;</a> (CC BY-SA 4.0, Wikimedia Commons).</p>
+    </div>
+  </div>
 </footer>
+{% endblock %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

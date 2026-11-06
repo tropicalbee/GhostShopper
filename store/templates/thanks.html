@@ -1,13 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Thank you | {{ store_name }}{% endblock %}
 {% block content %}
-<h1>Thank you for your order!</h1>
-{% if order_id %}
-<p>Your payment went through. We'll email you when it ships.</p>
-<p>Order number: <span id="order-id">{{ order_id }}</span></p>
-{% if capture_id %}<p>Payment reference: <span id="capture-id">{{ capture_id }}</span></p>{% endif %}
-{% else %}
-<p>We couldn't find an order number for this page.</p>
-{% endif %}
-<p><a href="{{ base }}/">Continue shopping</a></p>
+<div class="container narrow-page">
+  <div class="panel thanks">
+    {% if order_id %}
+    <svg class="thanks-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21"/><path d="M15 24.5l6 6 12-13"/></svg>
+    <h1>Thank you for your order!</h1>
+    <p>Your payment went through. We'll email you when it ships.</p>
+    <dl class="order-facts">
+      <dt>Order number</dt><dd><span id="order-id">{{ order_id }}</span></dd>
+      {% if capture_id %}<dt>Payment reference</dt><dd><span id="capture-id">{{ capture_id }}</span></dd>{% endif %}
+    </dl>
+    {% else %}
+    <h1>Thank you for your order!</h1>
+    <p>We couldn't find an order number for this page.</p>
+    {% endif %}
+    <p><a class="btn" href="{{ base }}/">Continue shopping</a></p>
+  </div>
+</div>
 {% endblock %}

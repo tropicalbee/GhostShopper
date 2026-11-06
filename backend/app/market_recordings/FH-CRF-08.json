@@ -1,0 +1,142 @@
+{
+  "_fixture": "Hand-made fixture in Channel3 POST /v1/search response shape (https://channel3.ai/docs). Not real market data; domains use the reserved .example TLD.",
+  "products": [
+    {
+      "id": "rec-FH-CRF-08-1",
+      "title": "Ceramic Carafe with Two Cups",
+      "brands": [
+        {
+          "id": "brand-1",
+          "name": "Northfield Clay"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://northfieldclay.example/img/1.jpg",
+          "is_main_image": true,
+          "alt_text": "Ceramic Carafe with Two Cups"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://northfieldclay.example/products/1",
+          "domain": "northfieldclay.example",
+          "price": {
+            "price": 85.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-CRF-08-2",
+      "title": "Speckled Sake Set",
+      "brands": [
+        {
+          "id": "brand-2",
+          "name": "Sandpiper Ceramics"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://sandpiperceramics.example/img/2.jpg",
+          "is_main_image": true,
+          "alt_text": "Speckled Sake Set"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://sandpiperceramics.example/products/2",
+          "domain": "sandpiperceramics.example",
+          "price": {
+            "price": 68.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-CRF-08-3",
+      "title": "Stoneware Water Carafe Set",
+      "brands": [
+        {
+          "id": "brand-3",
+          "name": "Clayworks"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://clayworks.example/img/3.jpg",
+          "is_main_image": true,
+          "alt_text": "Stoneware Water Carafe Set"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://clayworks.example/products/3",
+          "domain": "clayworks.example",
+          "price": {
+            "price": 74.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-CRF-08-4",
+      "title": "Handmade Pouring Bottle and Cups",
+      "brands": [
+        {
+          "id": "brand-4",
+          "name": "Kiln House"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://kilnhouse.example/img/4.jpg",
+          "is_main_image": true,
+          "alt_text": "Handmade Pouring Bottle and Cups"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://kilnhouse.example/products/4",
+          "domain": "kilnhouse.example",
+          "price": {
+            "price": 92.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    }
+  ],
+  "next_page_token": null
+}

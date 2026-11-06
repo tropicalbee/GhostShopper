@@ -1,0 +1,142 @@
+{
+  "_fixture": "Hand-made fixture in Channel3 POST /v1/search response shape (https://channel3.ai/docs). Not real market data; domains use the reserved .example TLD.",
+  "products": [
+    {
+      "id": "rec-FH-VAS-11-1",
+      "title": "Small Matte White Bud Vase",
+      "brands": [
+        {
+          "id": "brand-1",
+          "name": "Northfield Clay"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://northfieldclay.example/img/1.jpg",
+          "is_main_image": true,
+          "alt_text": "Small Matte White Bud Vase"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://northfieldclay.example/products/1",
+          "domain": "northfieldclay.example",
+          "price": {
+            "price": 26.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-VAS-11-2",
+      "title": "Round Ceramic Bud Vase",
+      "brands": [
+        {
+          "id": "brand-2",
+          "name": "Sandpiper Ceramics"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://sandpiperceramics.example/img/2.jpg",
+          "is_main_image": true,
+          "alt_text": "Round Ceramic Bud Vase"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://sandpiperceramics.example/products/2",
+          "domain": "sandpiperceramics.example",
+          "price": {
+            "price": 22.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-VAS-11-3",
+      "title": "Handmade Bud Vase, White",
+      "brands": [
+        {
+          "id": "brand-3",
+          "name": "Clayworks"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://clayworks.example/img/3.jpg",
+          "is_main_image": true,
+          "alt_text": "Handmade Bud Vase, White"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://clayworks.example/products/3",
+          "domain": "clayworks.example",
+          "price": {
+            "price": 32.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-VAS-11-4",
+      "title": "Mini Stoneware Vase",
+      "brands": [
+        {
+          "id": "brand-4",
+          "name": "Kiln House"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://kilnhouse.example/img/4.jpg",
+          "is_main_image": true,
+          "alt_text": "Mini Stoneware Vase"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://kilnhouse.example/products/4",
+          "domain": "kilnhouse.example",
+          "price": {
+            "price": 24.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    }
+  ],
+  "next_page_token": null
+}

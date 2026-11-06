@@ -1,0 +1,142 @@
+{
+  "_fixture": "Hand-made fixture in Channel3 POST /v1/search response shape (https://channel3.ai/docs). Not real market data; domains use the reserved .example TLD.",
+  "products": [
+    {
+      "id": "rec-FH-BWL-09-1",
+      "title": "Stoneware Cereal Bowls, Set of 2",
+      "brands": [
+        {
+          "id": "brand-1",
+          "name": "Northfield Clay"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://northfieldclay.example/img/1.jpg",
+          "is_main_image": true,
+          "alt_text": "Stoneware Cereal Bowls, Set of 2"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://northfieldclay.example/products/1",
+          "domain": "northfieldclay.example",
+          "price": {
+            "price": 42.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-BWL-09-2",
+      "title": "Carved Ceramic Bowls (2)",
+      "brands": [
+        {
+          "id": "brand-2",
+          "name": "Sandpiper Ceramics"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://sandpiperceramics.example/img/2.jpg",
+          "is_main_image": true,
+          "alt_text": "Carved Ceramic Bowls (2)"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://sandpiperceramics.example/products/2",
+          "domain": "sandpiperceramics.example",
+          "price": {
+            "price": 48.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-BWL-09-3",
+      "title": "Nesting Bowl Pair",
+      "brands": [
+        {
+          "id": "brand-3",
+          "name": "Clayworks"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://clayworks.example/img/3.jpg",
+          "is_main_image": true,
+          "alt_text": "Nesting Bowl Pair"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://clayworks.example/products/3",
+          "domain": "clayworks.example",
+          "price": {
+            "price": 36.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    },
+    {
+      "id": "rec-FH-BWL-09-4",
+      "title": "Handmade Rice Bowls, Set of 2",
+      "brands": [
+        {
+          "id": "brand-4",
+          "name": "Kiln House"
+        }
+      ],
+      "images": [
+        {
+          "url": "https://kilnhouse.example/img/4.jpg",
+          "is_main_image": true,
+          "alt_text": "Handmade Rice Bowls, Set of 2"
+        }
+      ],
+      "category": {
+        "slug": "home-kitchen",
+        "title": "Home & Kitchen"
+      },
+      "offers": [
+        {
+          "url": "https://kilnhouse.example/products/4",
+          "domain": "kilnhouse.example",
+          "price": {
+            "price": 44.0,
+            "compare_at_price": null,
+            "currency": "USD"
+          },
+          "availability": "InStock",
+          "condition": "new"
+        }
+      ]
+    }
+  ],
+  "next_page_token": null
+}

@@ -1,18 +1,31 @@
 {% extends "base.html" %}
 {% block title %}Store flaws | {{ store_name }}{% endblock %}
 {% block content %}
-<h1>Demo flaw toggles</h1>
-<p>GhostShopper demo control. Checked = flaw is ON (the store is harder for AI shoppers).</p>
-{% if saved %}<p class="saved">Saved.</p>{% endif %}
-<form method="post" action="{{ base }}/admin" class="admin-form">
-  {% for f in flaw_defs %}
-  <label class="check">
-    <input type="checkbox" name="{{ f.key }}" {% if flaws[f.key] %}checked{% endif %}>
-    <strong>{{ f.label }}</strong> <code>{{ f.key }}</code><br>
-    <small>{{ f.description }}</small>
-  </label>
-  {% endfor %}
-  <button type="submit">Save</button>
-</form>
-<p><small>JSON: GET/PUT <code>{{ base }}/admin/flaws.json</code></small></p>
+<div class="container admin">
+  <header class="admin-head">
+    <p class="admin-tag">GhostShopper demo control, not part of the shop</p>
+    <h1>Demo flaw toggles</h1>
+    <p>Checked means the flaw is on and the store is harder for AI shoppers. The four classic flaws make up the "bad store" in the demo.</p>
+  </header>
+  {% if saved %}<p class="saved" role="status">Saved. The store now uses these settings.</p>{% endif %}
+  <form method="post" action="{{ base }}/admin" class="admin-form">
+    {% for group, title in ((true, "Classic demo flaws"), (false, "Benchmark flaws")) %}
+    <fieldset>
+      <legend>{{ title }}</legend>
+      {% for f in flaw_defs if (f.key in classic) == group %}
+      <label class="flaw">
+        <input type="checkbox" name="{{ f.key }}" {% if flaws[f.key] %}checked{% endif %}>
+        <span class="flaw-text">
+          <strong>{{ f.label }}</strong>
+          <span>{{ f.description }}</span>
+          <code>{{ f.key }}</code>
+        </span>
+      </label>
+      {% endfor %}
+    </fieldset>
+    {% endfor %}
+    <button type="submit">Save settings</button>
+  </form>
+  <p class="admin-api">JSON: GET/PUT <code>{{ base }}/admin/flaws.json</code></p>
+</div>
 {% endblock %}

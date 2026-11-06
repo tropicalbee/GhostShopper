@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from . import catalog
-from .flaws import FLAWS, FlawStore
+from .flaws import CLASSIC_FLAWS, FLAWS, FlawStore
 from .price_image import render_price_svg, token_for
 
 HERE = Path(__file__).parent
@@ -56,6 +56,7 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
                 "store_name": STORE_NAME,
                 "flaws": flaw_store.get_all(),
                 "price_token": token_for,
+                "categories": catalog.CATEGORIES,
                 **ctx,
             },
             status_code=status_code,
@@ -73,8 +74,12 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
         return product
 
     @app.get("/", response_class=HTMLResponse)
-    def index(request: Request):
-        return render(request, "index.html", products=catalog.load_products())
+    def index(request: Request, category: str = ""):
+        products = catalog.load_products()
+        if category not in catalog.CATEGORIES:
+            category = ""
+        shown = [p for p in products if p.category == category] if category else list(products)
+        return render(request, "index.html", products=shown, all_products=products, category=category)
 
     @app.get("/products/{slug}", response_class=HTMLResponse)
     def product_page(request: Request, slug: str):
@@ -83,6 +88,10 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
             raise HTTPException(status_code=404, detail="Product not found")
         products = catalog.load_products()
         next_product = products[(products.index(product) + 1) % len(products)]
+        # Recommend only items that can be bought: a "Sold out" badge here would read as this product's stock.
+        others = [p for p in products if p.sku != product.sku and p.in_stock]
+        related = ([p for p in others if p.category == product.category] +
+                   [p for p in others if p.category != product.category])[:4]
         flaws = flaw_store.get_all()
         listed_out = (not product.in_stock) or flaws["oos_buyable"]
         json_ld = {
@@ -108,6 +117,7 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
             "product.html",
             product=product,
             next_product=next_product,
+            related=related,
             buy_url=checkout_entry(request, product),
             json_ld=json.dumps(json_ld, indent=2).replace("</", "<\\/"),
             listed_out=listed_out,
@@ -209,7 +219,7 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
             if not admin_token:
                 require_admin(request)  # nothing can unlock it on this server: plain 403
             return unlock_page(request)
-        return render(request, "admin.html", flaw_defs=FLAWS, saved=saved)
+        return render(request, "admin.html", flaw_defs=FLAWS, classic=CLASSIC_FLAWS, saved=saved)
 
     @app.post("/admin/unlock")
     def admin_unlock(request: Request, token: str = Form("")):
