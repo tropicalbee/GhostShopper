@@ -115,6 +115,17 @@ a.logo:hover { color: var(--ink); }
 .main-nav a:hover { color: var(--ink); background: var(--surface); }
 .main-nav a[aria-current="page"] { color: var(--ink); font-weight: 600; }
 .main-nav a[aria-current="page"]::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px; background: var(--accent); }
+.mobile-menu { display: none; }
+.mobile-menu summary { list-style: none; display: grid; place-items: center; width: 44px; height: 44px; margin-right: -10px; border-radius: var(--radius); cursor: pointer; color: var(--ink); }
+.mobile-menu summary::-webkit-details-marker { display: none; }
+.mobile-menu summary:hover { background: var(--surface); }
+.mobile-menu svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.mobile-menu .menu-close, .mobile-menu[open] .menu-open { display: none; }
+.mobile-menu[open] .menu-close { display: inline; }
+.mobile-nav { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; display: flex; flex-direction: column; padding: 8px var(--gutter) 16px; background: var(--bg); border-bottom: 1px solid var(--line); box-shadow: var(--shadow); }
+.mobile-nav a { padding: 14px 0; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 16px; font-weight: 500; text-decoration: none; }
+.mobile-nav a:last-child { border-bottom: 0; }
+.mobile-nav a[aria-current="page"] { color: var(--accent); font-weight: 600; }
 
 /* Checkout header and footer */
 .checkout-header { border-bottom: 1px solid var(--line); background: var(--bg); }
@@ -417,12 +428,22 @@ input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); m
   .product { gap: 36px; }
   .reviews-layout { grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 40px; }
 }
+@media (max-width: 900px) {
+  .product { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .product-media { position: static; max-width: 640px; }
+  .checkout { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-top: 32px; }
+  .checkout-summary { position: static; order: -1; }
+}
 @media (max-width: 760px) {
   :root { --gutter: 16px; --space-section: 64px; }
   .logo-word { font-size: 18px; }
   .logo-mark { width: 26px; height: 26px; }
-  .main-nav a { font-size: 14px; }
-  .site-header { position: static; }
+  .site-header { position: relative; }
+  .header-row { flex-wrap: nowrap; min-height: 64px; padding-top: 0; }
+  .main-nav { display: none; }
+  .mobile-menu { display: block; margin-left: auto; }
+  .actions { column-gap: 12px; }
+  .actions .act { flex: 1 1 calc(50% - 6px); width: auto; }
   .hero-img { object-position: 78% 50%; }
   .hero::before { background: var(--scrim); }
   .hero-inner { min-height: 520px; }
@@ -441,14 +462,10 @@ input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); m
   .signup, .studio { grid-template-columns: minmax(0, 1fr); }
   .studio > img { grid-column: 1; grid-row: 1; }
   .studio-card { grid-column: 1; grid-row: 2; justify-self: stretch; width: auto; margin: -48px 16px 0; padding: 28px; position: relative; }
-  .checkout-summary { position: static; order: -1; }
   .steps ol { margin-bottom: 12px; }
   .signup > img { grid-column: 1; grid-row: 1; }
   .signup-card { grid-column: 1; grid-row: 2; justify-self: stretch; width: auto; margin: -48px 16px 0; padding: 28px; position: relative; }
   .inline-form { flex-direction: column; }
-  .product { grid-template-columns: minmax(0, 1fr); }
-  .product-media { position: static; }
-  .checkout { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-top: 32px; }
   .checkout-step, .checkout-summary, .panel { padding: 22px; }
   .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 24px; padding-top: 40px; padding-bottom: 40px; }
   .footer-brand { grid-column: 1 / -1; }

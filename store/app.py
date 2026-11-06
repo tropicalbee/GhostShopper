@@ -3,6 +3,7 @@
 Mounted by the backend at /store. Checkout calls the backend's /api/paypal endpoints.
 """
 
+import hashlib
 import hmac
 import json
 from pathlib import Path
@@ -38,6 +39,8 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
     app = FastAPI(title=STORE_NAME, docs_url=None, redoc_url=None, openapi_url=None)
     flaw_store = FlawStore(db_path)
     templates = Jinja2Templates(directory=HERE / "templates")
+    # Cache-busting version for the stylesheet: changes whenever style.css changes.
+    css_version = hashlib.sha256((HERE / "static" / "style.css").read_bytes()).hexdigest()[:10]
     price_tokens = {}
     for p in catalog.load_products():
         for amount in (p.price, p.price + catalog.PRICE_MISMATCH_SURCHARGE):
@@ -57,6 +60,7 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
                 "flaws": flaw_store.get_all(),
                 "price_token": token_for,
                 "categories": catalog.CATEGORIES,
+                "css_version": css_version,
                 **ctx,
             },
             status_code=status_code,
