@@ -20,6 +20,24 @@
 1. Run the cleanup commands, then a live check with your key.
 2. Deploy (D6) with `DEMO_ADMIN_TOKEN` set.
 
+### Planned: make PayPal central
+Honest gap: today PayPal shows up in one of five stages, and only on our demo store. The product mostly audits; it moves money once. Planned features, by value for effort:
+1. PayPal readiness on real stores: detect the PayPal button, SDK v6 or v5, Pay Later messaging, Venmo, guest checkout, and steps before PayPal. This is page detection, not a PayPal API. About a day.
+2. Refund test on the demo store with Payments v2 `POST /v2/payments/captures/{id}/refund`, checking the money comes back. About half a day.
+3. A "Your money" panel on the Simple view: gross, PayPal fee and net from the capture we already store. About half a day.
+4. An agent budget: the shopper pays through PayPal only within a spending limit, and explains when it won't. Our own logic around Orders v2. About a day.
+5. A catalog export for PayPal's agent programs (Store Sync or Agent Ready), only if a public sandbox API exists.
+
+Research findings (PayPal developer docs, 2026-11-06):
+- Agent Ready and Store Sync need an access request. Store Sync takes a product feed (CSV in Google, OpenAI ACP or PayPal format) from existing US merchants; there is no sandbox API for us. So feature 5 becomes a feed file we generate as "what you would submit", not a real submission.
+- Refunds work as planned: `POST /v2/payments/captures/{id}/refund` with a `PayPal-Request-Id`, full or partial, checked with `GET /v2/payments/refunds/{id}`.
+- Fees: use the capture's `seller_receivable_breakdown`, which we already store. Transaction Search can take up to three hours to show a sale, so it's no good for a live demo.
+- No API can check another store's PayPal setup, so feature 1 reads the page: the v6 script `web-sdk/v6/core`, `<paypal-button>`, `<paypal-pay-later-button>`, `<paypal-message>` (Pay Later), and the v5 markers `data-pp-message` and `paypal.Messages`. The Venmo element name is not confirmed.
+- PayPal's Agent Toolkit and its sandbox MCP server (`mcp.sandbox.paypal.com`) cover orders, refunds, invoices, catalog and reporting. Possible bonus: let the shopper use PayPal's own agent tools.
+- Order to build: refund round trip, PayPal readiness detection, the money panel, then the agent budget and the feed file.
+
+Still left from the plan: deploy to Render, hosted URL in the README, fresh-clone test, the live sandbox purchase and live LLM runs (need keys), the video, the Devpost text, and submitting.
+
 ## 2026-11-06 (Day 5, third session: the Ledger redesign)
 
 ### Done
