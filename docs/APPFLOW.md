@@ -20,7 +20,7 @@ The LLM chooses every action. Code evaluates the checks, never the LLM.
 
 1. Prepare (`service.py`). Check the LLM config (Groq key and model, or a cassette), the browser provider, the flaw selection, and for checkout runs the payment config. Anything missing is an error before a run row exists. Then set the flaws and save a snapshot of them.
 2. Start the run: insert a `runs` row and open the browser (local Playwright, or Kernel over CDP).
-3. Prompt the LLM with the rules and the goal: find the mug, read its price and stock, get to checkout, and in checkout runs pay with PayPal.
+3. Prompt the LLM with the rules and the goal: find the mug, read its price and stock, get to checkout, and in checkout runs pay with PayPal. A spending limit, if the user set one, is run config; the LLM does not enforce it.
 4. Call the LLM with the tools: `open_page`, `find_elements`, `read_text`, `click`, `fill_form`, `take_screenshot`, `finish`, plus `pay_with_paypal` in checkout runs. `click` refuses the PayPal button.
 5. Run each tool call with a time limit (30 s, longer for paying), screenshot the page, and save a `steps` row. If the agent repeats the same action on the same page, it gets a warning the second time and the run stops the third time.
 6. Detect (`engine.py`, `checks.py`). Collect facts from the DOM and record checks. On the product page: product_found and the eight product checks (price, currency, JSON-LD, stock, stock consistency, photo alt text, sale claims, buy button and whether it's covered). On checkout: checkout_reached, no_extra_steps and price_consistent. Every failed check gets a code, a cause, a full-page screenshot, a selector and a reason.
@@ -39,7 +39,19 @@ The LLM chooses every action. Code evaluates the checks, never the LLM.
 
 Modes: with `PAYPAL_MODE=mock` the server serves a mock SDK and popup (using PayPal's element ids) and a fake Orders client. You pick a scenario with `PUT /mock-paypal/scenario`: `ok`, `no_button`, `popup_blocked`, `approval_stuck`, `capture_declined`, `captcha`, `verification_required`, `seller_login`, `capture_amount_mismatch` or `fee_mismatch`. `PAYPAL_MODE=sandbox` is the default and the real thing; it needs the PayPal and buyer credentials or the run won't start.
 
+## Budget step (`agent/paypal_flow.py`)
+
+When a run has a spending limit (`budget` on `POST /api/runs`, or `--budget`), code compares the checkout total with the limit after the agent reaches checkout and before it clicks the PayPal button. The LLM is not asked.
+
+1. Total at or under the limit: pay as normal. After capture, `captured <= limit` is recorded in the verification evidence.
+2. Total over the limit: record `over_budget` (not the store's fault), do not click the button, and no order is made.
+3. Total can't be read while a limit is set: refuse to pay, so the agent never spends on a guess.
+
 ## After a run
+
+- Refund the test payment with `POST /api/paypal/orders/{id}/refund`. It refunds the whole capture, reads the refund back and checks status, amount and currency. Only the browser that owns the run can do it, and it is not part of the score.
+- PayPal readiness is detected on every page the agent visits and shown next to the score as a separate figure.
+- Download the product feed the agent could read with `GET /api/runs/{id}/feed.csv`.
 
 - Reword the fixes with `POST /api/runs/{id}/explain` (LLM, text only; the deterministic fix stays next to it).
 - Compare a check with the previous check of the same store from the same browser: `GET /api/runs/{id}/compare`. `GET /api/runs/compare?before=&after=` takes two of your own checks of the same store.

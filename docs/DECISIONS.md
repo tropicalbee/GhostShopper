@@ -175,3 +175,12 @@ Rules `2026-11-05.3`, 100 points in total.
 - The demo uses US sandbox accounts (business payee and personal buyer) with USD. We turned down the India sandbox business account: the payment failed with UNSUPPORTED_PAY..., and India accounts have real-world limits on receiving payments.
 - A PayPal error page is classed as environment, not the store's fault. Payments only run on our own demo store, and the error comes from account setup. We turned down classing it as a store failure, and leaving it as a 120 second timeout that hides the cause.
 - We are not using PayPal's AI-Toolkit (github.com/paypal/AI-Toolkit) for now. The shopper agent has to pay through the store's own PayPal button like a real shopper, and the backend already calls Orders v2 directly. It could be revisited for the verify step.
+
+## 2026-11-07: PayPal features
+
+- PayPal readiness is its own 0 to 100 figure, separate from the agent-readiness score. Folding it in would change the score's rubric and make old runs hard to compare.
+- The budget is enforced in code before the PayPal button is clicked, never by the LLM. If the checkout total can't be read while a limit is set, the agent refuses to pay.
+- The product feed is built from what the agent observed, not from the store's source, so the gaps it shows are the ones an agent really hits.
+- Only the browser that owns a run can refund it. Shared examples and other browsers get 404.
+- We turned down auto-refunding every run. Judges should see the capture first, then press the refund button.
+- The feed is labelled "what you would submit". Store Sync has no public sandbox API, so we don't pretend to submit.

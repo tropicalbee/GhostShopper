@@ -60,3 +60,12 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - The agent detects PayPal's own error page, decodes the issue name from the URL and fails `payment_approved` at once with code `paypal_error_page`. It counts as environment, so the score is not hurt.
 - New mock scenario `seller_login`, with tests for it and for decoding error-page URLs. 234 tests pass.
 - `.env.example` notes that the buyer must be the personal sandbox account and both sandbox accounts should be US.
+
+## 2026-11-07 (PayPal features)
+- Refund round trip: the full capture is refunded through Payments v2, read back and checked (status, amount, currency). "Refund test payment" button, owner only, not scored.
+- PayPal readiness panel and Advanced tab: a deterministic 0 to 100 figure for the PayPal setup on the pages the agent visited, with a checklist and links to PayPal docs. The agent-readiness score is unchanged.
+- "Your money" panel: gross, fee, net, effective fee and a created, captured, refunded timeline.
+- Agent budget: optional spending limit on the API, the CLI (`--budget`) and Home. Enforced in code before the PayPal button is clicked; going over records `over_budget`.
+- Product feed in Google product feed columns, with coverage, fixes and a CSV download. Nothing is submitted to Store Sync.
+- PayPal button timeout raised from 20 s to 30 s.
+- 287 tests pass.

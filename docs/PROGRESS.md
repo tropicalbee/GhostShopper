@@ -1,5 +1,32 @@
 # Progress
 
+## 2026-11-07 (PayPal features, second session)
+
+### Done
+- Built all five features from the "Planned: make PayPal central" list.
+- Refund round trip: `POST /api/paypal/orders/{id}/refund` refunds the capture in full (Payments v2, idempotency key `refund-{capture_id}`), reads the refund back with `GET /v2/payments/refunds/{id}` and checks that the status is COMPLETED and the amount and currency match. The result is stored on the order. Only the browser that owns the run can refund; shared examples and other browsers get 404 (added in review). It is not part of the score. The Simple view has a "Refund test payment" button.
+- PayPal readiness: a deterministic detector runs on every page the agent visits. It looks for the v6 or v5 SDK and its params, hosted buttons, `paypal-button`, the Pay Later button and messaging, Venmo, card or guest checkout, where PayPal appears, and how many steps it takes to reach the first PayPal button. It gives its own 0 to 100 figure (button 20, SDK 20, steps to PayPal 18, messaging 12, Pay Later button 5, Venmo 10, card/guest 15) with a checklist and recommendations that link to PayPal docs. The agent-readiness score is unchanged. There is a panel in the Simple view and a tab in Advanced.
+- "Your money" panel: gross, PayPal fee, net, effective fee percent and a timeline of created, captured and refunded, with the refund button. A refund now clears the finished-run cache so a reload shows it.
+- Agent budget: an optional spending limit in USD (up to 10000) on `POST /api/runs`, `--budget` on the CLI and a "Spending limit" input on Home. Code checks the checkout total against the limit before the PayPal button is clicked; the LLM has no say. Over the limit, the run records `over_budget` (not the store's fault) and no order is made. If the total can't be read while a limit is set, the agent refuses to pay. After capture, `captured <= limit` goes into the verification evidence.
+- Product feed: built from what the agent read (Product JSON-LD and page facts) with Google product feed columns (id, title, description, link, image_link, price, availability, brand, gtin, mpn, condition). It shows coverage with a fix for each missing field, and `GET /api/runs/{id}/feed.csv` follows the run access rules and guards against CSV formula injection. Store Sync has no public sandbox API, so the UI calls it "what you would submit" and nothing is submitted. The demo store has no gtin, mpn or condition, so those show as recommended gaps.
+- Fix: the PayPal button timeout went from 20 s to 30 s after run 14's slow first SDK load.
+- Tests: 287 passed, 0 skipped (the browser e2e tests ran). The frontend build is clean.
+
+### Not done
+- None of this has been looked at in a browser yet.
+- Refund and budget have not run against the real sandbox.
+- Known limits of the readiness detector: the Venmo element name is unconfirmed, so `enable-funding=venmo` alone counts as "not confirmed" and earns half points. A browse-only scan can catch the demo store's PayPal button before it renders and mark it "partly". The Pay Later, Venmo and card doc URLs were not verified.
+
+### Next
+1. Your end-to-end test of everything.
+2. Deploy on Render (Nov 8).
+3. README, video, Devpost.
+
+### Blockers
+- None.
+
+---
+
 ## 2026-11-07 (first real sandbox purchase)
 
 ### Done
@@ -74,7 +101,7 @@
 1. Run the cleanup commands, then a live check with your key.
 2. Deploy (D6) with `DEMO_ADMIN_TOKEN` set.
 
-### Planned: make PayPal central
+### Planned: make PayPal central (built on 2026-11-07, see that entry)
 Honest gap: today PayPal shows up in one of five stages, and only on our demo store. The product mostly audits; it moves money once. Planned features, by value for effort:
 1. PayPal readiness on real stores: detect the PayPal button, SDK v6 or v5, Pay Later messaging, Venmo, guest checkout, and steps before PayPal. This is page detection, not a PayPal API. About a day.
 2. Refund test on the demo store with Payments v2 `POST /v2/payments/captures/{id}/refund`, checking the money comes back. About half a day.

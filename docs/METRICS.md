@@ -169,3 +169,6 @@ Other numbers
 |---|---|
 | Credential smoke test | OAuth token 200, a 1.00 USD order created 201 CREATED |
 | Full test suite after the `paypal_error_page` change | 234 passed (277.6 s) |
+| Full test suite after the five PayPal features | 287 passed, 0 skipped (browser e2e ran) |
+| Frontend build after the five PayPal features | clean |
+| Refund and budget against the real sandbox | not run yet |

@@ -17,6 +17,11 @@ Small merchants (one person up to a small team, selling on their own site) getti
 3. Checkout test. A real PayPal sandbox purchase: Orders v2 create + capture.
 4. Verify. Order, capture, amount and fees match what the store advertised.
 5. Scorecard. A deterministic agent-readiness score (0-100) and a prioritized fix list, in an AG Grid dashboard.
+6. Refund test. Refund the sandbox payment in full and check the money came back.
+7. PayPal readiness. A separate 0 to 100 figure for the PayPal setup on the pages the agent visited, with a checklist and links to PayPal docs.
+8. Your money. Gross, PayPal fee, net and a created, captured, refunded timeline.
+9. Agent budget. An optional spending limit that code enforces before the PayPal button is clicked.
+10. Product feed. What the agent could read, as Google product feed columns with a CSV download and the gaps to fix. Nothing is submitted.
 
 ## Demo flow
 
