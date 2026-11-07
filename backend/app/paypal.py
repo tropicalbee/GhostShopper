@@ -77,7 +77,7 @@ class PayPalClient:
         return await self._post(
             "/v2/checkout/orders",
             {"intent": "CAPTURE", "purchase_units": [purchase_unit]},
-            # Idempotency key: a retried request returns the same order.
+            # A fresh key per call: every call makes a new order. (Capture and refund use stable keys.)
             {"PayPal-Request-Id": str(uuid.uuid4())},
         )
 

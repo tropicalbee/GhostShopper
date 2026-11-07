@@ -10,6 +10,7 @@ import httpx
 
 from store.flaws import CLASSIC_FLAWS, FLAW_KEYS
 
+from ..config import sandbox_buyer
 from .browser import BrowserConfigError, resolve_provider
 from .llm import CASSETTE_DIR, LLMConfigError, close_llm, make_llm
 from .loop import DEFAULT_TARGET, PaymentHandler, RunConfig, run_shopper
@@ -52,11 +53,15 @@ def parse_budget(value: str | None) -> Decimal | None:
         raise RunConfigError(f"The spending limit must be an amount in US dollars, like 30.00 (not {value!r}).") from None
     if not amount.is_finite() or amount <= 0:
         raise RunConfigError("The spending limit must be more than 0.")
-    if amount != amount.quantize(Decimal("0.01")):
-        raise RunConfigError("The spending limit can have at most two decimal places, like 30.00.")
-    if amount > MAX_BUDGET:
+    if amount > MAX_BUDGET:  # before quantize, which overflows on huge exponents like 1E+30
         raise RunConfigError(f"The spending limit can be at most {MAX_BUDGET:.2f}.")
-    return amount.quantize(Decimal("0.01"))
+    try:
+        rounded = amount.quantize(Decimal("0.01"))
+    except ArithmeticError:  # InvalidOperation is a subclass
+        raise RunConfigError(f"The spending limit must be an amount in US dollars, like 30.00 (not {value!r}).") from None
+    if amount != rounded:
+        raise RunConfigError("The spending limit can have at most two decimal places, like 30.00.")
+    return rounded
 
 
 def flaw_selection(mode: str) -> dict[str, bool] | None:
@@ -96,6 +101,19 @@ class ServerInfo:
 
     paypal_mode: str
     paypal_configured: bool
+
+
+def real_checkout_missing(paypal_configured: bool) -> list[str]:
+    """What a real PayPal sandbox purchase still needs on this server. The browser must be a Kernel one (headless
+    off, so a person can open its live view when PayPal stops the agent), hence KERNEL_API_KEY. Empty = available."""
+    missing = []
+    if not paypal_configured:
+        missing.append("PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET")
+    if not os.getenv("KERNEL_API_KEY", "").strip():
+        missing.append("KERNEL_API_KEY")
+    if sandbox_buyer() is None:
+        missing.append("SANDBOX_BUYER_EMAIL / SANDBOX_BUYER_PASSWORD")
+    return missing
 
 
 def build_payment(req: RunRequest, store_url: str, server: ServerInfo | None = None,

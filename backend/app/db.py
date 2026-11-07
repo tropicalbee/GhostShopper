@@ -219,12 +219,14 @@ def record_capture(db_path: Path, order_id: str, capture: dict[str, Any], raw: d
 
 
 def record_refund(db_path: Path, order_id: str, refund: dict[str, Any]) -> None:
+    """Store a refund once. A different refund id never overwrites one already stored; the same id may fill in details."""
+    amount = refund.get("amount") or {}  # a partial (just-issued) refund may not carry these yet
     with connect(db_path) as conn:
         conn.execute(
             "UPDATE orders SET refund_id = ?, refund_status = ?, refund_amount = ?, refund_currency = ?,"
-            " refunded_at = ? WHERE order_id = ?",
-            (refund["id"], refund["status"], refund["amount"]["value"], refund["amount"]["currency_code"],
-             _now(), order_id),
+            " refunded_at = ? WHERE order_id = ? AND (refund_id IS NULL OR refund_id = ?)",
+            (refund["id"], refund.get("status"), amount.get("value"), amount.get("currency_code"),
+             _now(), order_id, refund["id"]),
         )
 
 

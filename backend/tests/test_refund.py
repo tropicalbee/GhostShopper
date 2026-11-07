@@ -1,3 +1,4 @@
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -43,7 +44,8 @@ def place_order(client, capture: bool = True, owner: str | None = "self") -> str
         run_id = conn.execute(
             "INSERT INTO runs (started_at, status, browser, store_url, goal, target_product, checkout, paypal_mode,"
             " llm, owner_hash) VALUES ('2026-11-07T00:00:00+00:00', 'completed', 'local', 'http://x/store/',"
-            " 'buy', 'FH-MUG-01', 1, 'mock', 'mock', ?)", (owner,)).lastrowid
+            " 'buy', 'FH-MUG-01', 1, ?, 'mock', ?)",
+            (client.app.state.settings.paypal_mode, owner)).lastrowid  # the mode the injected fake is registered under
     db.link_order_to_run(db_path, order_id, run_id)
     return order_id
 
@@ -124,3 +126,65 @@ def test_run_payload_carries_order_times_and_the_refund_after_it_happens(client)
     body = client.post(f"/api/paypal/orders/{order_id}/refund").json()
     after = client.get(f"/api/runs/{run_id}").json()["order"]
     assert after["refund_id"] == body["refund_id"] and after["refunded_at"] == body["refunded_at"]
+
+
+def test_http_error_from_paypal_is_a_502_and_nothing_is_stored(client, fake, tmp_path):
+    order_id = place_order(client)
+
+    async def down(capture_id):
+        raise httpx.ConnectError("boom")
+
+    fake.refund_capture = down
+    r = client.post(f"/api/paypal/orders/{order_id}/refund")
+    assert r.status_code == 502
+    assert r.json()["detail"]["error"] == "PAYPAL_UNREACHABLE"
+    assert db.get_order(tmp_path / "test.db", order_id)["refund_id"] is None
+
+
+def test_failed_read_back_keeps_the_issued_refund_and_a_retry_completes_it(client, fake, tmp_path):
+    order_id = place_order(client)
+    real, real_refund = fake.get_refund, fake.refund_capture
+    calls = []
+
+    async def partial(capture_id):  # PayPal answered the refund with just an id and a pending status
+        issued = await real_refund(capture_id)
+        return {"id": issued["id"], "status": "PENDING"}
+
+    fake.refund_capture = partial
+
+    async def flaky(refund_id):
+        calls.append(refund_id)
+        if len(calls) == 1:
+            raise httpx.ReadTimeout("slow")
+        return await real(refund_id)
+
+    fake.get_refund = flaky
+    r = client.post(f"/api/paypal/orders/{order_id}/refund")
+    assert r.status_code == 502 and "was issued" in r.json()["detail"]["message"]
+    kept = db.get_order(tmp_path / "test.db", order_id)
+    assert kept["refund_id"] == calls[0] and kept["refund_status"] == "PENDING"
+    r = client.post(f"/api/paypal/orders/{order_id}/refund")  # not ALREADY_REFUNDED: it only reads the refund again
+    assert r.status_code == 200 and r.json()["refund_id"] == calls[0] and r.json()["verified"] is True
+    assert db.get_order(tmp_path / "test.db", order_id)["refund_amount"] == "24.00"
+    assert client.post(f"/api/paypal/orders/{order_id}/refund").status_code == 409
+
+
+def test_malformed_refund_body_is_a_502(client, fake):
+    order_id = place_order(client)
+
+    async def bad(refund_id):
+        return {"id": refund_id}
+
+    fake.get_refund = bad
+    r = client.post(f"/api/paypal/orders/{order_id}/refund")
+    assert r.status_code == 502 and r.json()["detail"]["error"] == "PAYPAL_BAD_RESPONSE"
+
+
+def test_record_refund_never_overwrites_another_refund(client, tmp_path):
+    order_id = place_order(client)
+    path = tmp_path / "test.db"
+    amount = {"value": "24.00", "currency_code": "USD"}
+    db.record_refund(path, order_id, {"id": "R1", "status": "COMPLETED", "amount": amount})
+    db.record_refund(path, order_id, {"id": "R2", "status": "PENDING", "amount": amount})
+    assert db.get_order(path, order_id)["refund_id"] == "R1"
+    assert db.get_order(path, order_id)["refund_status"] == "COMPLETED"
