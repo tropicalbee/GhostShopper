@@ -192,11 +192,21 @@ class PayPalCheckout:
             raise ToolError("pay_with_paypal works only on the checkout page. Go to checkout first.")
         if rec.is_recorded("paypal_button_found"):
             raise ToolError("Payment was already attempted in this run.")
-        # The spending limit is enforced here, in code, before the PayPal button is touched.
-        refused = await engine.stop_if_over_budget(facts)
-        if refused:
-            return f"{refused} Do not try again; call finish and tell the customer why."
         t = self.timeouts
+        # The spending limit is enforced on the real order amount (read from the store's create-order response),
+        # after the order exists but before anything is approved. Page text can lie or mention other prices.
+        created: list[Decimal] = []
+
+        async def on_response(resp: Any) -> None:
+            if resp.request.method != "POST" or urlparse(resp.url).path.rstrip("/") != "/api/paypal/orders":
+                return
+            try:
+                created.append(Decimal(str((await resp.json())["amount"])))
+            except Exception:  # an unreadable body leaves the amount unknown
+                pass
+
+        if engine.budget is not None:
+            page.on("response", on_response)
 
         # 1. PayPal button rendered by the SDK.
         button = page.locator("paypal-button").first
@@ -207,10 +217,12 @@ class PayPalCheckout:
             return await self._fail(rec, tools, "paypal_button_found", "paypal_button_missing",
                                     f"No visible PayPal button after {t.button_s:.0f}s." + (f" Page says: {status}" if status else ""),
                                     {"url": page.url, "selector": "paypal-button", "status_text": status})
-        rec.record_check("paypal_button_found", True, "PayPal button visible on checkout.",
-                         {"url": page.url, "selector": "paypal-button"})
         # The page scan can run before the SDK draws the button; this sighting is the reliable one.
         engine.paypal.note_button(page.url, True, "paypal-button")
+
+        def button_ok() -> None:
+            rec.record_check("paypal_button_found", True, "PayPal button visible on checkout.",
+                             {"url": page.url, "selector": "paypal-button"})
 
         # 2. Click opens the PayPal window.
         try:
@@ -218,6 +230,7 @@ class PayPalCheckout:
                 await button.click(timeout=5_000)
             popup = await popup_info.value
         except PlaywrightTimeout:
+            button_ok()
             await page.wait_for_timeout(300)
             status = await self._status_text(page)
             blocked = "blocked" in status.lower()
@@ -238,6 +251,17 @@ class PayPalCheckout:
             evidence["screenshot"] = await self._popup_shot(tools, popup)  # before anything is typed
         except PlaywrightError:
             pass
+        if engine.budget is not None:
+            # Wait for the create-order response; a live sandbox popup can show PayPal's loading page before it lands.
+            for _ in range(150):
+                if created:
+                    break
+                await popup.wait_for_timeout(100)
+            refused = await engine.stop_if_order_over_budget(created[0] if created else None, facts)
+            if refused:
+                await self._close(popup)
+                return f"{refused} Do not try again; call finish and tell the customer why."
+        button_ok()
         rec.record_check("popup_opened", True, "PayPal window opened from the button click.", evidence)
 
         # 3. Log in and approve; hand over to a human if PayPal asks for a check we must not automate.

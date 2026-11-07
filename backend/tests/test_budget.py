@@ -75,7 +75,8 @@ def test_parse_budget_accepts_amounts(value, expected):
     assert (None if got is None else f"{got:.2f}") == expected
 
 
-@pytest.mark.parametrize("value", ["abc", "0", "-5", "10.005", "NaN", "Infinity", "10001", "1,000"])
+@pytest.mark.parametrize("value", ["abc", "0", "-5", "10.005", "NaN", "sNaN", "Infinity", "-Infinity", "10001", "1,000",
+                                   "1E+30", "1e999999999", "1E-999999999"])
 def test_parse_budget_refuses_bad_amounts(value):
     with pytest.raises(RunConfigError):
         parse_budget(value)
@@ -104,3 +105,28 @@ def test_budget_is_open_to_everyone_not_a_developer_option(tmp_path):
         assert "only store_url" not in json.dumps(r.json()).lower()
         r = c.post("/api/runs", json={"store_url": "not a url", "max_steps": 5})
         assert "only store_url" in json.dumps(r.json()).lower()
+
+
+@requires_browser
+async def test_limit_is_checked_against_the_real_order_amount_not_the_page(server):
+    # price_mismatch: the page shows 24.00 but the order is created for more. A limit between the two stops the
+    # payment after the order exists and before approval, so nothing is captured.
+    run = await checkout_run(server, "day3_checkout_flaws_off", flaws="price_mismatch", budget=Decimal("25.00"))
+    assert run["status"] == "completed", run["error"]
+    assert run["outcome"] == "blocked" and run["order"] is None
+    c = check(run, "paypal_button_found")
+    assert (c["passed"], c["code"], c["cause"]) == (0, "over_budget", "environment")
+    assert Decimal(c["evidence"]["checkout_total"]) > Decimal("25.00")
+    assert all(check(run, k)["status"] == "excluded" for k in ["payment_approved", "capture_completed", "payment_verified"])
+    with db.connect(server.db_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM orders WHERE status = 'COMPLETED'").fetchone()[0] == 0
+
+
+@requires_browser
+async def test_other_prices_in_the_page_text_do_not_block_a_purchase_that_fits(server, monkeypatch):
+    # Text like "Free shipping over $50" reads as a 50.00 price; the order itself is 24.00, within the 30.00 limit.
+    from backend.app.agent import checks
+    monkeypatch.setattr(checks, "checkout_total", lambda facts: Decimal("50.00"))
+    run = await checkout_run(server, "day3_checkout_flaws_off", budget=Decimal("30.00"))
+    assert run["outcome"] == "purchased" and run["order"]["capture_status"] == "COMPLETED"
+    assert check(run, "payment_verified")["evidence"]["budget"]["within"] is True

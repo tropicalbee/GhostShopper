@@ -135,6 +135,25 @@ class CheckEngine:
             "over_budget"), step_id)
         return f"Not paid: {reason}"
 
+    async def stop_if_order_over_budget(self, amount: Decimal | None, facts: dict[str, Any],
+                                        step_id: int | None = None) -> str | None:
+        """The real check: the amount of the order the store just created, read from the backend response, not
+        from page text. Called after the order exists but before anything is approved, so no money has moved.
+        An amount we never saw is treated as over, because the limit can't be checked."""
+        if self.budget is None or (amount is not None and amount <= self.budget):
+            return None
+        if amount is None:
+            reason = f"The order amount could not be read, so it could not be checked against the ${self.budget} spending limit."
+        else:
+            reason = f"The order total ${amount} is over the ${self.budget} spending limit, so the shopper did not pay."
+        page_total = checks.checkout_total(facts)
+        await self._record(checks.Outcome(
+            "paypal_button_found", False, reason,
+            {"url": facts.get("url"), "budget": str(self.budget), "checkout_total": str(amount) if amount is not None else None,
+             "page_total": str(page_total) if page_total is not None else None},
+            "over_budget"), step_id)
+        return f"Not paid: {reason}"
+
     def on_form_filled(self, facts: dict[str, Any]) -> None:
         """The agent had to fill a form. Counts as an extra step if it is between product and checkout."""
         if not self.product_seen or self.checkout_seen or checks.is_product_page(facts, self.target):
