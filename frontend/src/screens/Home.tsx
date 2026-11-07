@@ -3,8 +3,8 @@ import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { startCheck } from "@/lib/api";
-import { go } from "@/lib/hooks";
+import { api, startCheck } from "@/lib/api";
+import { go, useFetch } from "@/lib/hooks";
 
 
 // What the shopper looks for, in the order it shops.
@@ -21,6 +21,8 @@ export function Home() {
   const [error, setError] = useState<string | null>(null);
   const [budget, setBudget] = useState("");
   const [budgetError, setBudgetError] = useState<string | null>(null);
+  const [real, setReal] = useState(false);
+  const health = useFetch(api.health, []).data;
 
   const start = async (storeUrl: string | null) => {
     const limit = budget.trim().replace(/^\$/, "");
@@ -32,7 +34,7 @@ export function Home() {
     setBusy(true);
     setError(null);
     try {
-      const { run_id } = await startCheck(storeUrl, storeUrl ? null : limit);
+      const { run_id } = await startCheck(storeUrl, storeUrl ? null : limit, !storeUrl && real);
       go(`/run/${run_id}`);
     } catch (e) {
       setError((e as Error).message);
@@ -114,6 +116,26 @@ export function Home() {
               {budgetError ?? "The shopper won't pay if the checkout total is above this. The demo mug costs $24.00."}
             </p>
           </div>
+          {health?.real_payment_allowed && (
+            <div className="mt-4">
+              <label className="flex items-start gap-2 font-medium">
+                <input
+                  type="checkbox"
+                  checked={real}
+                  disabled={!health.real_checkout_available}
+                  onChange={(e) => setReal(e.target.checked)}
+                  aria-describedby="real-payment-help"
+                  className="mt-1 size-4"
+                />
+                Pay with the real PayPal sandbox on the demo store
+              </label>
+              <p id="real-payment-help" className="mt-1 text-[13px] text-muted-foreground">
+                {health.real_checkout_available
+                  ? "Uses PayPal's test environment, no real money. If PayPal asks for a person, a link to the shopper's browser appears so you can approve it. Without this, the demo store uses a practice PayPal."
+                  : `Not set up on this server (missing ${health.real_checkout_missing.join(", ")}). The demo store uses a practice PayPal.`}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-3 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:gap-6">

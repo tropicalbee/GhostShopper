@@ -1,10 +1,12 @@
 """Orders v2 endpoints the demo store's PayPal button calls: create and capture."""
 
 import json
+import logging
 import re
 from decimal import Decimal
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -17,6 +19,8 @@ from .paypal import PayPalClient, PayPalError, summarize_capture
 from .ratelimit import rate_limit
 from .verification import verify_payment
 
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/paypal", tags=["paypal"])
 
 ORDER_ID_RE = re.compile(r"^[A-Z0-9]{5,40}$")
@@ -28,7 +32,8 @@ class CreateOrderRequest(BaseModel):
 
 
 def get_paypal(request: Request) -> PayPalClient:
-    client = request.app.state.paypal
+    state = request.app.state
+    client = state.paypal_clients.get(state.paypal_active)
     if client is None:
         raise HTTPException(
             status_code=503,
@@ -44,6 +49,12 @@ def _paypal_http_error(exc: PayPalError) -> HTTPException:
         status_code=status,
         detail={"error": exc.name, "issue": exc.issue, "debug_id": exc.debug_id, "message": str(exc)},
     )
+
+
+def _refund_unavailable(refund_id: str | None, code: str, what: str) -> HTTPException:
+    message = f"{what}. "
+    message += ("The refund was issued and recorded; try again to confirm it." if refund_id else "No refund was issued; try again.")
+    return HTTPException(status_code=502, detail={"error": code, "message": message})
 
 
 def build_purchase_unit(product: catalog.Product, quantity: int, unit_price: Decimal | None = None) -> dict[str, Any]:
@@ -125,7 +136,7 @@ def _owned_by(db_path, run_id: int | None, owner: str) -> bool:
 
 
 @router.post("/orders/{order_id}/refund")
-async def refund_order(order_id: str, request: Request, paypal: PayPalClient = Depends(get_paypal)):
+async def refund_order(order_id: str, request: Request):
     """Give the sandbox payment back in full, then read the refund from PayPal and check it. Not part of the score."""
     rate_limit(request, "api_limiter")  # each call costs PayPal requests
     if not ORDER_ID_RE.match(order_id):
@@ -137,16 +148,40 @@ async def refund_order(order_id: str, request: Request, paypal: PayPalClient = D
         raise HTTPException(status_code=404, detail={"error": "UNKNOWN_ORDER", "message": "No such order"})
     if not order["capture_id"] or order["capture_status"] != "COMPLETED":
         raise HTTPException(status_code=409, detail={"error": "NOT_CAPTURED", "message": "This order has no completed payment to refund"})
-    if order["refund_id"]:
+    # An issued refund that is not yet confirmed complete (get_refund failed, or PayPal said pending) is retried by
+    # reading it again, not by refunding twice.
+    resume = bool(order["refund_id"]) and (order["refund_amount"] is None or order["refund_status"] != "COMPLETED")
+    if order["refund_id"] and not resume:
         raise HTTPException(status_code=409, detail={"error": "ALREADY_REFUNDED", "message": "This order was already refunded"})
 
+    # The payment lives with the PayPal the run used, which may not be the mode that is active now.
+    with db.connect(db_path) as conn:
+        run_mode = conn.execute("SELECT paypal_mode FROM runs WHERE id = ?", (order["run_id"],)).fetchone()["paypal_mode"]
+    paypal = request.app.state.paypal_clients.get(run_mode)
+    if paypal is None:
+        raise HTTPException(status_code=503, detail={"error": "PAYPAL_NOT_CONFIGURED", "message": "Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in .env"})
+    refund_id = order["refund_id"] if resume else None
     try:
-        issued = await paypal.refund_capture(order["capture_id"])
-        refund = await paypal.get_refund(issued["id"])
+        if not resume:
+            issued = await paypal.refund_capture(order["capture_id"])
+            refund_id = issued["id"]
+            # Keep the id (and whatever status PayPal gave) before reading it back, so a failure below loses nothing.
+            db.record_refund(db_path, order_id, issued)
+            invalidate_run(db_path, order["run_id"])
+        refund = await paypal.get_refund(refund_id)
+        refund["id"], refund["status"], refund["amount"]["value"], refund["amount"]["currency_code"]  # shape check
     except PayPalError as exc:
+        log.warning("refund failed for order %s: %s (debug_id=%s)", order_id, exc.name, exc.debug_id)
         raise _paypal_http_error(exc) from exc
+    except httpx.HTTPError as exc:
+        log.warning("refund request failed for order %s: %s", order_id, type(exc).__name__)
+        raise _refund_unavailable(refund_id, "PAYPAL_UNREACHABLE", "Could not reach PayPal") from exc
+    except (KeyError, TypeError, IndexError) as exc:
+        log.warning("refund response for order %s was malformed: %r", order_id, exc)
+        raise _refund_unavailable(refund_id, "PAYPAL_BAD_RESPONSE", "PayPal sent a response we could not read") from exc
 
     db.record_refund(db_path, order_id, refund)
+    log.info("refunded order %s: refund %s %s", order_id, refund["id"], refund["status"])
     invalidate_run(db_path, order["run_id"])  # a finished run's cached payload carries its order
     refunded_at = db.get_order(db_path, order_id)["refunded_at"]
     amount, currency = refund["amount"]["value"], refund["amount"]["currency_code"]

@@ -74,6 +74,14 @@ export function Live({ run }: { run: Run }) {
           </p>
           <p className="mt-2 text-sm">{run.awaiting.reason}</p>
           <p className="mt-1 text-sm text-muted-foreground">{run.awaiting.instructions}</p>
+          {run.awaiting.live_view_url && (
+            <p className="mt-3 text-sm">
+              <a href={run.awaiting.live_view_url} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-4">
+                Open the shopper's browser
+              </a>{" "}
+              and finish the PayPal window there.
+            </p>
+          )}
         </section>
       )}
 

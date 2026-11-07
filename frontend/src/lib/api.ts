@@ -8,6 +8,9 @@ export type Health = {
   groq_configured: boolean;
   demo_admin_open: boolean;
   retention_days: number;
+  real_checkout_available: boolean; // a run may pay with the real PayPal sandbox (needs keys and a Kernel browser)
+  real_checkout_missing: string[]; // what the server still needs when it isn't
+  real_payment_allowed: boolean; // this browser has the presenter unlock (or the server is a dev server)
 };
 
 export type FeedLine = { step: number; text: string; tone: "good" | "bad" | "info" | "neutral" };
@@ -164,7 +167,7 @@ export type Run = {
   budget: string | null; // the shopper's spending limit in USD, like "30.00"
   target_product: string;
   started_at: string;
-  awaiting: { stage: string; reason: string; instructions: string; popup_url?: string } | null;
+  awaiting: { stage: string; reason: string; instructions: string; popup_url?: string; live_view_url?: string | null } | null;
   feed: FeedLine[];
   steps: Step[];
   checks: { check_key: string; stage: string; status: string; cause: string | null; reason: string | null; code?: string | null; evidence?: Record<string, unknown> | null }[];
@@ -257,8 +260,13 @@ export const api = {
 // The server picks the shopper (live AI when Groq is configured, otherwise the labelled scripted one) and,
 // on the demo store, the PayPal purchase. A visitor chooses a store link and, optionally, a spending limit.
 // A spending limit only matters where the shopper pays, which is the demo store.
-export function startCheck(storeUrl: string | null, budget?: string | null) {
-  return api.start({ ...(storeUrl ? { store_url: storeUrl } : {}), ...(budget ? { budget } : {}) });
+// realPayment asks for the real PayPal sandbox on the demo store; without it the server's default applies.
+export function startCheck(storeUrl: string | null, budget?: string | null, realPayment?: boolean) {
+  return api.start({
+    ...(storeUrl ? { store_url: storeUrl } : {}),
+    ...(budget ? { budget } : {}),
+    ...(realPayment ? { real_payment: true } : {}),
+  });
 }
 
 // Two checks belong together when they are of the same store and from the same browser (or both examples).

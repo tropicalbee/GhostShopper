@@ -12,8 +12,8 @@ services:
     healthCheckPath: /api/health
     autoDeploy: false
     envVars:
-      - key: PAYPAL_MODE
-        value: sandbox
+      - key: PAYPAL_MODE   # the default for a check; a visitor can choose the real sandbox per check (needs the keys below)
+        value: mock
       - key: APP_BASE_URL
         value: https://ghostshopper.onrender.com   # replace with the service URL Render assigns
       - key: BROWSER_PROVIDER

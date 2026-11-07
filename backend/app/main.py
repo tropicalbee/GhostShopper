@@ -14,13 +14,15 @@ from store.app import create_store_app
 
 from . import db
 from .agent.llm import groq_configured
-from .config import PAYPAL_SDK_URL, Settings, get_settings
+from .agent.service import real_checkout_missing
+from .config import PAYPAL_MODES, PAYPAL_SDK_URL, Settings, get_settings
 from .market import MarketError, market_check
 from .orders import router as orders_router
 from .owner import COOKIE, MAX_AGE_S, hash_token, new_token, valid_token
 from .paypal import PayPalClient
 from .paypal_mock import MOCK_CLIENT_ID, MOCK_SDK_PATH, FakePayPalClient, mock_router
 from .ratelimit import RateLimiter, rate_limit
+from .runs import real_payment_allowed
 from .runs import router as runs_router
 from .scoring import CHECKS, RULES_VERSION, STAGES
 
@@ -48,27 +50,32 @@ def _cache_policy(path: str, status: int) -> str | None:
 def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayPalClient | None = None) -> FastAPI:
     settings = settings or get_settings()
     db.init_db(settings.database_path)
-    mock = settings.paypal_mode == "mock"
-    if mock and paypal is None:
-        paypal = FakePayPalClient()
+    # Both modes live side by side: PAYPAL_MODE is the default, and a run may ask for the other (runs.py). The mock
+    # is always there; the sandbox client only exists when its credentials do. app.state.paypal_active is the mode
+    # the order endpoints and the store use right now (a run sets it for its duration, runs are one at a time).
+    clients: dict[str, PayPalClient | FakePayPalClient] = {}
+    if paypal is not None:
+        clients[settings.paypal_mode] = paypal
+    clients.setdefault("mock", FakePayPalClient())
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         purged = db.purge_old_runs(settings.database_path, settings.runs_dir, settings.retention_days)
         if purged:
             log.info("Retention: deleted %d check(s) older than %d days", len(purged), settings.retention_days)
-        owns_client = paypal is None and settings.paypal_configured
+        owns_client = "sandbox" not in clients and settings.paypal_configured
         if owns_client:
-            app.state.paypal = PayPalClient(settings.paypal_client_id, settings.paypal_client_secret)
+            clients["sandbox"] = PayPalClient(settings.paypal_client_id, settings.paypal_client_secret)
         yield
         if owns_client:
-            await app.state.paypal.aclose()
+            await clients.pop("sandbox").aclose()
 
     app = FastAPI(title="GhostShopper", version="0.1.0", lifespan=lifespan,
                   docs_url="/api/docs" if settings.dev_options else None,
                   redoc_url=None, openapi_url="/api/openapi.json" if settings.dev_options else None)
     app.state.settings = settings
-    app.state.paypal = paypal
+    app.state.paypal_clients = clients
+    app.state.paypal_active = settings.paypal_mode
     app.state.run_lock = asyncio.Lock()
     app.state.run_tasks = set()
     app.state.run_limiter = RateLimiter(*settings.run_rate_limit)
@@ -101,16 +108,20 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
 
     app.include_router(orders_router)
     app.include_router(runs_router)
-    if mock:
-        app.include_router(mock_router(paypal))
+    app.include_router(mock_router(clients["mock"]))
 
     @app.get("/api/health")
     def health(request: Request):
+        real_missing = real_checkout_missing(settings.paypal_configured or "sandbox" in clients)
         return {
             "status": "ok",
-            "paypal_configured": request.app.state.paypal is not None,
+            "paypal_configured": settings.paypal_mode in clients,
             "paypal_env": "sandbox",
             "paypal_mode": settings.paypal_mode,
+            # Whether a run may ask for a real PayPal sandbox purchase, and what is missing if not.
+            "real_checkout_available": not real_missing,
+            "real_checkout_missing": real_missing,
+            "real_payment_allowed": real_payment_allowed(request),  # this browser has the presenter unlock
             "groq_configured": groq_configured(),
             "demo_admin_open": settings.dev_options,
             "retention_days": settings.retention_days,
@@ -149,16 +160,23 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
                 "message": "The dashboard isn't built. Run `npm run build` in frontend/, or use `npm run dev`."})
         return FileResponse(index, headers={"Content-Security-Policy": DASHBOARD_CSP, "Cache-Control": "no-cache"})
 
-    app.mount(
-        "/store",
-        create_store_app(
+    # One store app per PayPal mode (the checkout page embeds the SDK URL). Both read the same database, so the
+    # flaws are shared; each request goes to the app for the mode that is active.
+    stores = {
+        mode: create_store_app(
             db_path=settings.database_path,
-            paypal_client_id=MOCK_CLIENT_ID if mock else settings.paypal_client_id,
-            paypal_sdk_url=MOCK_SDK_PATH if mock else PAYPAL_SDK_URL,
+            paypal_client_id=MOCK_CLIENT_ID if mode == "mock" else settings.paypal_client_id,
+            paypal_sdk_url=MOCK_SDK_PATH if mode == "mock" else PAYPAL_SDK_URL,
             admin_open=settings.dev_options,
             admin_token=settings.demo_admin_token,
-        ),
-    )
+        )
+        for mode in PAYPAL_MODES
+    }
+
+    async def store(scope, receive, send):
+        await stores[app.state.paypal_active](scope, receive, send)
+
+    app.mount("/store", store)
     return app
 
 

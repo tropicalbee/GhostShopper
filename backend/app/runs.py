@@ -6,6 +6,7 @@ run id answers 404, exactly like a run that doesn't exist.
 """
 
 import asyncio
+import hmac
 import logging
 import re
 from pathlib import Path
@@ -20,11 +21,12 @@ from .agent.compare import CompareError, compare_runs, previous_run
 from .agent.explain import explain_run
 from .agent.llm import LLMConfigError, groq_configured, make_llm
 from .agent.recorder import invalidate_run, list_runs, load_run
-from .agent.service import RunConfigError, RunRequest, ServerInfo, execute, prepare, resolve_target
+from .agent.service import RunConfigError, RunRequest, ServerInfo, execute, prepare, real_checkout_missing, resolve_target
 from .agent.site import allow_private_hosts
 from .devsummary import developer_summary
 from .feed import feed_csv
 from .ratelimit import rate_limit
+from store.app import ADMIN_COOKIE
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 log = logging.getLogger(__name__)
@@ -47,10 +49,23 @@ class StartRun(BaseModel):
     # Open to everyone (not a developer option): a spending limit in USD, like "30.00". Only matters when the
     # shopper pays, which is on the demo store.
     budget: str | None = Field(default=None, max_length=20)
+    # Pay with the real PayPal sandbox instead of the server's default. Needs the presenter unlock on a deployed
+    # server (else 403 REAL_PAYMENT_LOCKED), plus sandbox keys and a Kernel browser (else 400 RUN_CONFIG). Demo store only.
+    real_payment: bool | None = None
 
 
 def _error(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"error": code, "message": message})
+
+
+def real_payment_allowed(request: Request) -> bool:
+    """Real sandbox purchases need the presenter unlock (the /store/admin cookie); a dev server needs nothing."""
+    settings = request.app.state.settings
+    if settings.dev_options:
+        return True
+    token = settings.demo_admin_token
+    supplied = request.cookies.get(ADMIN_COOKIE) or ""
+    return bool(token) and hmac.compare_digest(supplied.encode(), token.encode())
 
 
 NOT_FOUND = "We couldn't find that check."
@@ -93,24 +108,35 @@ async def start_run(body: StartRun, request: Request):
     state = request.app.state
     settings = state.settings
     rate_limit(request, "run_limiter")
-    chosen = body.model_fields_set - {"store_url", "budget"}
+    chosen = body.model_fields_set - {"store_url", "budget", "real_payment"}
     if chosen and not settings.dev_options:
         raise _error(400, "RUN_CONFIG", f"Only store_url can be set on this server (not {', '.join(sorted(chosen))}).")
     demo = not body.store_url
+    real = bool(body.real_payment)
+    if real:
+        if not real_payment_allowed(request):
+            raise _error(403, "REAL_PAYMENT_LOCKED", "Real PayPal sandbox purchases need the presenter unlock. Unlock at /store/admin, or run without this option for the practice PayPal.")
+        if not demo:
+            raise _error(400, "RUN_CONFIG", "Real PayPal purchases only run on the GhostShopper demo store.")
+        missing = real_checkout_missing(settings.paypal_configured or "sandbox" in state.paypal_clients)
+        if missing:
+            raise _error(400, "RUN_CONFIG", f"The real PayPal sandbox option isn't set up on this server. Missing: {', '.join(missing)}.")
     req = RunRequest(
         store_url=body.store_url,
         llm=body.llm or ("groq" if groq_configured() else "scripted"),
         cassette=body.cassette,
         record=body.record,
         flaws=body.flaws or "keep",
-        checkout=demo if body.checkout is None else body.checkout,
-        paypal=body.paypal or ("mock" if settings.paypal_mode == "mock" else "sandbox"),
-        browser=body.browser,
+        checkout=True if real else (demo if body.checkout is None else body.checkout),
+        paypal="sandbox" if real else (body.paypal or settings.paypal_mode),
+        # A real purchase runs in a Kernel browser with headless off: its live view is how a person approves.
+        browser="kernel" if real else body.browser,
         max_steps=body.max_steps or 25,
         budget=body.budget,
-        headless=not body.headed,
+        headless=False if real else not body.headed,
     )
-    server = ServerInfo(settings.paypal_mode, state.paypal is not None)
+    # Both modes are served; the run is checked against the mode it asked for, not the server's default.
+    server = ServerInfo(req.paypal, req.paypal in state.paypal_clients or settings.paypal_configured)
     try:
         target = await resolve_target(req, settings.app_base_url)  # friendly errors for links we can't check
         live = not target.demo
@@ -137,11 +163,20 @@ async def start_run(body: StartRun, request: Request):
                 if not started.done():
                     started.set_exception(exc)
 
+        # The store and the order endpoints use the run's PayPal mode while it runs, then go back to the default.
+        if req.checkout:
+            state.paypal_active = req.paypal
         task = asyncio.create_task(worker())
+
+        def finished(_):
+            state.paypal_active = settings.paypal_mode
+            state.run_lock.release()
+
         # The lock is released when the task is done, however it ends (a task cancelled before it first runs
         # never enters its own try/finally, so the release can't live in the worker).
-        task.add_done_callback(lambda _: state.run_lock.release())
+        task.add_done_callback(finished)
     except BaseException:
+        state.paypal_active = settings.paypal_mode
         state.run_lock.release()
         raise
     state.run_tasks.add(task)

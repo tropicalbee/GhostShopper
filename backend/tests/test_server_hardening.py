@@ -1,6 +1,7 @@
 """Run-start race, example protection, SQLite settings, caches, pagination and response headers."""
 
 import asyncio
+import dataclasses
 import sqlite3
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from backend.app.main import create_app
 from backend.app.owner import COOKIE
 from backend.tests.test_access import ALICE, BOB, client_for, make_run
 from backend.tests.test_access import settings as access_settings
+from store.flaws import FlawStore
 
 
 def dev_settings(tmp_path: Path, **kw) -> Settings:
@@ -318,4 +320,169 @@ def test_a_response_that_sets_the_owner_cookie_is_never_publicly_cacheable(tmp_p
 def test_health_keeps_its_keys(tmp_path):
     with client_for(create_app(access_settings(tmp_path)), None) as c:
         assert set(c.get("/api/health").json()) == {"status", "paypal_configured", "paypal_env", "paypal_mode",
-                                                    "groq_configured", "demo_admin_open", "retention_days"}
+                                                    "groq_configured", "demo_admin_open", "retention_days",
+                                                    "real_checkout_available", "real_checkout_missing",
+                                                    "real_payment_allowed"}
+
+
+# --- Per-run PayPal mode on a deployed server ---
+
+REAL_ENV = {"KERNEL_API_KEY": "k-1", "SANDBOX_BUYER_EMAIL": "b@example.com", "SANDBOX_BUYER_PASSWORD": "pw"}
+
+
+def deployed(tmp_path: Path, **kw) -> Settings:
+    return Settings(kw.pop("client_id", ""), kw.pop("client_secret", ""), tmp_path / "a.db", "https://ghostshopper.example",
+                    paypal_mode="mock", runs_dir=tmp_path / "runs", frontend_dist=tmp_path / "dist",
+                    demo_admin_token=PRESENTER, **kw)
+
+
+PRESENTER = "t0ken-for-the-presenter"
+
+
+def unlock(c):
+    c.cookies.set("fh_admin", PRESENTER)
+    return c
+
+
+def capture_start(monkeypatch):
+    """Replace the run itself; returns the RunRequest the server built and the PayPal mode active during it."""
+    seen = {}
+
+    async def fake_execute(req, url, db_path, on_start=None, server=None, **kw):
+        seen.update(req=req, server=server)
+        on_start(1)
+
+    monkeypatch.setattr(runs, "execute", fake_execute)
+    monkeypatch.setattr(runs, "prepare", lambda *a, **k: (None, None))
+    return seen
+
+
+def test_a_deployed_server_runs_mock_paypal_by_default(tmp_path, monkeypatch):
+    seen = capture_start(monkeypatch)
+    app = create_app(deployed(tmp_path))
+    with client_for(app, ALICE) as c:
+        r = c.post("/api/runs", json={})
+    assert r.status_code == 202
+    assert seen["req"].paypal == "mock" and seen["req"].checkout and seen["req"].headless
+
+
+def test_the_real_option_is_refused_naming_what_is_missing(tmp_path, monkeypatch):
+    for key in REAL_ENV:
+        monkeypatch.delenv(key, raising=False)
+    seen = capture_start(monkeypatch)
+    app = create_app(deployed(tmp_path))
+    with unlock(client_for(app, ALICE)) as c:
+        health = c.get("/api/health").json()
+        r = c.post("/api/runs", json={"real_payment": True})
+    assert health["real_checkout_available"] is False
+    assert r.status_code == 400 and r.json()["detail"]["error"] == "RUN_CONFIG"
+    message = r.json()["detail"]["message"]
+    assert all(name in message for name in ("PAYPAL_CLIENT_ID", "KERNEL_API_KEY", "SANDBOX_BUYER_EMAIL"))
+    assert not seen  # no silent fallback to the mock
+
+
+def test_the_real_option_needs_the_kernel_key_even_with_paypal_keys(tmp_path, monkeypatch):
+    for key, value in REAL_ENV.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv("KERNEL_API_KEY")
+    capture_start(monkeypatch)
+    app = create_app(deployed(tmp_path, client_id="id", client_secret="secret"))
+    with unlock(client_for(app, ALICE)) as c:
+        r = c.post("/api/runs", json={"real_payment": True})
+    assert r.status_code == 400 and "KERNEL_API_KEY" in r.json()["detail"]["message"]
+    assert "PAYPAL_CLIENT_ID" not in r.json()["detail"]["message"]
+
+
+def test_the_real_option_runs_the_sandbox_in_a_visible_kernel_browser(tmp_path, monkeypatch):
+    for key, value in REAL_ENV.items():
+        monkeypatch.setenv(key, value)
+    seen = capture_start(monkeypatch)
+    app = create_app(deployed(tmp_path, client_id="id", client_secret="secret"))
+    with unlock(client_for(app, ALICE)) as c:
+        assert c.get("/api/health").json()["real_checkout_available"] is True
+        r = c.post("/api/runs", json={"real_payment": True})
+        assert r.status_code == 202
+    req = seen["req"]
+    assert (req.paypal, req.browser, req.headless, req.checkout) == ("sandbox", "kernel", False, True)
+    assert seen["server"].paypal_mode == "sandbox" and seen["server"].paypal_configured
+
+
+def test_the_real_option_does_not_unlock_developer_options_or_live_stores(tmp_path, monkeypatch):
+    for key, value in REAL_ENV.items():
+        monkeypatch.setenv(key, value)
+    capture_start(monkeypatch)
+    app = create_app(deployed(tmp_path, client_id="id", client_secret="secret"))
+    with unlock(client_for(app, ALICE)) as c:
+        r = c.post("/api/runs", json={"real_payment": True, "max_steps": 5})
+        assert r.status_code == 400 and "max_steps" in r.json()["detail"]["message"]
+        r = c.post("/api/runs", json={"real_payment": True, "store_url": "https://shop.example"})
+        assert r.status_code == 400 and "demo store" in r.json()["detail"]["message"]
+
+
+@pytest.mark.anyio
+async def test_the_store_and_orders_follow_the_active_mode_and_reset_after_the_run(tmp_path, monkeypatch):
+    for key, value in REAL_ENV.items():
+        monkeypatch.setenv(key, value)
+    modes = []
+
+    pages = []
+
+    async def fake_execute(req, url, db_path, on_start=None, **kw):
+        modes.append(app.state.paypal_active)
+        pages.append((await async_client(app).get("/store/checkout?sku=FH-MUG-01")).text)  # what the shopper would load
+        on_start(1)
+
+    monkeypatch.setattr(runs, "execute", fake_execute)
+    monkeypatch.setattr(runs, "prepare", lambda *a, **k: (None, None))
+    app = create_app(deployed(tmp_path, client_id="id", client_secret="secret"))
+    FlawStore(app.state.settings.database_path).set_many({"extra_checkout_step": False})  # straight to the PayPal page
+    async with unlock(async_client(app)) as c:
+        assert (await c.post("/api/runs", json={"real_payment": True})).status_code == 202
+        await asyncio.gather(*app.state.run_tasks)
+        await asyncio.sleep(0.05)
+        assert modes == ["sandbox"] and app.state.paypal_active == "mock"
+        page = (await c.get("/store/checkout?sku=FH-MUG-01")).text
+    assert "/mock-paypal/sdk.js" in page  # back to the default store page
+    assert "paypal.com/web-sdk/v6/core" in pages[0] and "/mock-paypal/" not in pages[0]
+
+
+def test_the_real_option_is_locked_without_the_presenter_cookie(tmp_path, monkeypatch):
+    for key, value in REAL_ENV.items():
+        monkeypatch.setenv(key, value)
+    seen = capture_start(monkeypatch)
+    app = create_app(deployed(tmp_path, client_id="id", client_secret="secret"))
+    with client_for(app, ALICE) as c:
+        assert c.get("/api/health").json()["real_payment_allowed"] is False
+        r = c.post("/api/runs", json={"real_payment": True})
+        assert r.status_code == 403 and r.json()["detail"]["error"] == "REAL_PAYMENT_LOCKED"
+        c.cookies.set("fh_admin", "wrong-token")
+        assert c.post("/api/runs", json={"real_payment": True}).status_code == 403
+        assert c.post("/api/runs", json={}).status_code == 202  # the practice PayPal stays open to everyone
+    assert seen["req"].paypal == "mock"
+
+
+def test_the_real_option_works_with_the_presenter_cookie(tmp_path, monkeypatch):
+    for key, value in REAL_ENV.items():
+        monkeypatch.setenv(key, value)
+    capture_start(monkeypatch)
+    app = create_app(deployed(tmp_path, client_id="id", client_secret="secret"))
+    with unlock(client_for(app, ALICE)) as c:
+        assert c.get("/api/health").json()["real_payment_allowed"] is True
+        assert c.post("/api/runs", json={"real_payment": True}).status_code == 202
+
+
+def test_the_unlock_form_sets_a_cookie_the_api_accepts(tmp_path):
+    app = create_app(deployed(tmp_path))
+    with client_for(app, ALICE) as c:
+        assert c.post("/store/admin/unlock", data={"token": PRESENTER}, follow_redirects=False).status_code == 303
+        assert c.get("/api/health").json()["real_payment_allowed"] is True
+
+
+def test_a_dev_server_needs_no_unlock_for_the_real_option(tmp_path, monkeypatch):
+    for key, value in REAL_ENV.items():
+        monkeypatch.setenv(key, value)
+    capture_start(monkeypatch)
+    app = create_app(dataclasses.replace(dev_settings(tmp_path), paypal_client_id="id", paypal_client_secret="secret"))
+    with client_for(app, ALICE) as c:
+        assert c.get("/api/health").json()["real_payment_allowed"] is True
+        assert c.post("/api/runs", json={"real_payment": True}).status_code == 202
