@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from store.flaws import CLASSIC_FLAWS, FLAW_KEYS
+from store.flaws import AGENT_FLAWS, FLAW_KEYS, PAYPAL_FLAWS
 
 from .. import db
 from ..agent.llm import LLM
@@ -32,13 +32,13 @@ CREATE TABLE IF NOT EXISTS flaw_proposals (
 
 
 def implemented_flaws() -> tuple[str, ...]:
-    """Flaws that are both a store toggle and labelled with ground truth."""
-    return tuple(k for k in FLAW_KEYS if k in LABELS)
+    """Flaws that are both a store toggle and labelled with ground truth (PayPal-setup flaws trigger no check)."""
+    return tuple(k for k in FLAW_KEYS if k in LABELS and k not in PAYPAL_FLAWS)
 
 
 def classic_matrix() -> list[tuple[str, ...]]:
     """All 16 combinations of the 4 original flaws, including none: the fixed benchmark."""
-    return [combo for r in range(len(CLASSIC_FLAWS) + 1) for combo in itertools.combinations(CLASSIC_FLAWS, r)]
+    return [combo for r in range(len(AGENT_FLAWS) + 1) for combo in itertools.combinations(AGENT_FLAWS, r)]
 
 
 def random_combos(n: int, seed: int, min_k: int = 1, max_k: int = 4) -> list[tuple[str, ...]]:

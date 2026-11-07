@@ -192,3 +192,54 @@ def test_misleading_sale_shows_a_fake_was_price(client):
     only(client, "misleading_sale")
     html = client.get(PRODUCT).text
     assert "<s>$30.00</s>" in html and "50% off!" in html  # 24 vs 30 is 20% off, not 50%
+
+
+# --- PayPal setup flaws (on = the feature is missing) ---
+
+CHECKOUT = "/store/checkout?sku=FH-MUG-01"
+
+
+def test_paypal_flaws_on_store_has_no_extra_paypal_features(client):
+    from store.flaws import PAYPAL_FLAWS
+
+    assert all(client.get("/store/admin/flaws.json").json()[k] for k in PAYPAL_FLAWS)
+    set_flaws(client, **{k: False for k in FLAW_KEYS if k not in PAYPAL_FLAWS}, **{k: True for k in PAYPAL_FLAWS})
+    product, checkout = client.get(PRODUCT).text, client.get(CHECKOUT).text
+    assert "paypal-button" not in product and "paypal-message" not in product
+    assert "venmo-button" not in checkout and "paypal-pay-later-button" not in checkout
+    assert "paypal-basic-card-button" not in checkout and "debit or credit card" not in checkout
+    assert "<paypal-button" in checkout and "paypal-guest-payments" not in checkout
+
+
+def test_paypal_flaws_off_store_has_every_paypal_feature(client):
+    all_off(client)
+    product, checkout = client.get(PRODUCT).text, client.get(CHECKOUT).text
+    assert "<paypal-button" in product and "<paypal-message" in product
+    assert "checkout.js" in product and "web-sdk/v6/core" in product
+    for tag in ("<venmo-button", "<paypal-pay-later-button", "<paypal-basic-card-button", "debit or credit card"):
+        assert tag in checkout
+    assert "paypal-guest-payments" in checkout
+
+
+@pytest.mark.parametrize("flaw,present_when_off", [
+    ("no_paypal_express", ("product", "<paypal-button")),
+    ("no_pay_later", ("product", "<paypal-message")),
+    ("no_pay_later", ("checkout", "<paypal-pay-later-button")),
+    ("no_venmo", ("checkout", "<venmo-button")),
+    ("no_card_checkout", ("checkout", "<paypal-basic-card-button")),
+])
+def test_each_paypal_flaw_controls_only_its_feature(client, flaw, present_when_off):
+    page, needle = present_when_off
+    url = PRODUCT if page == "product" else CHECKOUT
+    only(client, flaw)
+    assert needle not in client.get(url).text
+    all_off(client)
+    assert needle in client.get(url).text
+
+
+def test_admin_lists_the_paypal_flaws(client):
+    from store.flaws import PAYPAL_FLAWS
+
+    html = client.get("/store/admin").text
+    for key in PAYPAL_FLAWS:
+        assert f'name="{key}"' in html

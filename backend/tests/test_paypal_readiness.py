@@ -156,3 +156,48 @@ async def test_demo_store_run_stores_paypal_readiness(server):  # noqa: F811
     assert {i["key"] for i in pr["checklist"]} == set(WEIGHTS)
     assert pr["steps_to_paypal"] != 0  # the demo store has no PayPal on the product page
     assert run["scorecard"]["total"] == 29  # the agent-readiness score is untouched
+
+
+# --- The demo store: flawed vs fixed ---
+
+async def store_readiness(server, flaws: str) -> dict:
+    """Open the product page and the checkout page (the details step already done) of the demo store (mock PayPal) and score what is there."""
+    from playwright.async_api import async_playwright
+
+    from backend.app.agent.service import apply_flaws
+
+    store_url = f"{server.url}/store/"
+    await apply_flaws(store_url, flaws)
+    collector = PayPalCollector()
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        context = await browser.new_context()
+        await context.add_cookies([{"name": "fh_details", "value": "FH-MUG-01", "url": store_url}])  # the extra step done
+        page = await context.new_page()
+        for url, kind in ((f"{store_url}products/speckled-stoneware-mug", "product"),
+                          (f"{store_url}checkout?sku=FH-MUG-01", "checkout")):
+            await page.goto(url)
+            await page.wait_for_timeout(800)  # the mock SDK reveals the buttons after it loads
+            collector.add(page.url, kind, (await page.evaluate(FACTS_JS))["paypal_signals"])
+        await browser.close()
+    return collector.result()
+
+
+@requires_browser
+@pytest.mark.anyio
+async def test_fixed_demo_store_scores_high_and_flawed_scores_low(tmp_path):
+    from backend.app.config import Settings
+    from backend.app.main import create_app
+
+    from .live_server import LiveServer
+
+    settings = Settings(paypal_client_id="", paypal_client_secret="", database_path=tmp_path / "pr.db",
+                        app_base_url="http://unused", paypal_mode="mock", dev_options=True)
+    with LiveServer(create_app(settings)) as srv:
+        fixed = await store_readiness(srv, "off")
+        flawed = await store_readiness(srv, "on")
+    assert fixed["score"] >= 90, fixed["checklist"]
+    assert flawed["score"] <= 55 and fixed["score"] - flawed["score"] >= 40, flawed["checklist"]
+    assert all(item(fixed, k)["status"] == "detected" for k in ("button", "sdk", "express", "messaging", "paylater", "venmo", "card"))
+    assert [k for k in ("messaging", "paylater", "venmo", "card") if item(flawed, k)["status"] != "missing"] == []
+    assert item(flawed, "express")["points"] < 18 and item(fixed, "express")["points"] == 18

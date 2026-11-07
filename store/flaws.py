@@ -1,7 +1,7 @@
 """Deliberate agent-readiness flaws, each behind a toggle persisted in SQLite.
 
-The four classic flaws default to ON so a fresh store is the "bad store" in the demo; the newer ones
-(used by the saboteur benchmark) default to OFF. Every flaw has a ground-truth label in
+The classic flaws (the four agent-readiness ones plus the four PayPal-setup ones) default to ON so a fresh
+store is the "bad store" in the demo; the newer ones (used by the saboteur benchmark) default to OFF. Every flaw has a ground-truth label in
 backend/app/eval/ground_truth.py.
 """
 
@@ -70,10 +70,34 @@ FLAWS: tuple[Flaw, ...] = (
         "Misleading sale price",
         "A struck-through 'was' price and a '50% off' badge that don't match the real discount.",
     ),
+    Flaw(
+        "no_paypal_express",
+        "No PayPal on the product page",
+        "The PayPal button only appears at checkout, not on the product page.",
+    ),
+    Flaw(
+        "no_pay_later",
+        "No Pay Later",
+        "No Pay Later messaging next to the price and no Pay Later button at checkout.",
+    ),
+    Flaw(
+        "no_venmo",
+        "No Venmo",
+        "Checkout offers no Venmo button.",
+    ),
+    Flaw(
+        "no_card_checkout",
+        "No card or guest checkout",
+        "Checkout offers PayPal only, with no way to pay by card without a PayPal account.",
+    ),
 )
 FLAW_KEYS = tuple(f.key for f in FLAWS)
-# The four original demo flaws ("--flaws on"). New flaws stay off unless asked for.
-CLASSIC_FLAWS = ("price_as_image", "no_structured_data", "ambiguous_buttons", "extra_checkout_step")
+# Flaws in the PayPal readiness score only (they do not change any agent-readiness check).
+PAYPAL_FLAWS = ("no_paypal_express", "no_pay_later", "no_venmo", "no_card_checkout")
+# The four original agent-readiness flaws: the fixed benchmark matrix is built from these.
+AGENT_FLAWS = ("price_as_image", "no_structured_data", "ambiguous_buttons", "extra_checkout_step")
+# The demo "bad store" ("--flaws on"). New flaws stay off unless asked for.
+CLASSIC_FLAWS = AGENT_FLAWS + PAYPAL_FLAWS
 
 SCHEMA = "CREATE TABLE IF NOT EXISTS store_flaws (key TEXT PRIMARY KEY, enabled INTEGER NOT NULL)"
 

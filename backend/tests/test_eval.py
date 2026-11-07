@@ -10,7 +10,7 @@ from backend.app.eval.benchmark import RunResult, summarize
 from backend.app.eval.ground_truth import LABELS
 from backend.app.eval.judge import invented_numbers, judge_run, parse_ratings
 from backend.app.eval.saboteur import classic_matrix, implemented_flaws, propose_flaws, random_combos
-from store.flaws import CLASSIC_FLAWS
+from store.flaws import AGENT_FLAWS
 
 from .test_compare import CLASSIC_FAILS, make_run
 
@@ -57,7 +57,7 @@ def test_judge_output_is_validated():
 
 def test_classic_matrix_is_all_16_combinations():
     m = classic_matrix()
-    assert len(m) == len(set(m)) == 16 and () in m and tuple(CLASSIC_FLAWS) in m
+    assert len(m) == len(set(m)) == 16 and () in m and tuple(AGENT_FLAWS) in m
 
 
 def test_random_combos_are_seeded_distinct_and_implemented_only():

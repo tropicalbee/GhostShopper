@@ -128,6 +128,8 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
             buyable=product.in_stock or flaws["oos_buyable"],
             was_price=catalog.sale_was_price(product),
             show_cookie_banner=flaws["cookie_banner"] and request.cookies.get(COOKIE_CONSENT) != "1",
+            paypal_client_id=paypal_client_id,
+            paypal_sdk_url=paypal_sdk_url,
         )
 
     @app.get("/checkout/details", response_class=HTMLResponse)
@@ -238,7 +240,7 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
             return unlock_page(request, wrong=True)
         resp = RedirectResponse(f"{base}/admin", status_code=303)
         resp.set_cookie(ADMIN_COOKIE, admin_token, httponly=True, samesite="strict",
-                        secure=request.url.scheme == "https", path=f"{base}/admin", max_age=12 * 3600)
+                        secure=request.url.scheme == "https", path="/", max_age=12 * 3600)
         return resp
 
     @app.post("/admin")

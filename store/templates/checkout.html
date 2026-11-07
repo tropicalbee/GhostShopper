@@ -16,12 +16,22 @@
       {% elif not paypal_client_id %}
         <p class="errors" id="paypal-unavailable">Payment is unavailable: PayPal is not configured on this store (PAYPAL_CLIENT_ID is missing).</p>
       {% else %}
-        <p>Pay with your PayPal balance or a card. A PayPal window opens, and you come back here when you are done.</p>
+        {% if flaws.no_card_checkout %}
+        <p>Pay with your PayPal account. A PayPal window opens, and you come back here when you are done.</p>
+        {% else %}
+        <p>Pay with PayPal or pay with a debit or credit card, no PayPal account needed. A PayPal window opens, and you come back here when you are done.</p>
+        {% endif %}
         <div id="checkout"
              data-sku="{{ product.sku }}"
              data-client-id="{{ paypal_client_id }}"
-             data-thanks-url="{{ base }}/thanks">
+             data-thanks-url="{{ base }}/thanks"
+             data-page-type="checkout"
+             data-components="paypal-payments{% if not flaws.no_venmo %},venmo-payments{% endif %}{% if not flaws.no_card_checkout %},paypal-guest-payments{% endif %}">
           <paypal-button id="paypal-button" type="pay" hidden></paypal-button>
+          {# The extra payment buttons come after the PayPal button: recorded agent runs address controls by position. #}
+          {% if not flaws.no_venmo %}<venmo-button id="venmo-button" hidden></venmo-button>{% endif %}
+          {% if not flaws.no_pay_later %}<paypal-pay-later-button id="pay-later-button" hidden></paypal-pay-later-button>{% endif %}
+          {% if not flaws.no_card_checkout %}<paypal-basic-card-button id="card-button" hidden></paypal-basic-card-button>{% endif %}
           <p id="checkout-status" class="status" role="status"></p>
         </div>
       {% endif %}

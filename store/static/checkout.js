@@ -51,34 +51,82 @@
     setStatus("Could not load PayPal. Please refresh the page.", true);
   };
 
+  // Extra payment buttons (Venmo, Pay Later, card) next to the PayPal button; each is wired only if the page has it.
+  var EXTRA_BUTTONS = [
+    { id: "venmo-button", method: "venmo", create: "createVenmoOneTimePaymentSession" },
+    { id: "pay-later-button", method: "paylater", create: "createPayLaterOneTimePaymentSession" },
+    { id: "card-button", method: "card", create: "createPayPalGuestOneTimePaymentSession" },
+  ];
+
+  function sessionCallbacks() {
+    return {
+      onApprove: onApprove,
+      onCancel: function () { setStatus("Payment cancelled. You have not been charged."); },
+      onError: function (err) { setStatus("PayPal error: " + (err && err.message ? err.message : err), true); },
+    };
+  }
+
+  function wireButton(button, session) {
+    button.removeAttribute("hidden");
+    button.addEventListener("click", async function () {
+      setStatus("");
+      try {
+        // Pass the promise, do not await createOrder() first: awaiting breaks the popup's transient activation.
+        await session.start({ presentationMode: "auto" }, createOrder());
+      } catch (err) {
+        setStatus("Could not start PayPal checkout. " + err.message, true);
+      }
+    });
+  }
+
+  async function createInstance(components) {
+    return window.paypal.createInstance({
+      clientId: root.dataset.clientId,
+      components: components,
+      pageType: root.dataset.pageType || "checkout",
+    });
+  }
+
   window.onPayPalLoaded = async function () {
     try {
-      var sdk = await window.paypal.createInstance({
-        clientId: root.dataset.clientId,
-        components: ["paypal-payments"],
-        pageType: "checkout",
-      });
+      var components = (root.dataset.components || "paypal-payments").split(",");
+      var sdk;
+      try {
+        sdk = await createInstance(components);
+      } catch (err) {
+        if (components.length < 2) throw err;
+        components = ["paypal-payments"];  // an optional component was refused: keep plain PayPal working
+        sdk = await createInstance(components);
+      }
       var methods = await sdk.findEligibleMethods({ currencyCode: "USD" });
+
+      var message = document.getElementById("pay-later-message");
+      if (message && components.indexOf("paypal-messages") >= 0) {
+        try {
+          var content = await sdk.createPayPalMessages().fetchContent({
+            amount: message.dataset.amount,
+            currencyCode: "USD",
+          });
+          message.setContent(content);
+        } catch (err) { /* the message is optional */ }
+      }
+
+      var button = document.getElementById("paypal-button");
+      if (!button) return;
       if (!methods.isEligible("paypal")) {
         setStatus("PayPal is not available for this purchase.", true);
         return;
       }
-      var session = await sdk.createPayPalOneTimePaymentSession({
-        onApprove: onApprove,
-        onCancel: function () { setStatus("Payment cancelled. You have not been charged."); },
-        onError: function (err) { setStatus("PayPal error: " + (err && err.message ? err.message : err), true); },
-      });
-      var button = document.getElementById("paypal-button");
-      button.removeAttribute("hidden");
-      button.addEventListener("click", async function () {
-        setStatus("");
+      wireButton(button, await sdk.createPayPalOneTimePaymentSession(sessionCallbacks()));
+
+      for (var i = 0; i < EXTRA_BUTTONS.length; i++) {
+        var extra = EXTRA_BUTTONS[i];
+        var el = document.getElementById(extra.id);
+        if (!el || !methods.isEligible(extra.method) || typeof sdk[extra.create] !== "function") continue;
         try {
-          // Pass the promise, do not await createOrder() first: awaiting breaks the popup's transient activation.
-          await session.start({ presentationMode: "auto" }, createOrder());
-        } catch (err) {
-          setStatus("Could not start PayPal checkout. " + err.message, true);
-        }
-      });
+          wireButton(el, await sdk[extra.create](sessionCallbacks()));
+        } catch (err) { /* an optional payment method that cannot start stays hidden */ }
+      }
     } catch (err) {
       setStatus("PayPal failed to initialize: " + err.message, true);
     }

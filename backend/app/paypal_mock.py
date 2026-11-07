@@ -117,42 +117,75 @@ SDK_JS = r"""// MOCK PayPal v6 SDK (PAYPAL_MODE=mock). Not the real SDK; no PayP
   }
   if (!customElements.get("paypal-button")) customElements.define("paypal-button", PayPalButton);
 
+  // The other v6 buttons and the message, drawn like the real ones so a practice run sees the same elements.
+  function simpleButton(label, background, color) {
+    return class extends HTMLElement {
+      connectedCallback() {
+        if (this.shadowRoot) return;
+        this.attachShadow({ mode: "open" }).innerHTML = '<button type="button" style="width:100%;padding:12px;margin-top:8px;' +
+          'border:0;border-radius:4px;background:' + background + ';color:' + color +
+          ';font:bold 16px Arial,sans-serif;cursor:pointer">' + label + '</button>';
+      }
+    };
+  }
+  [["venmo-button", "Venmo", "#008cff", "#fff"], ["paypal-pay-later-button", "Pay Later", "#ffc439", "#000"],
+   ["paypal-basic-card-button", "Debit or Credit Card", "#2c2e2f", "#fff"]].forEach(function (b) {
+    if (!customElements.get(b[0])) customElements.define(b[0], simpleButton(b[1], b[2], b[3]));
+  });
+  class PayPalMessage extends HTMLElement {
+    setContent(content) {
+      var amount = Number(this.dataset.amount || 0);
+      this.textContent = "Pay in 4 interest-free payments of $" + (amount / 4).toFixed(2) + " with PayPal Pay Later.";
+    }
+  }
+  if (!customElements.get("paypal-message")) customElements.define("paypal-message", PayPalMessage);
+
   window.paypal = {
     createInstance: async function (opts) {
       if (!opts || !opts.clientId) throw new Error("clientId is required");
       return {
         findEligibleMethods: async function () {
-          return { isEligible: function (m) { return m === "paypal" && SCENARIO !== "no_button"; } };
+          return { isEligible: function (m) {
+            return ["paypal", "venmo", "paylater", "card"].indexOf(m) >= 0 && SCENARIO !== "no_button";
+          } };
         },
-        createPayPalOneTimePaymentSession: function (cb) {
-          return {
-            start: async function (options, orderPromise) {
-              // Opened synchronously inside the click, like the real SDK, so it keeps transient activation.
-              var popup = SCENARIO === "popup_blocked" ? null : window.open("about:blank", "mock-paypal", "width=480,height=640");
-              if (!popup) {
-                var err = new Error("Popup blocked by the browser");
-                if (cb.onError) cb.onError(err);
-                throw err;
-              }
-              var order;
-              try { order = await orderPromise; } catch (e) { popup.close(); throw e; }
-              popup.location.href = "/mock-paypal/checkout?token=" + encodeURIComponent(order.orderId);
-              return new Promise(function (resolve) {
-                window.addEventListener("message", async function handler(ev) {
-                  var d = ev.data || {};
-                  if (ev.origin !== location.origin || d.type !== "mock-paypal" || d.orderId !== order.orderId) return;
-                  window.removeEventListener("message", handler);
-                  if (d.action === "approve") await cb.onApprove({ orderId: order.orderId });
-                  else if (cb.onCancel) cb.onCancel({ orderId: order.orderId });
-                  resolve();
-                });
-              });
-            },
-          };
+        createPayPalMessages: function () {
+          return { fetchContent: async function () { return {}; } };
         },
+        createVenmoOneTimePaymentSession: function (cb) { return oneTimeSession(cb); },
+        createPayLaterOneTimePaymentSession: function (cb) { return oneTimeSession(cb); },
+        createPayPalGuestOneTimePaymentSession: function (cb) { return oneTimeSession(cb); },
+        createPayPalOneTimePaymentSession: function (cb) { return oneTimeSession(cb); },
       };
     },
   };
+
+  function oneTimeSession(cb) {
+    return {
+      start: async function (options, orderPromise) {
+        // Opened synchronously inside the click, like the real SDK, so it keeps transient activation.
+        var popup = SCENARIO === "popup_blocked" ? null : window.open("about:blank", "mock-paypal", "width=480,height=640");
+        if (!popup) {
+          var err = new Error("Popup blocked by the browser");
+          if (cb.onError) cb.onError(err);
+          throw err;
+        }
+        var order;
+        try { order = await orderPromise; } catch (e) { popup.close(); throw e; }
+        popup.location.href = "/mock-paypal/checkout?token=" + encodeURIComponent(order.orderId);
+        return new Promise(function (resolve) {
+          window.addEventListener("message", async function handler(ev) {
+            var d = ev.data || {};
+            if (ev.origin !== location.origin || d.type !== "mock-paypal" || d.orderId !== order.orderId) return;
+            window.removeEventListener("message", handler);
+            if (d.action === "approve") await cb.onApprove({ orderId: order.orderId });
+            else if (cb.onCancel) cb.onCancel({ orderId: order.orderId });
+            resolve();
+          });
+        });
+      },
+    };
+  }
 })();
 """
 

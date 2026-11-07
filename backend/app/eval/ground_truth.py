@@ -27,6 +27,11 @@ LABELS: dict[str, tuple[str, ...]] = {
     "cookie_banner": ("buy_button_unobstructed",),
     "currency_missing": ("currency_stated", "structured_data"),
     "misleading_sale": ("sale_claim_consistent",),
+    # PayPal-setup flaws: scored by the PayPal readiness panel, so they trigger no agent-readiness check.
+    "no_paypal_express": (),
+    "no_pay_later": (),
+    "no_venmo": (),
+    "no_card_checkout": (),
 }
 
 

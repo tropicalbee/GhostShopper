@@ -36,6 +36,9 @@
         <span class="sale-badge">50% off!</span>
         {%- endif %}
       </div>
+      {% if paypal_client_id and not flaws.no_pay_later %}
+      <paypal-message id="pay-later-message" data-amount="{{ product.price_str }}"></paypal-message>
+      {% endif %}
       <p class="product-note">Shipping calculated at checkout.</p>
       {% if not flaws.no_structured_data %}
       <p class="meta-line"><span>SKU: {{ product.sku }}</span> <span class="stock {{ 'stock-out' if listed_out else 'stock-in' }}">{{ "Out of stock" if listed_out else "In stock" }}</span></p>
@@ -74,6 +77,18 @@
         </div>
       {% endif %}
       </div>
+      {% if paypal_client_id %}
+      {#- After the Buy controls so the recorded agent runs keep their element numbers. -#}
+      <div id="checkout" class="product-paypal"
+           data-sku="{{ product.sku }}"
+           data-client-id="{{ paypal_client_id }}"
+           data-thanks-url="{{ base }}/thanks"
+           data-page-type="product-details"
+           data-components="paypal-payments{% if not flaws.no_pay_later %},paypal-messages{% endif %}">
+        {% if not flaws.no_paypal_express %}<paypal-button id="paypal-button" type="pay" hidden></paypal-button>{% endif %}
+        <p id="checkout-status" class="status" role="status"></p>
+      </div>
+      {% endif %}
       {% endif %}
 
       <ul class="product-perks">
@@ -133,4 +148,10 @@
     {% for p in related %}{{ card(p) }}{% endfor %}
   </div>
 </section>
+{% endblock %}
+{% block scripts %}
+{% if buyable and paypal_client_id and (not flaws.no_paypal_express or not flaws.no_pay_later) %}
+<script src="{{ base }}/static/checkout.js"></script>
+<script async src="{{ paypal_sdk_url }}" onload="onPayPalLoaded()" onerror="onPayPalFailed()"></script>
+{% endif %}
 {% endblock %}
