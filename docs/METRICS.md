@@ -211,3 +211,14 @@ UI at 1440 px and 375 px: no console errors or warnings on runs 20, 21 and 22. A
 PayPal budget used: 3 agent runs (19, 20, 21) and 1 refund.
 
 After the live-test fixes: pytest 287 passed, 0 skipped (312.9 s); frontend build clean.
+
+## 2026-11-08 (blockers and audit fixes)
+
+No live PayPal or Kernel runs this session, so no new run numbers.
+
+| Check | Result |
+|---|---|
+| Backend tests | 313 passed, 1 warning |
+| Frontend `npm run build` | succeeded |
+| PayPal readiness, fixed store | 100 |
+| PayPal readiness, flawed store (four PayPal toggles on) | 52 (about 46 in a real run with the extra checkout step) |

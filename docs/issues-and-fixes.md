@@ -2,6 +2,29 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-08 (blockers and audit fixes)
+
+### A budget like 1E+30 returned 500 at run start
+`parse_budget` quantized the value before it checked the size, so a huge exponent overflowed the decimal context. Fix: the maximum is checked first, and an overflow raises `RunConfigError` instead of an unhandled `ArithmeticError`.
+
+### The refund route missed network errors and could refund twice
+The route caught only `PayPalError`, so an httpx error or a malformed PayPal reply surfaced as a 500. A retry after a lost reply could also send a second refund. Fix: httpx errors return 502 `PAYPAL_UNREACHABLE`, malformed replies return 502 `PAYPAL_BAD_RESPONSE`, and the refund id is saved before the read-back. A retry reads the existing refund instead of creating another one. Errors are logged with PayPal's debug_id. `record_refund` refuses to overwrite a different refund id.
+
+### Budget was read from the store page
+`pay()` took the total from the page text. A `price_mismatch` flaw could push the real charge over budget, and a note like "Free shipping over $50" could block a purchase that was within budget. Fix: `pay()` reads the amount from the store's create-order response and refuses before approval if it is over budget (`over_budget`, environment). It waits up to 15 s for that response. The page total is kept only as evidence. An over-budget refusal leaves a CREATED order that is never approved.
+
+### PayPal v6 component names were wrong
+Venmo needs the `venmo-payments` component, and the card eligibility key was `basic_card` where the docs say `card`. The names had not been checked against the v6 docs. Fix: names checked against the PayPal docs (see `docs/research/paypal-v6-components.md`). Not yet tested in a browser. The Pay Later component name still conflicts between two doc pages, so ours stays.
+
+### A comment in create_order was wrong
+The comment said the PayPal request id was reused. Each call sends a fresh one. Only the comment changed.
+
+### Left open from the audit (low)
+- `GET /api/paypal/orders/{id}` and `/verify` have no owner check, because the agent calls them over HTTP without the owner cookie. The order ids are hard to guess, so the risk is low.
+- The approve selectors are broad. They match more buttons than needed, which is a low risk on the sandbox page.
+
+---
+
 ## 2026-11-07 (live test of the PayPal features)
 
 ### Run 20: the agent did not click Complete Purchase (hand-assisted)

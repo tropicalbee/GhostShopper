@@ -76,3 +76,11 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - Product feed in Google product feed columns, with coverage, fixes and a CSV download. Nothing is submitted to Store Sync.
 - PayPal button timeout raised from 20 s to 30 s.
 - 287 tests pass.
+
+## 2026-11-08 (blockers and audit fixes)
+- The hosted app can run a real sandbox purchase on request. A run opts in with a checkbox on Home. The server refuses it with a clear message when the PayPal, Kernel or buyer settings are missing. Mock PayPal stays the default.
+- The Live screen links to the shopper's browser when a person needs to finish a PayPal step.
+- Four new store flaws for PayPal readiness: no PayPal Express, no Pay Later, no Venmo and no card checkout.
+- PayPal v6 component names checked against PayPal's docs and corrected.
+- The budget is checked against the amount the store charges, before anything is approved.
+- Fixes from a security and production review of the PayPal features: refund error handling, a crash on oversized budgets and refund id checks.

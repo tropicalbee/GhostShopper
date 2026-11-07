@@ -1,5 +1,32 @@
 # Progress
 
+## 2026-11-08 (blockers and audit fixes)
+
+### Done
+- Blocker 1 (hosted real payments): a run can now opt in with `real_payment`. Mock PayPal stays the default on the hosted server (render.yaml sets `PAYPAL_MODE=mock`). The server accepts `real_payment` only when the PayPal client ID and secret, the Kernel key and the sandbox buyer login are all set. Otherwise it returns 400 `RUN_CONFIG` and names what is missing. There is no silent fallback. Real runs use Kernel with headless off, so the live view exists, and the "a person approves" fallback still applies. The Live screen shows an "Open the shopper's browser" link while a person is needed. `/api/health` reports `real_checkout_available` and `real_checkout_missing`.
+- Blocker 2 (PayPal story): four new store toggles, `no_paypal_express`, `no_pay_later`, `no_venmo` and `no_card_checkout`. The original four stay the agent flaws. PayPal readiness is 100 on the fixed store and 52 on the flawed store (about 46 in a real run with the extra step). Existing demo databases get the new flaws on until they are reseeded (`python -m backend.app.seed`).
+- PayPal v6 names checked against PayPal's docs (`docs/research/paypal-v6-components.md`). Two were wrong and are fixed: Venmo needs the `venmo-payments` component, and the card eligibility key is `card`. The docs disagree on `paypal-pay-later-button` and `paylater-button`, so we kept ours. checkout.js falls back to plain `paypal-payments` if the SDK refuses a component.
+- Audit of the PayPal feature commits (54b21bb, 88daa93): no critical or high findings. The medium and low fixes are in issues-and-fixes.md.
+- Budget is checked against the amount in the store's create-order response, before anything is approved or captured. Page text is kept as evidence only.
+- Real payment is now behind the presenter unlock. On a hosted server `real_payment` needs the `/store/admin` unlock cookie, otherwise 403 `REAL_PAYMENT_LOCKED`. Dev servers are unchanged. `/api/health` reports `real_payment_allowed`, and the Home checkbox is hidden for everyone else. The unlock cookie path is now `/` so the API can see it.
+- Verified: pytest 313 passed, 1 warning. Frontend `npm run build` succeeded.
+
+### Not verified
+- No live PayPal or Kernel run was done this session. Everything above is covered by mock tests or code review.
+- The Complete Purchase selectors are still unconfirmed on a headed sandbox run.
+- The v6 component names have not been tried in a browser.
+
+### Next
+1. One headed local sandbox purchase, to confirm Complete Purchase with no hand click.
+2. One Kernel real run with `real_payment` on.
+3. Deploy on Render.
+4. README, video, Devpost.
+
+### Blockers
+None on the code side.
+
+---
+
 ## 2026-11-07 (live test of the PayPal features)
 
 ### Done

@@ -184,3 +184,13 @@ Rules `2026-11-05.3`, 100 points in total.
 - Only the browser that owns a run can refund it. Shared examples and other browsers get 404.
 - We turned down auto-refunding every run. Judges should see the capture first, then press the refund button.
 - The feed is labelled "what you would submit". Store Sync has no public sandbox API, so we don't pretend to submit.
+
+## 2026-11-08: Blockers and audit
+
+- Real payment is chosen per run, and mock PayPal is the hosted default. A public server should not spend Kernel minutes or sandbox calls on every visit, but the presenter can still run the real sandbox purchase. We turned down making real payment the server default, a separate real-only deployment (two services and two cold starts), and a silent fallback to mock when keys are missing. The fallback would break the "never silently fall back" rule.
+- Real runs use Kernel with headless off. Headless runs stopped at the sandbox password step (run 19), and Kernel's live view lets a person take over when PayPal stops the agent.
+- Refunds use the client for the run's recorded PayPal mode. A mock order never reaches the sandbox API, and a sandbox order never reaches the mock.
+- The four PayPal toggles are classic flaws only. The agent's eval matrix keeps the original four flaws (16 combinations), so earlier benchmark numbers stay comparable.
+- The budget is checked on the amount the store charges, from its create-order response. Page text can be wrong, and the LLM never decides how much money is spent.
+- We kept our Pay Later component name, `paypal-pay-later-button`, because the PayPal docs disagree with `paylater-button`. checkout.js falls back to plain PayPal payments if the SDK refuses a component.
+- Real payment needs the presenter unlock (the `/store/admin` cookie) on a hosted server. Anonymous visitors and bots get the mock PayPal only, so nobody else can spend Kernel minutes. Dev servers are unchanged.
