@@ -284,8 +284,8 @@ async def _dispatch(name, args, tools: PageTools, rec, engine, payment: PaymentH
                             "Payment is not part of this run. Do not click the payment button; call finish.")
         return await tools.click(args["element_id"])
     if name == "fill_form":
-        if engine.live and await tools.has_password_field(args["fields"]):
-            raise ToolError("Live stores are browse-only: never log in or enter passwords.")
+        if await tools.has_password_field(args["fields"]):
+            raise ToolError("Never log in or type into password fields. PayPal login is handled by pay_with_paypal.")
         return await tools.fill_form(args["fields"])
     if name == "take_screenshot":
         return await tools.take_screenshot(args.get("label") or "shot")
