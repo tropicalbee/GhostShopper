@@ -98,3 +98,27 @@ A ruled grid on top, tabs underneath.
 | API down | "GhostShopper isn't responding" with a Retry button |
 | Someone else's check, or a deleted one | "We couldn't find that check." and a link to My checks |
 | Too many requests | "That's a lot of requests in a short time. Please wait a few minutes and try again." |
+
+## Before/after
+
+A grid on Results, directly under the money and PayPal readiness sections, shown only when an earlier check of the same store exists.
+- One row per rubric check: check, stage, points available, before and after (Pass, Fail or Not tested pills), points gained (green or red) and the fix applied (the plain-English fix from the before run).
+- Two pinned rows on top. Total score, before and after, with the points gained. Money: "Lost $X" for a run that did not capture a sale (from the demo store's catalog price), "Captured $Y, net $Z" for one that did. A figure missing from the data is left out.
+- Preset buttons: All, Fixed by the merchant, Still failing. A CSV export button (AG Grid Community).
+- Default sort: stage order, then points, high to low.
+- Data: `GET /api/runs/{after_id}/compare?before={before_id}`. Without `before`, the latest earlier check of the same store with different flaw settings, else the previous check; no earlier check answers 404 "Make your fixes, then check again to see before and after." and the grid stays hidden.
+
+## Ledger (Sales ledger in the sidebar, `#/ledger`)
+- Header: "Every AI shopper attempt, checked against PayPal." One AG Grid Community table, one row per checkout attempt: captured orders (agent or human) and checkout runs that captured nothing (lost sales). Data from `GET /api/ledger`.
+- Columns: time (newest first), source, store state (flaws that were on), outcome pill (captured, refunded, lost sale, at risk), stopped at, amount at stake, gross, PayPal fee, net, refund, PayPal status pill (matched, pending, mismatch, not checked), PayPal transaction id.
+- The pinned bottom row reads "Lost to AI shoppers: $X" and sums gross, fees, net and refunded.
+- Above the grid: a search box (quick filter), preset buttons (All, Lost sales, Agent only, Not matched in PayPal) and Export CSV. Presets use the grid's external filter.
+- If PayPal can't be reached or isn't allowed, a banner shows the reason and every row reads "Not checked". Rows still show our own numbers.
+- Footnote: Transaction Search covers 31 days and new transactions can take up to three hours, so Pending is normal at first.
+
+## Shopper and money flow
+
+Two card rows on Results, between the money hero and the PayPal readiness section. Square cards with a dark border, small uppercase grey labels, tabular numbers, thin connectors, drawn with plain React and inline SVG (no flow library). Colours come from the theme tokens (good, bad, muted) so dark mode works.
+- Shopper flow: Find product, Product page, Checkout, PayPal, Captured, Verified in PayPal. Each card shows Pass, Fail or Not tested from the rubric checks. The first failed card is red with "Stopped here" and the amount at stake (catalog price, then order amount). Cards after it are greyed out. Wraps to a column on narrow screens.
+- Money flow: a hub "Captured by PayPal" with children "PayPal fee", "Net to you" and, after a refund, "Refunded". Only real order fields are shown; a missing one is left out. With no capture on a run that tried to pay: one red card, "Not captured: $24.00 lost". Hidden for live stores and browse-only checks.
+- The shopper flow tells what happened per step; the existing points strip (ShopperPath) in the score panel shows points per stage. Both stay.

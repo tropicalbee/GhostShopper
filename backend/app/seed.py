@@ -18,6 +18,9 @@ from . import db
 from .config import get_settings
 
 
+BEFORE_FLAWS = ",".join([*CLASSIC_FLAWS, "no_guest_checkout"])
+
+
 def bad_store_flaws() -> dict[str, bool]:
     return {k: k in CLASSIC_FLAWS for k in FLAW_KEYS}
 
@@ -33,7 +36,8 @@ async def record_before_after(store_url: str, db_path) -> tuple[int, int]:
     from .agent.compare import compare_runs
     from .agent.service import RunRequest, execute
 
-    before = await execute(RunRequest(llm="mock", cassette="day3_checkout_flaws_on", flaws="on", checkout=True,
+    # The classic flaws plus the account wall: the shopper reaches PayPal and is turned away, a real lost sale.
+    before = await execute(RunRequest(llm="mock", cassette="day3_checkout_flaws_on", flaws=BEFORE_FLAWS, checkout=True,
                                       paypal="mock"), store_url, db_path)
     after = await execute(RunRequest(llm="mock", cassette="day3_checkout_flaws_off", flaws="off", checkout=True,
                                      paypal="mock"), store_url, db_path)
@@ -77,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     llm = "--llm live" if live_ok else "--llm mock --cassette day3_checkout_flaws_on"
     llm_after = "--llm live" if live_ok else "--llm mock --cassette day3_checkout_flaws_off"
     print("\nDemo commands:")
-    print(f"  1. Bad store run:   python -m backend.app.agent {llm} --flaws keep --checkout --paypal {pay} --headed")
+    print(f"  1. Bad store run:   python -m backend.app.agent {llm} --flaws {BEFORE_FLAWS} --checkout --paypal {pay} --headed")
     print(f"  2. Apply fixes:     open {settings.app_base_url}/store/admin and untick everything (or --flaws off)")
     print(f"  3. Rerun:           python -m backend.app.agent {llm_after} --flaws off --checkout --paypal {pay} --headed")
     print("  4. Before/after:    python -m backend.app.agent.compare --last")

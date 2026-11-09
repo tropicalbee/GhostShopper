@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from . import db
-from .agent.compare import CompareError, compare_runs, previous_run
+from .agent.compare import CompareError, compare_runs, previous_run, previous_run_with_other_flaws
 from .agent.explain import explain_run
 from .agent.llm import LLMConfigError, groq_configured, make_llm
 from .agent.recorder import invalidate_run, list_runs, load_run
@@ -215,10 +215,17 @@ def compare(request: Request, before: int, after: int):
 
 
 @router.get("/{run_id}/compare")
-def compare_with_previous(run_id: int, request: Request):
-    """This check against the previous check of the same store by the same browser."""
+def compare_with_previous(run_id: int, request: Request, before: int | None = Query(None, ge=1)):
+    """This check against an earlier one of the same store by the same browser. Without `before`: the latest
+    earlier check with different flaw settings, else the previous check. Nothing earlier answers 404."""
     after = _readable(request, run_id)
-    before_id = previous_run(request.app.state.settings.database_path, run_id)
+    if before is not None:
+        b = _readable(request, before)
+        if b["owner_hash"] != after["owner_hash"] or b["store_url"] != after["store_url"] or before >= run_id:
+            raise _error(400, "COMPARE", "Before and after only compares an earlier check of the same store.")
+        return _compare(request, b, after)
+    path = request.app.state.settings.database_path
+    before_id = previous_run_with_other_flaws(path, run_id) or previous_run(path, run_id)
     if before_id is None:
         raise _error(404, "NO_EARLIER_CHECK", "Make your fixes, then check again to see before and after.")
     return _compare(request, _readable(request, before_id), after)

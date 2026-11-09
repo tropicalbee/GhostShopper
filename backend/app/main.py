@@ -16,6 +16,7 @@ from . import db
 from .agent.llm import groq_configured
 from .agent.service import real_checkout_missing
 from .config import PAYPAL_MODES, PAYPAL_SDK_URL, Settings, get_settings
+from .ledger import router as ledger_router
 from .market import MarketError, market_check
 from .orders import router as orders_router
 from .owner import COOKIE, MAX_AGE_S, hash_token, new_token, valid_token
@@ -108,6 +109,7 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
 
     app.include_router(orders_router)
     app.include_router(runs_router)
+    app.include_router(ledger_router)
     app.include_router(mock_router(clients["mock"]))
 
     @app.get("/api/health")

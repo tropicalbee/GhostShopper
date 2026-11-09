@@ -3,14 +3,18 @@ import { memo, useMemo, useState } from "react";
 
 import { platformName, ScoreFigure, ShopperPath, StatusLine } from "@/components/bits";
 import { DeveloperDialog, ShowMeDialog } from "@/components/dialogs";
+import { CompareGrid } from "@/components/CompareGrid";
+import { MoneyFlow } from "@/components/MoneyFlow";
 import { MoneyHero } from "@/components/MoneyHero";
 import { PayPalReadiness } from "@/components/PayPalReadiness";
 import { ProductFeedLine } from "@/components/ProductFeedLine";
 import { RunHead, ViewSwitch } from "@/components/RunHead";
+import { ShopperFlow } from "@/components/ShopperFlow";
 import { YourMoney } from "@/components/YourMoney";
 import { Button } from "@/components/ui/button";
 import { sameSeries, startCheck, type Health, type PlainFix, type Run, type RunSummary } from "@/lib/api";
-import { go, useCountUp } from "@/lib/hooks";
+import { fetchCompare } from "@/lib/compare";
+import { go, useCountUp, useFetch } from "@/lib/hooks";
 
 // Results re-renders on each frame of the score count-up; the fix list does not change, so skip it.
 const FixItem = memo(function FixItem({ fix, n }: { fix: PlainFix; n: number }) {
@@ -41,6 +45,8 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const score = useCountUp(card?.simple.score ?? 0);
+  // The before and after grid shows only when an earlier check of this store exists (the API answers 404 otherwise).
+  const cmp = useFetch(() => (card && run.status === "completed" ? fetchCompare(run.id) : Promise.resolve(null)), [run.id, run.status, !!card]);
 
   const again = async () => {
     setBusy(true);
@@ -88,7 +94,10 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
       {error && <p role="alert" className="mt-4 text-sm text-bad">{error}</p>}
 
       {card && <MoneyHero run={run} className="mt-6" />}
+      {card && <ShopperFlow run={run} className="mt-6" />}
+      {card && <MoneyFlow run={run} className="mt-6" />}
       {card && <PayPalReadiness run={run} className="mt-6" />}
+      {cmp.data && <CompareGrid data={cmp.data} className="mt-6" />}
 
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
         <aside className="lg:col-span-5">

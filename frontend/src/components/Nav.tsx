@@ -1,4 +1,4 @@
-import { History, Menu, Plus, SlidersHorizontal } from "lucide-react";
+import { History, Landmark, Menu, Plus, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { checkedAt, Logo, storeName } from "@/components/bits";
@@ -45,6 +45,9 @@ function NavBody({ route, runs, health, onNavigate }: { route: string[]; runs: R
         </Item>
         <Item href="#/checks" on={route[0] === "checks"} icon={<History />} onNavigate={onNavigate}>
           My checks
+        </Item>
+        <Item href="#/ledger" on={route[0] === "ledger"} icon={<Landmark />} onNavigate={onNavigate}>
+          Sales ledger
         </Item>
       </nav>
       <section aria-labelledby="recent-checks" className="min-h-0 flex-1 overflow-y-auto border-t px-3 py-4">

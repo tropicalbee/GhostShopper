@@ -5,6 +5,7 @@ Docs: https://developer.paypal.com/api/rest/integration/orders-api/api-use-cases
 
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -65,9 +66,9 @@ class PayPalClient:
             raise PayPalError(resp.status_code, body)
         return body
 
-    async def _get(self, path: str) -> dict[str, Any]:
+    async def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         token = await self._access_token()
-        resp = await self._http.get(path, headers={"Authorization": f"Bearer {token}"})
+        resp = await self._http.get(path, params=params, headers={"Authorization": f"Bearer {token}"})
         body = _json(resp)
         if resp.status_code != 200:
             raise PayPalError(resp.status_code, body)
@@ -128,8 +129,58 @@ class PayPalClient:
             {"PayPal-Request-Id": request_id, "Prefer": "return=representation"},
         )
 
+    # Transaction Search (reporting). Docs: https://developer.paypal.com/docs/api/transaction-search/v1/
+    # (schema: https://developer.paypal.com/api/transaction-search/v1/schema.yaml). GET /v1/reporting/transactions
+    # takes start_date and end_date (RFC 3339 with seconds, at most 31 days apart), optional transaction_id,
+    # fields (transaction_info by default, `all` for everything), page_size (1 to 500) and page (from 1). The
+    # response has transaction_details[].transaction_info (transaction_id, transaction_amount, fee_amount
+    # (negative), transaction_status D/P/S/V, transaction_event_code, paypal_reference_id), page, total_items
+    # and total_pages. Executed transactions can take up to three hours to appear. A 403 NOT_AUTHORIZED means the
+    # REST app does not have the "Transaction search" feature enabled.
+    async def search_transactions(self, start: datetime, end: datetime, transaction_id: str | None = None) -> list[dict[str, Any]]:
+        """Every transaction_details item in the window, all pages. Raises PayPalError for any PayPal error."""
+        check_search_window(start, end)
+        params: dict[str, Any] = {"start_date": _iso(start), "end_date": _iso(end), "fields": "all",
+                                  "page_size": SEARCH_PAGE_SIZE, "page": 1}
+        if transaction_id:
+            params["transaction_id"] = transaction_id
+        items: list[dict[str, Any]] = []
+        while True:
+            try:
+                body = await self._get("/v1/reporting/transactions", params)
+            except PayPalError as exc:
+                raise _search_error(exc) from exc
+            items.extend(body.get("transaction_details") or [])
+            if params["page"] >= int(body.get("total_pages") or 1) or params["page"] >= SEARCH_MAX_PAGES:
+                return items
+            params["page"] += 1
+
     async def get_refund(self, refund_id: str) -> dict[str, Any]:
         return await self._get(f"/v2/payments/refunds/{refund_id}")
+
+
+SEARCH_MAX_DAYS = 31
+SEARCH_PAGE_SIZE = 100  # the API allows up to 500; 100 is its default
+SEARCH_MAX_PAGES = 20
+SEARCH_PERMISSION_HINT = ('Enable "Transaction search" under Features on your sandbox REST app in the PayPal '
+                          "developer dashboard, then try again.")
+
+
+def _iso(moment: datetime) -> str:
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def check_search_window(start: datetime, end: datetime) -> None:
+    """Transaction Search accepts at most 31 days. Refuse earlier, with the same shape of error PayPal sends."""
+    if end <= start or end - start > timedelta(days=SEARCH_MAX_DAYS):
+        raise PayPalError(400, {"name": "INVALID_REQUEST", "message": "The date range must be positive and at most 31 days."})
+
+
+def _search_error(exc: PayPalError) -> PayPalError:
+    if exc.status_code in (401, 403):
+        body = {**exc.body, "message": f"{exc.body.get('message') or 'Not authorized'}. {SEARCH_PERMISSION_HINT}"}
+        return PayPalError(exc.status_code, body)
+    return exc
 
 
 def _json(resp: httpx.Response) -> dict[str, Any]:

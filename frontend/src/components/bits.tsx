@@ -103,6 +103,43 @@ export function stagesOf(card: Scorecard): PathStage[] {
   }).filter((s) => s.points > 0);
 }
 
+// The rubric checks in the order a shopper meets them (same as CHECKS in scoring.py).
+const PATH_ORDER = [
+  "product_found", "price_in_text", "currency_stated", "structured_data", "stock_readable", "stock_consistent",
+  "image_alt_text", "sale_claim_consistent", "clear_buy_button", "buy_button_unobstructed", "no_extra_steps",
+  "checkout_reached", "price_consistent", "paypal_button_found", "popup_opened", "payment_approved",
+  "capture_completed", "payment_verified", "task_completed",
+];
+
+export type Blocker = {
+  key: string;
+  stage: string;
+  title: string; // the plain reason
+  fix: string | null; // the plain fix
+  obstacles: number; // failed checks the shopper got past before this one
+};
+
+// What ended the run: the earliest failed check, in path order, after which no check passed. Failed checks before
+// it were obstacles the shopper got past. The outcome summary (task_completed) is a result, never the cause.
+export function blockingCheck(run: Run): Blocker | null {
+  const card = run.scorecard;
+  if (!card) return null;
+  const status = new Map(run.checks.map((c) => [c.check_key, c.status]));
+  const path = PATH_ORDER.filter((k) => k !== "task_completed" && status.has(k));
+  const i = path.findIndex((k, n) => status.get(k) === "fail" && !path.slice(n + 1).some((m) => status.get(m) === "pass"));
+  if (i < 0) return null;
+  const key = path[i];
+  const fix = card.fixes.find((f) => f.check === key);
+  if (!fix) return null;
+  return {
+    key,
+    stage: fix.stage,
+    title: fix.plain?.title ?? fix.title,
+    fix: fix.plain?.steps ?? fix.plain?.how ?? fix.fix ?? null,
+    obstacles: path.slice(0, i).filter((k) => status.get(k) === "fail").length,
+  };
+}
+
 // The signature: the shopper's way to paying. Each stage is as wide as the points it's worth, grey for
 // points earned, hatched for points lost, and the reason under the stage where it got stuck.
 // With onSelect the stages are buttons (the Home walkthrough).

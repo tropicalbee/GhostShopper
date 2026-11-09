@@ -16,6 +16,8 @@ import { Results } from "@/screens/Results";
 // AG Grid and the charts are most of the bundle; phones on the Simple view never load them.
 const Advanced = lazy(() => import("@/screens/Advanced").then((m) => ({ default: m.Advanced })));
 
+const Ledger = lazy(() => import("@/screens/Ledger").then((m) => ({ default: m.Ledger })));
+
 const NO_RUNS: RunSummary[] = []; // a stable empty list, so Results' memo is not defeated while the list loads
 const isRunning = (r: Run) => r.status === "running" || r.status === "awaiting_human";
 
@@ -75,6 +77,12 @@ export default function App() {
   if (runId && route[2] === "compare") screen = <Compare runId={runId} />;
   else if (runId) screen = <RunScreen id={runId} advanced={route[2] === "advanced"} />;
   else if (route[0] === "checks") screen = <MyChecks />;
+  else if (route[0] === "ledger")
+    screen = (
+      <Suspense fallback={<Skeleton className="mt-24 h-72 max-w-xl" />}>
+        <Ledger />
+      </Suspense>
+    );
   else if (health.error) screen = <Down retry={health.retry} />;
   else if (health.data) screen = <Home />;
   else screen = <Skeleton className="mt-24 h-72 max-w-xl" />;

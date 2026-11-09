@@ -30,6 +30,28 @@ def previous_run(db_path: Path, run_id: int) -> int | None:
     return row[0] if row else None
 
 
+def previous_run_with_other_flaws(db_path: Path, run_id: int) -> int | None:
+    """Like previous_run, but the latest earlier check whose demo-store flaw settings differ from this run's.
+    None when every earlier check ran with the same settings (nothing was fixed in between)."""
+    import json
+
+    with db.connect(db_path) as conn:
+        row = conn.execute("SELECT store_url, owner_hash, flaws_snapshot FROM runs WHERE id = ?", (run_id,)).fetchone()
+        if row is None:
+            return None
+        rows = conn.execute(
+            "SELECT p.id, p.flaws_snapshot FROM runs p JOIN scores s ON s.run_id = p.id"
+            " WHERE p.store_url = ? AND p.owner_hash IS ? AND p.id < ? AND p.status = 'completed' ORDER BY p.id DESC",
+            (row["store_url"], row["owner_hash"], run_id),
+        ).fetchall()
+    mine = json.loads(row["flaws_snapshot"]) if row["flaws_snapshot"] else {}
+    for r in rows:
+        theirs = json.loads(r["flaws_snapshot"]) if r["flaws_snapshot"] else {}
+        if theirs != mine:
+            return r["id"]
+    return None
+
+
 def compare_runs(db_path: Path, before_id: int, after_id: int) -> dict[str, Any]:
     before, after = load_run(db_path, before_id), load_run(db_path, after_id)
     missing = [str(i) for i, r in ((before_id, before), (after_id, after)) if r is None]
@@ -44,7 +66,12 @@ def compare_runs(db_path: Path, before_id: int, after_id: int) -> dict[str, Any]
     def item(key: str) -> dict[str, Any]:
         b, a = sb.get(key, {}), sa.get(key, {})
         fix = next((f["fix"] for f in after["scorecard"]["fixes"] if f["check"] == key), None)
-        return {"check": key, "title": CHECKS[key].title, "points": CHECKS[key].points,
+        # The plain-English fix as the before run showed it (what the merchant was told to do).
+        bf = next((f for f in before["scorecard"]["fixes"] if f["check"] == key and f["status"] == "failed"), None)
+        plain = (bf or {}).get("plain") or {}
+        fix_applied = (plain.get("steps") or plain.get("how") or bf["fix"]) if bf else None
+        return {"check": key, "title": CHECKS[key].title, "stage": CHECKS[key].stage, "points": CHECKS[key].points,
+                "fix_applied": fix_applied,
                 "before": b.get("status", "not_tested"), "after": a.get("status", "not_tested"),
                 "before_reason": b.get("reason"), "after_reason": a.get("reason"), "fix": fix}
 
@@ -87,7 +114,8 @@ def compare_runs(db_path: Path, before_id: int, after_id: int) -> dict[str, Any]
 def _summary(run: dict[str, Any]) -> dict[str, Any]:
     return {"run_id": run["id"], "score": run["score"]["total"], "possible": run["score"]["possible"],
             "outcome": run["outcome"], "checkout": bool(run["checkout"]), "started_at": run["started_at"],
-            "order_id": run["order_id"]}
+            "order_id": run["order_id"], "order": run.get("order"), "catalog_price": run.get("catalog_price"),
+            "target_product": run["target_product"]}
 
 
 def last_two_finished(db_path: Path) -> tuple[int, int]:

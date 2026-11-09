@@ -82,6 +82,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [ ] One headed sandbox purchase and one Kernel real run after the Nov 8 changes (user)
 - [x] Money-first results screen, catalog price, `no_guest_checkout` flaw (Nov 9)
 - [x] Vault agent payment, mock tests only (Nov 9)
+- [x] Before/after grid, flow cards, sales ledger, hero names the real stop point, mock ledger survives a restart (Nov 9 to 10)
 - [ ] Real sandbox vault payment: enable "Save payment methods", `vault setup`, one paid run (user)
 - [ ] One live Nemotron run, bad store then fixed store, and record the cassette (user)
 - [ ] Record a before/after pair against the real sandbox

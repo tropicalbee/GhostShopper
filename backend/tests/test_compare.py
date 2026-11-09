@@ -91,3 +91,48 @@ def test_compare_endpoint(db):
         assert client.get(f"/api/runs/{b}/compare").json()["before"]["run_id"] == a  # previous check, same store
         assert client.get("/api/runs/compare").status_code == 422  # no global "last two runs"
         assert client.get(f"/api/runs/compare?before={a}&after=999").status_code == 404
+
+
+def _client(db):
+    from fastapi.testclient import TestClient
+
+    from backend.app.config import Settings
+    from backend.app.main import create_app
+
+    return TestClient(create_app(Settings("", "", db, "http://x")))
+
+
+def test_compare_rows_points_and_fix_text(db):
+    bad = make_run(db, CLASSIC_FAILS, {"price_as_image": True})
+    good = make_run(db, {}, {"price_as_image": False})
+    with _client(db) as client:
+        body = client.get(f"/api/runs/{good}/compare?before={bad}").json()
+    rows = {i["check"]: i for i in body["checks"]}
+    assert len(rows) == len(CHECKS)
+    price = rows["price_in_text"]
+    assert (price["before"], price["after"], price["stage"], price["points"]) == ("fail", "pass", "details", CHECKS["price_in_text"].points)
+    assert price["fix_applied"]
+    assert rows["product_found"]["before"] == rows["product_found"]["after"] == "pass"
+    assert rows["product_found"]["fix_applied"] is None
+    gained = sum(i["points"] for i in body["checks"] if i["before"] == "fail" and i["after"] == "pass")
+    assert gained == body["score_change"]
+    assert body["before"]["catalog_price"] == body["after"]["catalog_price"] or body["before"]["catalog_price"] is None
+
+
+def test_compare_default_prefers_different_flaws(db):
+    old_bad = make_run(db, CLASSIC_FAILS, {"price_as_image": True})
+    same = make_run(db, {}, {"price_as_image": False})
+    after = make_run(db, {}, {"price_as_image": False})
+    with _client(db) as client:
+        assert client.get(f"/api/runs/{after}/compare").json()["before"]["run_id"] == old_bad
+        assert client.get(f"/api/runs/{after}/compare?before={same}").json()["before"]["run_id"] == same
+        assert client.get(f"/api/runs/{same}/compare?before={after}").status_code == 400
+
+
+def test_compare_with_no_earlier_run_says_so(db):
+    only = make_run(db, {}, {})
+    with _client(db) as client:
+        r = client.get(f"/api/runs/{only}/compare")
+    assert r.status_code == 404
+    assert r.json()["detail"]["error"] == "NO_EARLIER_CHECK"
+    assert "check again" in r.json()["detail"]["message"]

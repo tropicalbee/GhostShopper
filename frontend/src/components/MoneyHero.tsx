@@ -1,4 +1,4 @@
-import { stagesOf } from "@/components/bits";
+import { blockingCheck } from "@/components/bits";
 import type { Run } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -19,13 +19,12 @@ const STOPPED_AT: Record<string, string> = {
   outcome: "finishing the order",
 };
 
-// The first stage of the shopper's path that has a failed check, with the plain reason.
-function stoppedAt(run: Run): { where: string; why: string | null } | null {
-  const card = run.scorecard;
-  if (!card) return null;
-  const stage = stagesOf(card).find((s) => s.stuck);
-  if (!stage) return null;
-  return { where: STOPPED_AT[stage.key] ?? stage.name.toLowerCase(), why: stage.stuck ?? null };
+// What ended the run (see blockingCheck): where, the plain reason and fix, and how many earlier problems the shopper got past.
+function stoppedAt(run: Run): { where: string; why: string; fix: string | null; past: number } | null {
+  const b = blockingCheck(run);
+  if (!b) return null;
+  const where = b.key === "paypal_button_found" ? "checkout, before the PayPal button" : (STOPPED_AT[b.stage] ?? b.stage);
+  return { where, why: b.title, fix: b.fix, past: b.obstacles };
 }
 
 // What the product costs: the demo store's catalog price, else the order PayPal was asked for, else the price the shopper read.
@@ -94,7 +93,14 @@ export function MoneyHero({ run, className }: { run: Run; className?: string }) 
         No. The AI shopper tried to buy {name ?? "a product"} and stopped at {stop.where}.
         {amount && !run.live ? ` You lost ${amount}.` : ""}
       </h2>
-      {stop.why && <p className="mt-2 text-muted-foreground">{stop.why}</p>}
+      <p className="mt-2 text-muted-foreground">
+        {stop.why}.{stop.fix ? ` ${stop.fix}` : ""}
+      </p>
+      {stop.past > 0 && (
+        <p className="mt-2 text-muted-foreground">
+          It got past {stop.past} other {stop.past === 1 ? "problem" : "problems"} first.
+        </p>
+      )}
     </section>
   );
 }

@@ -8,6 +8,7 @@ import base64
 import html
 import json
 import uuid
+from datetime import datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Literal
 
@@ -15,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
-from .paypal import PayPalError
+from .paypal import PayPalError, check_search_window
 
 MOCK_CLIENT_ID = "mock-client-id"
 MOCK_SDK_PATH = "/mock-paypal/sdk.js"
@@ -35,6 +36,19 @@ def _money(d: Decimal) -> str:
     return str(d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
+def _reporting_row(transaction_id: str, event_code: str, status: str, amount: dict[str, str],
+                   fee: dict[str, str] | None, reference_id: str, reference_type: str) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat()
+    info: dict[str, Any] = {
+        "transaction_id": transaction_id, "transaction_event_code": event_code, "transaction_status": status,
+        "transaction_initiation_date": now, "transaction_updated_date": now,
+        "transaction_amount": amount, "paypal_reference_id": reference_id, "paypal_reference_id_type": reference_type,
+    }
+    if fee is not None:
+        info["fee_amount"] = fee  # negative, as PayPal reports it
+    return {"transaction_info": info, "payer_info": {}, "shipping_info": {}, "cart_info": {}}
+
+
 class FakePayPalClient:
     """Same interface as PayPalClient. Keeps orders in memory."""
 
@@ -46,6 +60,13 @@ class FakePayPalClient:
         # Vaulted orders: True = answer COMPLETED with the capture inside (what PayPal usually does);
         # False = answer CREATED so the caller has to capture.
         self.vault_completes_immediately: bool = True
+        # Transaction Search: what this process captured and refunded, as reporting rows. Another process's orders
+        # are not here, so they read as "not in reporting yet", which is what a real delay looks like.
+        self.transactions: list[dict[str, Any]] = []
+        self.reporting_lag = False  # True = reporting has not caught up: searches find nothing
+        self.report_overrides: dict[str, dict[str, str]] = {}  # capture id -> {"amount"|"fee"|"status": ...} PayPal reports differently
+        self.search_error: PayPalError | None = None  # raised by search_transactions (for permission-error tests)
+        self.searches: list[tuple[datetime, datetime, str | None]] = []
         self.request_ids: dict[str, dict[str, Any]] = {}  # PayPal-Request-Id -> first response: a retry returns it, not a second order
 
     async def aclose(self) -> None:
@@ -100,6 +121,8 @@ class FakePayPalClient:
         money = lambda v: {"currency_code": amount["currency_code"], "value": v}  # noqa: E731
         capture_id = "MOCKCAP" + uuid.uuid4().hex[:10].upper()
         self.captures[capture_id] = money(_money(gross))
+        self.transactions.append(_reporting_row(capture_id, "T0006", "S", money(_money(gross)), money(_money(-fee)),
+                                                order_id, "ODR"))
         return {
             "id": order_id,
             "status": "COMPLETED",
@@ -125,7 +148,52 @@ class FakePayPalClient:
             raise PayPalError(404, {"name": "RESOURCE_NOT_FOUND", "details": [{"issue": "INVALID_RESOURCE_ID"}]})
         refund = {"id": "MOCKREF" + uuid.uuid4().hex[:10].upper(), "status": "COMPLETED", "amount": dict(amount)}
         self.refunds[refund["id"]] = refund
+        negative = {**amount, "value": _money(-Decimal(amount["value"]))}
+        self.transactions.append(_reporting_row(refund["id"], "T1107", "S", negative, None, capture_id, "TXN"))
         return refund
+
+    def sync_from_orders(self, orders: list[dict[str, Any]]) -> None:
+        """Practice mode only: report captures this process did not make (the seed, the CLI, a server that
+        restarted) from the stored orders. Only ids this mock issued (MOCKCAP...) are taken, so a sandbox
+        order is never reported by the mock. Each needs capture id, gross, fee, time and currency."""
+        known = {r["transaction_info"]["transaction_id"] for r in self.transactions}
+        for o in orders:
+            cid = o.get("capture_id") or ""
+            if not cid.startswith("MOCKCAP") or cid in known or not (o.get("gross") and o.get("time")):
+                continue
+            money = lambda v: {"currency_code": o.get("currency") or "USD", "value": v}  # noqa: E731
+            row = _reporting_row(cid, "T0006", "S", money(o["gross"]), money(_money(-abs(Decimal(o.get("fee") or "0")))),
+                                 o.get("order_id") or "", "ODR")
+            row["transaction_info"]["transaction_initiation_date"] = o["time"]
+            self.transactions.append(row)
+            known.add(cid)
+            if o.get("refund"):
+                self.transactions.append(_reporting_row(
+                    "MOCKREF" + cid[7:], "T1107", "S", money(_money(-Decimal(o["refund"]))), None, cid, "TXN"))
+
+    async def search_transactions(self, start: datetime, end: datetime, transaction_id: str | None = None) -> list[dict[str, Any]]:
+        """Same shape as GET /v1/reporting/transactions with fields=all: transaction_details items."""
+        self.searches.append((start, end, transaction_id))
+        check_search_window(start, end)
+        if self.search_error is not None:
+            raise self.search_error
+        if self.reporting_lag:
+            return []
+        found = []
+        for row in self.transactions:
+            info = dict(row["transaction_info"])
+            when = datetime.fromisoformat(info["transaction_initiation_date"])
+            if not start <= when <= end or (transaction_id and info["transaction_id"] != transaction_id):
+                continue
+            changes = self.report_overrides.get(info["transaction_id"], {})
+            if "amount" in changes:
+                info["transaction_amount"] = {**info["transaction_amount"], "value": changes["amount"]}
+            if "fee" in changes:
+                info["fee_amount"] = {**info["fee_amount"], "value": changes["fee"]}
+            if "status" in changes:
+                info["transaction_status"] = changes["status"]
+            found.append({**row, "transaction_info": info})
+        return found
 
     async def get_refund(self, refund_id: str) -> dict[str, Any]:
         refund = self.refunds.get(refund_id)

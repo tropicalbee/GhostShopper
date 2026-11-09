@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-11-10 (build check, interrupted fixes)
+
+### Done
+- `npm run build` passes. `test_ledger.py` and `test_compare.py`: 26 passed.
+- Both fixes from yesterday turned out to be finished in the code. Checked them end to end against a scratch database with a fresh seeded pair:
+  - The hero's stop rule picks `paypal_button_found` on the bad store, so it reads "stopped at checkout, before the PayPal button". The ambiguous buy button is skipped because later checks pass.
+  - A second server process with empty memory shows the seeded capture as `matched` in `/api/ledger`. `sync_from_orders` rebuilds the mock reporting rows from SQLite, and only for MOCKCAP ids.
+- No code changed this session.
+
+### Not verified
+- The new screens still have not been opened in a browser.
+- The full test suite. The user runs it.
+
+### Next
+1. User: full `pytest`, then commit (leave `design/` out).
+2. User: enable "Save payment methods" and "Transaction search" on the sandbox app.
+3. Live Nemotron run with `--payment vault`, then the video.
+
+---
+
 ## 2026-11-09, part 2 (ledger, before/after, flow cards)
 
 None of this is committed yet. Both agents were stopped partway through their last fix because the weekly usage limit ran out, so the first job tomorrow is to check the build.

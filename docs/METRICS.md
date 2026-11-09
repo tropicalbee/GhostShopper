@@ -233,3 +233,16 @@ No live PayPal, Kernel or Nemotron runs, so no new run numbers.
 | Money hero and `no_guest_checkout` | 334 passed (full suite); browser e2e files alone 32 passed |
 | Vault payment, before the review fixes | 334 passed (full suite) |
 | Vault review fixes | `test_vault.py` 17 passed |
+
+## 2026-11-10 (ledger and flow checks)
+
+Mock LLM, mock PayPal, scratch database, local Chromium.
+
+| What | Value |
+|---|---|
+| `npm run build` | passes (main chunk 1,586 kB, size warning only) |
+| `test_ledger.py` + `test_compare.py` | 26 passed |
+| `seed --with-runs` pair | 24 to 100 (+76), 7 failures fixed, $24.00 captured, net $22.67 |
+| Ledger row after a fresh server process | `matched` (was `pending` before the fix) |
+| Full suite | not run this session (user runs it) |
+
