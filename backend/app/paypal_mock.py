@@ -43,6 +43,10 @@ class FakePayPalClient:
         self.scenario: str = "ok"
         self.captures: dict[str, dict[str, str]] = {}  # capture id -> amount, so a refund can return it
         self.refunds: dict[str, dict[str, Any]] = {}
+        # Vaulted orders: True = answer COMPLETED with the capture inside (what PayPal usually does);
+        # False = answer CREATED so the caller has to capture.
+        self.vault_completes_immediately: bool = True
+        self.request_ids: dict[str, dict[str, Any]] = {}  # PayPal-Request-Id -> first response: a retry returns it, not a second order
 
     async def aclose(self) -> None:
         pass
@@ -51,6 +55,32 @@ class FakePayPalClient:
         order_id = "MOCK" + uuid.uuid4().hex[:13].upper()
         self.orders[order_id] = {"purchase_unit": purchase_unit, "status": "CREATED"}
         return {"id": order_id, "status": "CREATED"}
+
+    async def create_setup_token(self, return_url: str, cancel_url: str) -> dict[str, Any]:
+        token = "MOCKSETUP" + uuid.uuid4().hex[:10].upper()
+        return {"id": token, "status": "PAYER_ACTION_REQUIRED",
+                "customer": {"id": "mock_customer_" + uuid.uuid4().hex[:8]},
+                "links": [{"rel": "approve", "method": "GET", "href": f"{return_url}?approval_token_id={token}"}]}
+
+    async def create_payment_token(self, setup_token_id: str) -> dict[str, Any]:
+        # Stateless on purpose: the CLI and the server are different processes, each with its own fake client.
+        if not setup_token_id.startswith("MOCKSETUP"):
+            raise PayPalError(404, {"name": "RESOURCE_NOT_FOUND", "details": [{"issue": "INVALID_RESOURCE_ID"}]})
+        return {"id": "MOCKVAULT" + uuid.uuid4().hex[:8].upper(), "status": "CREATED",
+                "customer": {"id": "mock_customer_" + uuid.uuid4().hex[:8]},
+                "payment_source": {"paypal": {"usage_type": "MERCHANT", "email_address": "mock-buyer@example.test"}}}
+
+    async def create_vaulted_order(self, purchase_unit: dict[str, Any], vault_id: str, request_id: str) -> dict[str, Any]:
+        if not vault_id.startswith("MOCKVAULT"):
+            raise PayPalError(422, {"name": "UNPROCESSABLE_ENTITY", "debug_id": "mock-debug",
+                                    "message": "The vault_id does not match the payment_source provided.",
+                                    "details": [{"issue": "INVALID_RESOURCE_ID"}]})
+        if request_id in self.request_ids:
+            return self.request_ids[request_id]
+        order = await self.create_order(purchase_unit)
+        response = order if not self.vault_completes_immediately else await self.capture_order(order["id"])
+        self.request_ids[request_id] = response
+        return response
 
     async def capture_order(self, order_id: str) -> dict[str, Any]:
         order = self.orders.get(order_id)

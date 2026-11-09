@@ -32,6 +32,7 @@ class RunRequest:
     flaws: FlawMode = "keep"
     checkout: bool = False
     paypal: Literal["mock", "sandbox"] = "sandbox"
+    payment: Literal["popup", "vault"] = "popup"  # vault: pay with the buyer's saved PayPal account, no popup
     target_product: str = DEFAULT_TARGET
     max_steps: int = 25
     headless: bool = True
@@ -117,9 +118,20 @@ def real_checkout_missing(paypal_configured: bool) -> list[str]:
 
 
 def build_payment(req: RunRequest, store_url: str, server: ServerInfo | None = None,
-                  on_awaiting_human: Callable | None = None) -> PaymentHandler | None:
+                  on_awaiting_human: Callable | None = None, db_path: Path | None = None) -> PaymentHandler | None:
     if not req.checkout:
         return None
+    if req.payment == "vault":
+        from .paypal_flow import PaymentConfigError
+        from .vault_flow import make_vault_handler
+
+        if db_path is None:
+            raise RunConfigError("Vault payment needs the database path.")
+        try:
+            return make_vault_handler(req.paypal, store_url, db_path, server.paypal_mode if server else None,
+                                      server.paypal_configured if server else None)
+        except PaymentConfigError as exc:
+            raise RunConfigError(str(exc)) from exc
     from .paypal_flow import PaymentConfigError, make_payment_handler
 
     try:
@@ -157,7 +169,7 @@ def prepare(req: RunRequest, store_url: str, db_path: Path, server: ServerInfo |
     except BrowserConfigError as exc:
         raise RunConfigError(str(exc)) from exc
     # The payment handler first: if it can't be built, no LLM client has been opened to leak.
-    payment = build_payment(req, store_url, server, on_awaiting_human)
+    payment = build_payment(req, store_url, server, on_awaiting_human, db_path)
     try:
         if req.record and not req.record.replace("_", "").replace("-", "").isalnum():
             raise LLMConfigError(f"Invalid cassette name {req.record!r}")

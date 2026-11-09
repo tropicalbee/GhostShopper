@@ -64,6 +64,9 @@ def main() -> int:
     p.add_argument("--checkout", action="store_true", help="also pay with PayPal")
     p.add_argument("--paypal", choices=["mock", "sandbox"], default="sandbox",
                    help="checkout mode; must match the server's PAYPAL_MODE")
+    p.add_argument("--payment", choices=["popup", "vault"], default="popup",
+                   help="popup = click the PayPal button and log in as the buyer; vault = pay with the buyer's saved "
+                        "PayPal account, no popup or password (run `python -m backend.app.vault setup` once first)")
     p.add_argument("--browser", choices=["local", "kernel"], help="default: BROWSER_PROVIDER, else local")
     p.add_argument("--store-url", help="default: APP_BASE_URL + /store/")
     p.add_argument("--budget", help="spending limit in USD, like 30.00; the shopper won't pay a checkout total above it")
@@ -74,7 +77,7 @@ def main() -> int:
     settings = get_settings()
     store_url = a.store_url or f"{settings.app_base_url}/store/"
     req = RunRequest(llm=a.llm, cassette=a.cassette, record=a.record, flaws=a.flaws, checkout=a.checkout,
-                     paypal=a.paypal, max_steps=a.max_steps, headless=not a.headed, browser=a.browser,
+                     paypal=a.paypal, payment=a.payment, max_steps=a.max_steps, headless=not a.headed, browser=a.browser,
                      store_url=a.url, budget=a.budget)
 
     async def go() -> int:

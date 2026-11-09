@@ -31,6 +31,14 @@ CREATE TABLE IF NOT EXISTS orders (
     refunded_at      TEXT
 );
 
+CREATE TABLE IF NOT EXISTS vault_tokens (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    paypal_mode      TEXT NOT NULL,
+    payment_token_id TEXT NOT NULL,
+    customer_id      TEXT,
+    created_at       TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at      TEXT NOT NULL,
@@ -177,6 +185,24 @@ def init_db(db_path: Path) -> None:
                         conn.execute("UPDATE runs SET owner_hash = ?", (UNCLAIMED,))
         conn.executescript(SCHEMA)
         conn.executescript(INDEXES)
+
+
+def save_vault_token(db_path: Path, *, paypal_mode: str, payment_token_id: str, customer_id: str | None) -> None:
+    """Keep the buyer's PayPal payment token (a secret-ish id: never shown to the LLM, redacted in run logs)."""
+    with connect(db_path) as conn:
+        conn.execute("INSERT INTO vault_tokens (paypal_mode, payment_token_id, customer_id, created_at)"
+                     " VALUES (?, ?, ?, ?)", (paypal_mode, payment_token_id, customer_id, _now()))
+
+
+def latest_vault_token(db_path: Path, paypal_mode: str) -> dict[str, Any] | None:
+    """The newest token saved for this PayPal mode, or None. The table may not exist in a database never initialised."""
+    with connect(db_path) as conn:
+        try:
+            row = conn.execute("SELECT * FROM vault_tokens WHERE paypal_mode = ? ORDER BY id DESC LIMIT 1",
+                               (paypal_mode,)).fetchone()
+        except sqlite3.OperationalError:
+            return None
+    return dict(row) if row else None
 
 
 def link_order_to_run(db_path: Path, order_id: str, run_id: int) -> bool:

@@ -96,6 +96,38 @@ class PayPalClient:
             {"PayPal-Request-Id": f"refund-{capture_id}", "Prefer": "return=representation"},
         )
 
+    # Vault v3 (save a PayPal account without a purchase), then pay with the saved token.
+    # Docs: https://developer.paypal.com/docs/checkout/save-payment-methods/purchase-later/js-sdk/paypal/
+    #       https://developer.paypal.com/docs/api/payment-tokens/v3/
+
+    async def create_setup_token(self, return_url: str, cancel_url: str) -> dict[str, Any]:
+        """POST /v3/vault/setup-tokens. The response has the setup token id and an `approve` link for the buyer."""
+        return await self._post(
+            "/v3/vault/setup-tokens",
+            {"payment_source": {"paypal": {"usage_type": "MERCHANT",
+                                           "experience_context": {"return_url": return_url, "cancel_url": cancel_url}}}},
+            {"PayPal-Request-Id": str(uuid.uuid4())},
+        )
+
+    async def create_payment_token(self, setup_token_id: str) -> dict[str, Any]:
+        """POST /v3/vault/payment-tokens: exchange an approved setup token. The response has `id` and `customer.id`."""
+        return await self._post(
+            "/v3/vault/payment-tokens",
+            {"payment_source": {"token": {"id": setup_token_id, "type": "SETUP_TOKEN"}}},
+            {"PayPal-Request-Id": f"vault-{setup_token_id}"},
+        )
+
+    async def create_vaulted_order(self, purchase_unit: dict[str, Any], vault_id: str, request_id: str) -> dict[str, Any]:
+        """POST /v2/checkout/orders with payment_source.paypal.vault_id. No buyer approval step is needed; PayPal
+        may answer COMPLETED straight away, otherwise the caller captures. request_id makes a retry return the
+        same order instead of charging twice."""
+        return await self._post(
+            "/v2/checkout/orders",
+            {"intent": "CAPTURE", "purchase_units": [purchase_unit],
+             "payment_source": {"paypal": {"vault_id": vault_id}}},
+            {"PayPal-Request-Id": request_id, "Prefer": "return=representation"},
+        )
+
     async def get_refund(self, refund_id: str) -> dict[str, Any]:
         return await self._get(f"/v2/payments/refunds/{refund_id}")
 

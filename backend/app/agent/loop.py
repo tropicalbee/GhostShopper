@@ -59,6 +59,12 @@ PAY_TOOL = _fn(
     "approve the payment. Sign-in details are handled for you; never ask for them.",
 )
 
+VAULT_PAY_TOOL = _fn(
+    "pay_with_saved_paypal",
+    "On the checkout page: pay with the customer's saved PayPal account, the way an AI shopping agent pays. "
+    "No PayPal window opens and no sign-in is needed; payment details are handled for you, never ask for them.",
+)
+
 CHECK_PAYPAL_TOOL = _fn(
     "check_paypal_button",
     "On the cart or checkout page of a live store: check the PayPal button is present, visible and clickable. "
@@ -76,7 +82,7 @@ Rules:
 
 
 def goal_text(target: str | None, store_url: str, checkout: bool, live: bool = False,
-              budget: Decimal | None = None) -> str:
+              budget: Decimal | None = None, pay_tool: str = "pay_with_paypal") -> str:
     if live:
         what = f"the product '{target}'" if target else "a product (any product the store sells)"
         return (f"Visit the store at {store_url} like a shopper. Find {what}, read its price and stock status, "
@@ -86,16 +92,17 @@ def goal_text(target: str | None, store_url: str, checkout: bool, live: bool = F
         limit = ""
         if budget is not None:
             limit = (f" Your spending limit is ${budget} (US dollars). Never pay more than that: if the checkout total "
-                     f"is higher, do not call pay_with_paypal; call finish with outcome gave_up and say the total "
+                     f"is higher, do not call {pay_tool}; call finish with outcome gave_up and say the total "
                      f"was over the limit. The limit is also checked by the system, which will refuse an over-limit payment.")
         return (f"Buy one '{target}' from the store at {store_url}. Find it, read its price and stock status, "
-                f"go to checkout, pay with pay_with_paypal, and report the order number.{limit}")
+                f"go to checkout, pay with {pay_tool}, and report the order number.{limit}")
     return (f"Find the product '{target}' in the store at {store_url}, read its price and stock status, "
             f"and get to the checkout page. Do not pay.")
 
 
 class PaymentHandler(Protocol):
     secrets: tuple[str, ...]
+    # tool_name (optional attribute, default pay_with_paypal): the payment tool this handler serves
     max_duration_s: float  # per-step timeout for pay_with_paypal (includes any human-approval wait)
 
     async def pay(self, tools: PageTools, recorder: RunRecorder, engine: CheckEngine) -> str: ...
@@ -139,10 +146,11 @@ async def run_shopper(
         headless=cfg.headless, provider=resolve_provider(cfg.browser), politeness=polite,
         allow_private=cfg.allow_private)
     provider = session_cm.provider
+    pay_tool = getattr(payment, "tool_name", "pay_with_paypal")
     rec = RunRecorder.start(
         cfg.db_path,
         store_url=cfg.store_url,
-        goal=goal_text(cfg.target_product, cfg.store_url, cfg.checkout, cfg.live, cfg.budget),
+        goal=goal_text(cfg.target_product, cfg.store_url, cfg.checkout, cfg.live, cfg.budget, pay_tool),
         target_product=cfg.target_product,
         checkout=cfg.checkout,
         paypal_mode=cfg.paypal_mode if cfg.checkout else "off",
@@ -170,11 +178,11 @@ async def run_shopper(
             engine = CheckEngine(rec, cfg.target_product, tools, live=cfg.live,
                                  paypal_probe=tools.paypal_button_state if cfg.live else None,
                                  budget=cfg.budget if cfg.checkout else None)
-            specs = BROWSE_TOOLS + ([PAY_TOOL] if cfg.checkout else []) + ([CHECK_PAYPAL_TOOL] if cfg.live else [])
+            specs = BROWSE_TOOLS + ([VAULT_PAY_TOOL if pay_tool == "pay_with_saved_paypal" else PAY_TOOL] if cfg.checkout else []) + ([CHECK_PAYPAL_TOOL] if cfg.live else [])
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": goal_text(cfg.target_product, cfg.store_url, cfg.checkout, cfg.live,
-                                                       cfg.budget)},
+                                                       cfg.budget, pay_tool)},
             ]
             nudges = 0
             done = False
@@ -195,7 +203,7 @@ async def run_shopper(
                     started = time.monotonic()
                     ok = True
                     url_before = tools.page.url
-                    limit = (payment.max_duration_s if payment and call.name == "pay_with_paypal"
+                    limit = (payment.max_duration_s if payment and call.name == pay_tool
                              else cfg.step_timeout_s)
                     try:
                         obs = await asyncio.wait_for(
@@ -280,7 +288,7 @@ async def _dispatch(name, args, tools: PageTools, rec, engine, payment: PaymentH
         if await tools.is_payment_element(args["element_id"]):
             if engine.live:
                 raise ToolError("Live stores are browse-only: never click PayPal. Use check_paypal_button instead.")
-            raise ToolError("Use pay_with_paypal to pay." if payment else
+            raise ToolError(f"Use {getattr(payment, 'tool_name', 'pay_with_paypal')} to pay." if payment else
                             "Payment is not part of this run. Do not click the payment button; call finish.")
         return await tools.click(args["element_id"])
     if name == "fill_form":
@@ -295,6 +303,6 @@ async def _dispatch(name, args, tools: PageTools, rec, engine, payment: PaymentH
         if not engine.checkout_seen:
             raise ToolError("Go to the cart or checkout page first; that's where the PayPal button is.")
         return await engine.check_paypal(None)
-    if name == "pay_with_paypal" and payment is not None:
+    if payment is not None and name == getattr(payment, "tool_name", "pay_with_paypal"):
         return await payment.pay(tools, rec, engine)
     raise ToolError(f"Unknown tool {name!r}")

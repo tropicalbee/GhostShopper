@@ -80,9 +80,7 @@ def build_purchase_unit(product: catalog.Product, quantity: int, unit_price: Dec
     }
 
 
-@router.post("/orders", status_code=201)
-async def create_order(body: CreateOrderRequest, request: Request, paypal: PayPalClient = Depends(get_paypal)):
-    rate_limit(request, "api_limiter")  # each call creates a PayPal sandbox order
+def _purchase_unit_for(body: CreateOrderRequest, request: Request) -> tuple[catalog.Product, dict[str, Any]]:
     product = catalog.get_by_sku(body.sku)
     if product is None:
         raise HTTPException(status_code=404, detail={"error": "UNKNOWN_SKU", "message": f"No product {body.sku}"})
@@ -90,8 +88,13 @@ async def create_order(body: CreateOrderRequest, request: Request, paypal: PayPa
     flaws = FlawStore(request.app.state.settings.database_path).get_all()
     if not product.in_stock and not flaws.get("oos_buyable"):
         raise HTTPException(status_code=409, detail={"error": "OUT_OF_STOCK", "message": f"{product.name} is sold out"})
+    return product, build_purchase_unit(product, body.quantity, catalog.charged_unit_price(product, flaws))
 
-    unit = build_purchase_unit(product, body.quantity, catalog.charged_unit_price(product, flaws))
+
+@router.post("/orders", status_code=201)
+async def create_order(body: CreateOrderRequest, request: Request, paypal: PayPalClient = Depends(get_paypal)):
+    rate_limit(request, "api_limiter")  # each call creates a PayPal sandbox order
+    product, unit = _purchase_unit_for(body, request)
     try:
         order = await paypal.create_order(unit)
     except PayPalError as exc:
@@ -107,6 +110,72 @@ async def create_order(body: CreateOrderRequest, request: Request, paypal: PayPa
         status=order["status"],
     )
     return {"id": order["id"], "status": order["status"], "amount": unit["amount"]["value"], "currency": product.currency}
+
+
+class AgentOrderRequest(CreateOrderRequest):
+    """Agent payment: the buyer approved PayPal once and saved it (Vault), so no popup or password is involved."""
+
+    vault_id: str = Field(min_length=3, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
+    request_id: str = Field(min_length=8, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")  # PayPal-Request-Id
+    max_amount: str | None = None  # the shopper's spending limit; checked before PayPal is called
+
+
+@router.post("/agent-orders", status_code=201)
+async def create_agent_order(body: AgentOrderRequest, request: Request, paypal: PayPalClient = Depends(get_paypal)):
+    """The store accepts an agent payment: create the order paid with a saved PayPal token, capture it if PayPal did
+    not already, and record it like a popup purchase. Orders v2 with payment_source.paypal.vault_id; see
+    https://developer.paypal.com/docs/api/orders/v2/ (PayPalWalletRequest.vault_id)."""
+    from .runs import real_payment_allowed  # local import: runs imports this module's siblings
+
+    state = request.app.state
+    if state.paypal_active == "sandbox" and not real_payment_allowed(request):
+        # Same gate as real sandbox runs: a deployed server needs the presenter unlock (/store/admin cookie).
+        raise HTTPException(status_code=403, detail={
+            "error": "REAL_PAYMENT_LOCKED", "message": "Real PayPal sandbox payments need the presenter unlock."})
+    rate_limit(request, "api_limiter")  # each call can move sandbox money
+    if FlawStore(state.settings.database_path).get_all().get("no_guest_checkout"):
+        # The store's checkout is behind an account wall; an agent payment must not skip it.
+        raise HTTPException(status_code=403, detail={
+            "error": "ACCOUNT_REQUIRED", "message": "Checkout requires creating an account; nothing was charged."})
+    product, unit = _purchase_unit_for(body, request)
+    amount = unit["amount"]["value"]
+    if body.max_amount is not None and Decimal(amount) > Decimal(body.max_amount):
+        raise HTTPException(status_code=409, detail={
+            "error": "OVER_BUDGET", "amount": amount,
+            "message": f"The order total {amount} is over the spending limit {body.max_amount}; nothing was charged"})
+    db_path = request.app.state.settings.database_path
+    try:
+        result = await paypal.create_vaulted_order(unit, body.vault_id, body.request_id)
+        if not result.get("purchase_units", [{}])[0].get("payments", {}).get("captures"):
+            # Not paid yet: capture it (stable PayPal-Request-Id, so a retry cannot capture twice).
+            if db.get_order(db_path, result["id"]) is None:
+                db.insert_order(db_path, order_id=result["id"], sku=product.sku, quantity=body.quantity,
+                                currency=product.currency, amount=amount, status=result.get("status", "CREATED"))
+            result = await paypal.capture_order(result["id"])
+    except PayPalError as exc:
+        log.warning("agent order failed: %s (debug_id=%s)", exc.name, exc.debug_id)  # never log the body: it may echo the token
+        raise _paypal_http_error(exc) from exc
+    if db.get_order(db_path, result["id"]) is None:
+        db.insert_order(db_path, order_id=result["id"], sku=product.sku, quantity=body.quantity,
+                        currency=product.currency, amount=amount, status=result.get("status", "COMPLETED"))
+    try:
+        summary = summarize_capture(result)
+    except (KeyError, IndexError, TypeError) as exc:
+        raise HTTPException(status_code=502, detail={"error": "PAYPAL_BAD_RESPONSE",
+                                                     "message": "PayPal sent a response we could not read"}) from exc
+    db.record_capture(db_path, result["id"], summary, result)
+    return {**summary, "id": result["id"], "status": summary["order_status"], "amount": amount, "currency": product.currency}
+
+
+# Where PayPal sends the buyer after the one-time vault approval (python -m backend.app.vault setup).
+@router.get("/vault/return")
+def vault_return():
+    return {"message": "PayPal approved. Now run: python -m backend.app.vault finish <setup token id>"}
+
+
+@router.get("/vault/cancel")
+def vault_cancel():
+    return {"message": "The PayPal approval was cancelled. Run python -m backend.app.vault setup again."}
 
 
 @router.post("/orders/{order_id}/capture")
