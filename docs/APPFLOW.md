@@ -18,7 +18,7 @@ Product page, then the details form (if `extra_checkout_step` is on), then check
 
 The LLM chooses every action. Code evaluates the checks, never the LLM.
 
-1. Prepare (`service.py`). Check the LLM config (Groq key and model, or a cassette), the browser provider, the flaw selection, and for checkout runs the payment config. Anything missing is an error before a run row exists. Then set the flaws and save a snapshot of them.
+1. Prepare (`service.py`). Check the LLM config (provider, key and model, or a cassette), the browser provider, the flaw selection, and for checkout runs the payment config. Anything missing is an error before a run row exists. Then set the flaws and save a snapshot of them.
 2. Start the run: insert a `runs` row and open the browser (local Playwright, or Kernel over CDP).
 3. Prompt the LLM with the rules and the goal: find the mug, read its price and stock, get to checkout, and in checkout runs pay with PayPal. A spending limit, if the user set one, is run config; the LLM does not enforce it.
 4. Call the LLM with the tools: `open_page`, `find_elements`, `read_text`, `click`, `fill_form`, `take_screenshot`, `finish`, plus `pay_with_paypal` in checkout runs. `click` refuses the PayPal button.

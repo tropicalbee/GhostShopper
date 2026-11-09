@@ -30,7 +30,7 @@ Demo flow: bad store -> run -> low score + failures -> apply fixes -> rerun -> h
 
 - Python 3.11+. SQLite only (no Postgres).
 - Local Playwright for dev, Kernel only for real runs.
-- Groq free tier for the LLM.
+- NVIDIA Nemotron (OpenAI-compatible endpoint) for the LLM; Groq free tier is a supported alternative.
 - PayPal sandbox only, current JS SDK version (v6 Web SDK, `https://www.sandbox.paypal.com/web-sdk/v6/core`).
 - AG Grid Community features only.
 - Render free tier for deploy.
@@ -67,7 +67,7 @@ All docs live in `docs/`. Keep each one short (1-2 pages max); this is a 7-day b
 
 Written on Day 1 (update when the design changes):
 - `PRD.md`: problem, audience (small merchants preparing for AI shopping agents), features, demo flow, out-of-scope.
-- `TRD.md`: architecture, stack, APIs (PayPal Orders v2 + current JS SDK, Kernel, Channel3, Groq), constraints.
+- `TRD.md`: architecture, stack, APIs (PayPal Orders v2 + current JS SDK, Kernel, Channel3, Nemotron/Groq), constraints.
 - `SCHEMA.md`: SQLite tables (runs, steps, failures, orders, scores) with fields.
 - `APPFLOW.md`: user flow, plus the shopper agent's tool-calling loop step by step.
 - `PLAN.md`: the 7-day plan, with a checkbox per task.

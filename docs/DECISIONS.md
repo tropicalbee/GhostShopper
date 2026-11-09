@@ -194,3 +194,11 @@ Rules `2026-11-05.3`, 100 points in total.
 - The budget is checked on the amount the store charges, from its create-order response. Page text can be wrong, and the LLM never decides how much money is spent.
 - We kept our Pay Later component name, `paypal-pay-later-button`, because the PayPal docs disagree with `paylater-button`. checkout.js falls back to plain PayPal payments if the SDK refuses a component.
 - Real payment needs the presenter unlock (the `/store/admin` cookie) on a hosted server. Anonymous visitors and bots get the mock PayPal only, so nobody else can spend Kernel minutes. Dev servers are unchanged.
+
+## 2026-11-09: Primary LLM is NVIDIA Nemotron
+
+- The shopper's primary LLM is now NVIDIA Nemotron, reached through the existing OpenAI-compatible provider (`LLM_PROVIDER=openai-compatible`, `LLM_BASE_URL=https://integrate.api.nvidia.com/v1`). It is a hackathon sponsor tool, and it needs no code change because `OpenAICompatibleChat` already speaks that format.
+- Groq stays as a supported alternative through `LLM_PROVIDER=groq` or the old `GROQ_*` variables. Existing cassettes and tests are unaffected.
+- No Nemotron run has been recorded yet, so METRICS.md has no Nemotron numbers. The model must support tool calling; the exact model id is set in `.env`.
+- We turned down a dedicated NVIDIA adapter (nothing to add over the generic one) and dropping Groq (it is a useful fallback when the NVIDIA endpoint is rate limited).
+- The fill_form password guard now applies on every store, not only live ones. The LLM never types into a password field. PayPal sandbox login is fixed code in `paypal_flow.py` that fills the popup directly and does not go through the tool dispatcher.

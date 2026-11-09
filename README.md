@@ -16,7 +16,7 @@ Small merchants running their own online store who want AI shoppers to be able t
 
 ## How it works
 
-1. The mystery shopper is a real tool-calling loop. The LLM (Groq) picks every step and uses browser tools: open a page, list elements, read text, click, fill a form, take a screenshot, pay with PayPal. The browser is local Playwright, or a Kernel cloud browser for hosted runs.
+1. The mystery shopper is a real tool-calling loop. The LLM (NVIDIA Nemotron as the primary LLM, Groq also works) picks every step and uses browser tools: open a page, list elements, read text, click, fill a form, take a screenshot, pay with PayPal. The browser is local Playwright, or a Kernel cloud browser for hosted runs.
 2. After every step, code reads the live page and records 18 checks across discovery, product details, checkout, payment and the outcome. The LLM never grades anything. Some examples: is the price readable as text, is there Product JSON-LD, is there a real buy button and is anything covering it, is there an extra form before payment, does the checkout price match the product page.
 3. For the checkout test, the agent clicks the PayPal button (JS SDK v6), handles the popup, logs in as the sandbox buyer and approves. The store captures the payment through Orders v2. If PayPal asks for a CAPTCHA or an extra verification step, the agent doesn't touch it. The run pauses as "awaiting human approval" until a person finishes the PayPal window.
 4. GhostShopper then checks that the order, the capture, the advertised price and PayPal's fees all line up, including the fee arithmetic.
@@ -43,8 +43,8 @@ The script creates `.venv`, installs the dependencies and Chromium inside `.venv
 |---|---|
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Sandbox checkout (developer.paypal.com > Apps & Credentials > Sandbox) |
 | `SANDBOX_BUYER_EMAIL`, `SANDBOX_BUYER_PASSWORD` | The sandbox buyer the agent logs in as. Never logged, stored or screenshotted. |
-| `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL` | The live LLM. Providers: `groq`, `openai`, `openrouter`, `together`, `ollama` (local, no key), `anthropic`, or `openai-compatible` with your own `LLM_BASE_URL`. The model must support tool calling. |
-| `GROQ_API_KEY`, `GROQ_MODEL` | Still work as the live LLM when `LLM_PROVIDER` is empty or `groq`, e.g. `openai/gpt-oss-120b` or `llama-3.3-70b-versatile` |
+| `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL` | The live LLM. For Nemotron set `LLM_PROVIDER=openai-compatible` and `LLM_BASE_URL=https://integrate.api.nvidia.com/v1` (see `.env.example`). Providers: `groq`, `openai`, `openrouter`, `together`, `ollama` (local, no key), `anthropic`, or `openai-compatible` with your own `LLM_BASE_URL`. The model must support tool calling. |
+| `GROQ_API_KEY`, `GROQ_MODEL` | Optional Groq alternative. Still work as the live LLM when `LLM_PROVIDER` is empty or `groq`, e.g. `openai/gpt-oss-120b` or `llama-3.3-70b-versatile` |
 | `KERNEL_API_KEY` and `BROWSER_PROVIDER=kernel` | Cloud browser. The store must be reachable on a public URL. |
 | `CHANNEL3_API_KEY` | Live market check. Without it you get recorded fixtures, labelled as such. |
 
@@ -77,7 +77,7 @@ Other commands:
 |---|---|
 | PayPal JS SDK v6 | `<paypal-button>` on the demo store's checkout, with a one-time payment session (`presentationMode: "auto"`) |
 | PayPal Orders v2 (sandbox) | Creating the order on the server (priced from the catalog, never by the browser) and capturing it; fees come from `seller_receivable_breakdown` |
-| Groq (or another provider) | The shopper's tool-calling LLM; Groq is what we develop on, and `LLM_PROVIDER` switches it. It also rewords fixes and rates explanation quality, and none of that touches the score. |
+| NVIDIA Nemotron (or another provider) | The shopper's tool-calling LLM, reached through an OpenAI-compatible endpoint (`https://integrate.api.nvidia.com/v1`). Groq and the other providers work by changing `LLM_PROVIDER`. It also rewords fixes and rates explanation quality, and none of that touches the score. |
 | Kernel | Optional cloud browser over CDP. Its live view lets a person finish PayPal's own checks. |
 | Channel3 | Product search for the market check |
 | Playwright | Local browser automation behind the same tools as Kernel |
