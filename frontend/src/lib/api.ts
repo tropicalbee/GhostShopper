@@ -172,6 +172,7 @@ export type Run = {
   steps: Step[];
   checks: { check_key: string; stage: string; status: string; cause: string | null; reason: string | null; code?: string | null; evidence?: Record<string, unknown> | null }[];
   order: Order | null;
+  catalog_price: { amount: string; currency: string } | null; // the demo store's own price for the target product; null on live stores
   scorecard: Scorecard | null;
   paypal_readiness: PayPalReadiness | null; // null on checks made before this existed
   product_feed: ProductFeed | null; // null when no product page was read, and on checks made before this existed

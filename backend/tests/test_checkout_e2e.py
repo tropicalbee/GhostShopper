@@ -253,3 +253,14 @@ def test_live_handler_reads_only_the_sandbox_buyer_env(monkeypatch):
     h = make_payment_handler("sandbox", "http://x/store/", server_mode="sandbox", server_configured=True)
     assert h.secrets == ("env-buyer@example.test", "env-pass")
     assert "env-pass" not in repr(h._buyer)
+
+
+@requires_browser
+async def test_account_wall_blocks_payment_with_the_right_failure(server):
+    run = await checkout_run(server, "day3_checkout_flaws_off", flaws="no_guest_checkout")
+    assert run["status"] == "completed", run["error"]
+    assert run["order"] is None
+    c = check(run, "paypal_button_found")
+    assert (c["passed"], c["code"], c["cause"]) == (0, "account_required", "store")
+    assert results(run)["capture_completed"] is None
+    assert run["outcome"] != "purchased"

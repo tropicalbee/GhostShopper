@@ -267,6 +267,20 @@ def load_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
     return run
 
 
+def catalog_price_of(run: dict[str, Any]) -> dict[str, str] | None:
+    """The demo store's own catalog price for the run's target product. None on live stores and for any
+    product the demo catalog does not list, so nothing is guessed."""
+    if run.get("live") or not run.get("target_product"):
+        return None
+    from store.catalog import load_products
+
+    name = run["target_product"].strip().lower()
+    product = next((p for p in load_products() if p.name.lower() == name), None)
+    if product is None:
+        return None
+    return {"amount": f"{product.price:.2f}", "currency": product.currency}
+
+
 def _build_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
     from ..plain import narrate
     from ..scorecard import build_scorecard
@@ -289,6 +303,7 @@ def _build_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
                     if score else None)
     out["order"] = db.get_order(db_path, run["order_id"]) if run["order_id"] else None
     out["live"] = bool(out.get("live"))
+    out["catalog_price"] = catalog_price_of(out)
     out["scorecard"] = build_scorecard(out)
     out["feed"] = narrate(out["steps"], out["checks"])
     return out

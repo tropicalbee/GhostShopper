@@ -186,6 +186,26 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
             paypal_sdk_url=paypal_sdk_url,
         )
 
+    @app.post("/checkout/account", response_class=HTMLResponse)
+    def create_account(request: Request, sku: str = Form(...), email: str = Form(""), password: str = Form("")):
+        product = require_product(sku)
+        flaws = flaw_store.get_all()
+        notice = (
+            "Please enter a valid email address and a password of at least 8 characters."
+            if "@" not in email or len(password) < 8
+            else "We sent a confirmation link to your email. Confirm your account, then sign in to pay."
+        )
+        return render(
+            request,
+            "checkout.html",
+            product=product,
+            unit_price=f"{catalog.charged_unit_price(product, flaws):.2f}",
+            buyable=product.in_stock or flaws["oos_buyable"],
+            paypal_client_id=paypal_client_id,
+            paypal_sdk_url=paypal_sdk_url,
+            account_notice=notice,
+        )
+
     @app.get("/thanks", response_class=HTMLResponse)
     def thanks(request: Request, order: str = "", capture: str = ""):
         return render(request, "thanks.html", order_id=order, capture_id=capture)

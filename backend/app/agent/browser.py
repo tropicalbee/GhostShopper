@@ -163,6 +163,7 @@ FACTS_JS = r"""
     jsonld, controls, images_without_alt, forms, prices, struck_prices, images,
     sale_percent: pct ? Number(pct) : null,
     has_payment_button: !!document.querySelector(PAYPAL_SEL),
+    has_password_field: !!document.querySelector('input[type=password]'),
     og_type: meta('meta[property="og:type"]'),
     meta_description: meta('meta[name="description"]'),
     canonical: (document.querySelector('link[rel="canonical"]') || {}).href || null,

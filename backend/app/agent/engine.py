@@ -90,6 +90,12 @@ class CheckEngine:
                     await self._record(outcome, step_id)
             if self.live and self.paypal_probe:
                 await self.check_paypal(step_id)
+            if facts.get("has_password_field") and not facts.get("has_payment_button") and not self.rec.is_recorded("paypal_button_found"):
+                # An account wall instead of a PayPal button: an AI shopper cannot make an account, so payment is blocked.
+                await self._record(checks.Outcome(
+                    "paypal_button_found", False,
+                    "Checkout asks the shopper to create an account with a password before any PayPal button appears.",
+                    {"url": url, "selector": "input[type=password]"}, "account_required"), step_id)
 
     async def check_paypal(self, step_id: int | None) -> str:
         """Live stores: is the PayPal button present, visible and clickable? Never clicks it."""

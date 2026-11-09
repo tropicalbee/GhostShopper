@@ -243,3 +243,18 @@ def test_admin_lists_the_paypal_flaws(client):
     html = client.get("/store/admin").text
     for key in PAYPAL_FLAWS:
         assert f'name="{key}"' in html
+
+
+def test_no_guest_checkout_shows_an_account_wall_and_hides_paypal(client):
+    from store.flaws import CLASSIC_FLAWS
+
+    assert "no_guest_checkout" not in CLASSIC_FLAWS
+    assert client.get("/store/admin/flaws.json").json()["no_guest_checkout"] is False
+    only(client, "no_guest_checkout")
+    html = client.get("/store/checkout?sku=FH-MUG-01").text
+    assert 'type="password"' in html and "Create account" in html
+    assert "paypal-button" not in html and "checkout.js" not in html
+    posted = client.post("/store/checkout/account", data={"sku": "FH-MUG-01", "email": "a@b.test", "password": "longenough"})
+    assert posted.status_code == 200 and "confirmation link" in posted.text and "paypal-button" not in posted.text
+    all_off(client)
+    assert 'type="password"' not in client.get("/store/checkout?sku=FH-MUG-01").text

@@ -90,6 +90,11 @@ FLAWS: tuple[Flaw, ...] = (
         "No card or guest checkout",
         "Checkout offers PayPal only, with no way to pay by card without a PayPal account.",
     ),
+    Flaw(
+        "no_guest_checkout",
+        "Guest checkout disabled",
+        "Checkout asks the shopper to create an account with a password before the PayPal button appears.",
+    ),
 )
 FLAW_KEYS = tuple(f.key for f in FLAWS)
 # Flaws in the PayPal readiness score only (they do not change any agent-readiness check).

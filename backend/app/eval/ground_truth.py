@@ -32,6 +32,8 @@ LABELS: dict[str, tuple[str, ...]] = {
     "no_pay_later": (),
     "no_venmo": (),
     "no_card_checkout": (),
+    # Blocks payment at the PayPal stage (paypal_button_found, code account_required), which is not a detector check.
+    "no_guest_checkout": (),
 }
 
 

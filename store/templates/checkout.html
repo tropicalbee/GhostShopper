@@ -13,6 +13,19 @@
       <h2>Payment</h2>
       {% if not buyable %}
         <p class="soldout">Sorry, this item is sold out.</p>
+      {% elif flaws.no_guest_checkout %}
+        <h3>Create an account to continue</h3>
+        {% if account_notice %}<p class="errors" role="alert">{{ account_notice }}</p>{% endif %}
+        <form class="details-form" method="post" action="{{ base }}/checkout/account">
+          <input type="hidden" name="sku" value="{{ product.sku }}">
+          <label>Email
+            <input type="email" name="email" autocomplete="email">
+          </label>
+          <label>Choose a password
+            <input type="password" name="password" autocomplete="new-password">
+          </label>
+          <button type="submit">Create account</button>
+        </form>
       {% elif not paypal_client_id %}
         <p class="errors" id="paypal-unavailable">Payment is unavailable: PayPal is not configured on this store (PAYPAL_CLIENT_ID is missing).</p>
       {% else %}
@@ -55,7 +68,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
-{% if buyable and paypal_client_id %}
+{% if buyable and paypal_client_id and not flaws.no_guest_checkout %}
 <script src="{{ base }}/static/checkout.js"></script>
 <script async src="{{ paypal_sdk_url }}" onload="onPayPalLoaded()" onerror="onPayPalFailed()"></script>
 {% endif %}

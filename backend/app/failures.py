@@ -65,6 +65,9 @@ FAILURE_TYPES: dict[str, FailureType] = {
         FailureType("paypal_button_missing", "paypal_button_found", STORE,
                     "Render the PayPal button on checkout: load the PayPal JS SDK v6 with your client ID and show "
                     "<paypal-button> when PayPal is eligible."),
+        FailureType("account_required", "paypal_button_found", STORE,
+                    "Let shoppers check out as a guest: show the PayPal button on checkout without asking for an "
+                    "account or password. AI agents cannot create accounts."),
         FailureType("paypal_button_hidden", "paypal_button_found", STORE,
                     "Make the PayPal button visible on cart or checkout: it is in the page but hidden (display, "
                     "visibility, opacity or zero size)."),
@@ -92,6 +95,9 @@ FAILURE_TYPES: dict[str, FailureType] = {
                     "a sandbox account setup problem such as the buyer login being the seller's account."),
         FailureType("approval_cancelled", "payment_approved", ENVIRONMENT,
                     "No store change needed: the payment was cancelled in the PayPal window."),
+        FailureType("vault_payment_refused", "payment_approved", ENVIRONMENT,
+                    "No store change needed: PayPal refused the saved payment token (revoked, expired or from another "
+                    "account). Run `python -m backend.app.vault setup` again."),
         FailureType("capture_declined", "capture_completed", ENVIRONMENT,
                     "No store change needed: the buyer's funding source declined the payment."),
         FailureType("capture_error", "capture_completed", STORE,

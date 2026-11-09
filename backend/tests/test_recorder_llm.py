@@ -173,3 +173,16 @@ def test_make_llm_requires_explicit_config(monkeypatch):
         make_llm("mock")
     with pytest.raises(LLMConfigError, match="Invalid cassette"):
         make_llm("mock", "../etc")
+
+
+def test_run_payload_carries_the_catalog_price_for_demo_store_products(tmp_path):
+    rec = RunRecorder.start(
+        tmp_path / "t.db", store_url="http://shop/", goal="g", target_product="Speckled Stoneware Mug", checkout=True,
+        paypal_mode="mock", flaws={"price_as_image": True}, llm="mock", model="m",
+    )
+    assert load_run(tmp_path / "t.db", rec.run_id)["catalog_price"] == {"amount": "24.00", "currency": "USD"}
+
+
+def test_catalog_price_is_absent_for_unknown_products(tmp_path):
+    rec = start(tmp_path)  # target "Mug" is not in the demo catalog
+    assert load_run(tmp_path / "t.db", rec.run_id)["catalog_price"] is None

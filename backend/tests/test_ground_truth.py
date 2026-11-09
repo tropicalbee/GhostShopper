@@ -40,3 +40,8 @@ def test_currency_with_nothing_readable_is_masked():
     t = expected({"currency_missing", "price_as_image", "no_structured_data"}, checkout=False)
     assert "currency_missing" not in t.expected
     assert t.masked["currency_missing"] == {"currency_stated"}
+
+
+def test_no_guest_checkout_label_is_accepted():
+    t = expected({"no_guest_checkout"}, checkout=True)
+    assert t.all_expected == set() and t.all_masked == set()

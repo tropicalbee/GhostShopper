@@ -3,6 +3,7 @@ import { memo, useMemo, useState } from "react";
 
 import { platformName, ScoreFigure, ShopperPath, StatusLine } from "@/components/bits";
 import { DeveloperDialog, ShowMeDialog } from "@/components/dialogs";
+import { MoneyHero } from "@/components/MoneyHero";
 import { PayPalReadiness } from "@/components/PayPalReadiness";
 import { ProductFeedLine } from "@/components/ProductFeedLine";
 import { RunHead, ViewSwitch } from "@/components/RunHead";
@@ -86,7 +87,10 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
       />
       {error && <p role="alert" className="mt-4 text-sm text-bad">{error}</p>}
 
-      <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
+      {card && <MoneyHero run={run} className="mt-6" />}
+      {card && <PayPalReadiness run={run} className="mt-6" />}
+
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
         <aside className="lg:col-span-5">
           {card ? (
             <section className="border bg-panel p-6 lg:sticky lg:top-20">
@@ -156,7 +160,6 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
           )}
 
           {card && <YourMoney run={run} className="mt-8" />}
-          {card && <PayPalReadiness run={run} className="mt-6" />}
           {card && <ProductFeedLine run={run} className="mt-6" />}
 
           <div className="mt-6 flex flex-col gap-2.5 sm:hidden">

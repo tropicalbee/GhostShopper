@@ -134,6 +134,13 @@ PLAIN: dict[str, Plain] = {
         {"shopify": "In Shopify: Settings > Payments, activate PayPal.",
          "wix": "In Wix: Settings > Accept payments, connect PayPal.",
          "woocommerce": "In WordPress: install WooCommerce PayPal Payments and enable it under WooCommerce > Settings > Payments."}),
+    "account_required": Plain(
+        "Shoppers must create an account before they can pay",
+        "AI shoppers cannot create accounts or choose passwords, so they stop at the sign-up form and the sale is lost.",
+        "Let shoppers check out as a guest with PayPal. AI agents cannot create accounts.",
+        {"shopify": "In Shopify: Settings > Checkout and accounts, set customer accounts to optional.",
+         "wix": "In Wix: Settings > Checkout, turn on guest checkout.",
+         "woocommerce": "In WordPress: WooCommerce > Settings > Accounts & Privacy, tick Allow customers to place orders without an account."}),
     "paypal_button_hidden": Plain(
         "Your PayPal button is hidden",
         "A button the shopper can't see can't be clicked.",
