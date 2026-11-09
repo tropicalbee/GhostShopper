@@ -2,6 +2,14 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-09, part 2 (ledger, flow cards)
+
+### "Stopped at" pointed at a step the shopper got past
+On the seeded bad store the screen said the shopper stopped at the product details. It actually got past that page and was blocked at the account wall in checkout. The cause was that we took the first failed stage as the stop point. Fix: the stop is the earliest failed step with no later step passing (`stopIndex` in `bits.tsx`), and earlier failures show as "Got past". Still open: the reason line names the first failed check in that stage, the ambiguous button, when it should name the account wall. That fix was interrupted (see PROGRESS.md).
+
+### Ledger rows all "pending" after a restart in mock mode
+Mock Transaction Search only knows captures held in server memory. A restart, or orders captured by the seed or the CLI, leave every row "pending", and Render restarts often. Planned fix: in mock mode, build the reporting rows from the captures in SQLite, for mock ids only. Interrupted, not done.
+
 ## 2026-11-09 (money hero, vault payment)
 
 ### The bad store still got paid, so the hero said Yes

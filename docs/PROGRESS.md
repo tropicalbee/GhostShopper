@@ -1,5 +1,36 @@
 # Progress
 
+## 2026-11-09, part 2 (ledger, before/after, flow cards)
+
+None of this is committed yet. Both agents were stopped partway through their last fix because the weekly usage limit ran out, so the first job tomorrow is to check the build.
+
+### Done (reviewed and approved)
+- Before/after grid (`CompareGrid.tsx`, `lib/compare.ts`) on Results: one row per check with bad store, fixed store and points gained, plus pinned score and money rows. `GET /api/runs/{id}/compare?before=` returns 404 `NO_EARLIER_CHECK` when there is no earlier check. AG Grid Community only.
+- The seeded "before" run is now a real lost sale. `seed --with-runs` turns on the classic flaws plus `no_guest_checkout`. The seeded pair goes from a score of 24 to 100, and the money row reads "Lost $24.00", then "Captured $24.00, net $22.67". The demo commands the seed prints include `no_guest_checkout`.
+- Shopper flow and money flow cards (`ShopperFlow.tsx`, `MoneyFlow.tsx`), styled after `design/razorpay_ref`, with no React Flow and no new dependencies. Only the real stop point is marked "Stopped here". Earlier failures show as "Got past". The stop rule lives in `bits.tsx` (`stopIndex`, `stopStage`).
+- Agent sales ledger: `GET /api/ledger` (`backend/app/ledger.py`), the PayPal Transaction Search client (`search_transactions` in `paypal.py`) with a mock, and an AG Grid screen at `#/ledger` ("Sales ledger" in the nav). Each order is matched to PayPal reporting by capture id: matched, pending, mismatch or not_checked. It has a pinned totals row, preset filters and CSV export. `test_ledger.py`: 15 passed.
+
+### Interrupted (may be half edited)
+- The MoneyHero "why" line should name the check that ended the run, the account wall. Today it names the first failed check in the checkout stage, the ambiguous buy button. Target text: "...stopped at checkout, before the PayPal button. You lost $24.00." Files: `frontend/src/components/bits.tsx`, `MoneyHero.tsx`, `ShopperFlow.tsx`.
+- Mock Transaction Search reads only in-memory captures. After a server restart, or for orders captured by the seed or the CLI, every row shows "pending". Fix: in mock mode, build the reporting rows from the captures in SQLite, for mock ids only. Files: `backend/app/paypal_mock.py`, `backend/app/ledger.py`, `backend/tests/test_ledger.py`.
+
+### Not verified
+- No new screen has been opened in a browser yet: the ledger, the before/after grid and the flow cards.
+- The real sandbox Transaction Search call. Also open: whether the capture id equals `transaction_id`, and how long the reporting delay is.
+- The full test suite has not been run since the ledger and flow work. The last full run was 341 passed, before that work.
+
+### Next
+1. `cd frontend; npm run build`, then `.venv\Scripts\python -m pytest`. Repair whatever the interrupted edits broke.
+2. Finish the two interrupted fixes above.
+3. Commit, leaving `design/` out.
+4. User: enable "Save payment methods" and "Transaction search" on the sandbox app.
+5. Live Nemotron run with `--payment vault`, then the video.
+
+### Blockers
+- Weekly usage limit. From now on, one agent at a time, and the user runs the full test suite.
+
+---
+
 ## 2026-11-09 (money first, vault payment)
 
 ### Done
