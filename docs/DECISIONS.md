@@ -202,3 +202,26 @@ Rules `2026-11-05.3`, 100 points in total.
 - No Nemotron run has been recorded yet, so METRICS.md has no Nemotron numbers. The model must support tool calling; the exact model id is set in `.env`.
 - We turned down a dedicated NVIDIA adapter (nothing to add over the generic one) and dropping Groq (it is a useful fallback when the NVIDIA endpoint is rate limited).
 - The fill_form password guard now applies on every store, not only live ones. The LLM never types into a password field. PayPal sandbox login is fixed code in `paypal_flow.py` that fills the popup directly and does not go through the tool dispatcher.
+
+## 2026-11-09: Vault agent payment
+
+- Real AI shopping agents do not type passwords, and the headless password page stopped run 19. `--payment vault` pays with a PayPal token the buyer saved once (Vault v3 setup token, then payment token), through a new store endpoint, `POST /api/paypal/agent-orders`. The store creates an Orders v2 order with `payment_source.paypal.vault_id` and captures it if PayPal did not.
+- `--payment popup` stays the default, so cassettes and old runs are unchanged.
+- With no popup, `popup_opened` and `payment_approved` are recorded as passed with a reason that says a saved account was used. The score rubric did not change. The button check still runs, because the store should still offer PayPal.
+- The spending limit is sent to the endpoint (`max_amount`) and checked on the order total before PayPal is called, since the order is created and paid in one call.
+- The token lives in SQLite per PayPal mode. A missing token is a config error, never a fallback to the popup.
+- We turned down putting the token in `.env` (it is created at runtime) and adding a store flaw toggle for it (the endpoint is always on).
+
+## 2026-11-09: Money hero and the guest checkout flaw
+
+- The results screen leads with a money headline. A captured payment with failed checks reads as paid but at risk ("Our agent got through after N obstacles"), because a less patient agent would have left. N is the count of failed fixes. A run with no capture says where the shopper stopped and what the product costs, using the demo store's catalog price (`catalog_price` in the run payload) so it works when the page shows the price only in an image.
+- New store flaw `no_guest_checkout` (off by default, not in the classic or agent sets, so benchmarks and cassettes are unchanged). Checkout shows an account form with a password field and no PayPal button. The LLM is not allowed to type passwords, so the shopper cannot pass, which is what a real agent runs into.
+- The rubric did not change and still totals 100. The existing `paypal_button_found` check fails with a new failure code, `account_required`, so the fix list can say "Let shoppers check out as a guest with PayPal". The engine records it when the checkout page has a password field and no PayPal button. The ground-truth label is empty because the flaw is caught at the payment stage, like the PayPal setup flaws.
+- We turned down a new scored check (it would shift the 100-point split) and making the flaw part of the classic bad store (it would break the recorded before and after runs).
+
+
+## 2026-11-09: Money first, design deferred
+
+- The results screen opens with money because PayPal's story is merchants who lose or win sales. A score alone does not say that. Scores and fixes sit below it.
+- We turned down leading with the score (it says little to a shopkeeper) and hiding the practice-mode label on mock runs (it would pass fake money off as real).
+- The pottery storefront design the user supplied (`design/`) is deferred. The demo store stays plain, since its flaws are the point, and a rebuild is about 4 to 6 hours. It can be used for the video if time allows.

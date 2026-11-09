@@ -222,3 +222,14 @@ No live PayPal or Kernel runs this session, so no new run numbers.
 | Frontend `npm run build` | succeeded |
 | PayPal readiness, fixed store | 100 |
 | PayPal readiness, flawed store (four PayPal toggles on) | 52 (about 46 in a real run with the extra checkout step) |
+
+## 2026-11-09 (money hero, vault payment)
+
+No live PayPal, Kernel or Nemotron runs, so no new run numbers.
+
+| After | Backend tests |
+|---|---|
+| Password guard and docs | 319 passed |
+| Money hero and `no_guest_checkout` | 334 passed (full suite); browser e2e files alone 32 passed |
+| Vault payment, before the review fixes | 334 passed (full suite) |
+| Vault review fixes | `test_vault.py` 17 passed |

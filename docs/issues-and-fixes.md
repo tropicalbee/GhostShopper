@@ -2,6 +2,14 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-09 (money hero, vault payment)
+
+### The bad store still got paid, so the hero said Yes
+The seeded "before" run on the bad store captured $24.00 in mock, and the new money headline said "Yes. Paid with PayPal". The cause: none of the four classic flaws actually blocks a purchase. They make the shopper's job harder, but it gets through. Fix: a paid run with failed checks now reads as at risk ("Our agent got through after N obstacles"). We also added a store flaw, `no_guest_checkout`: an account form with a password field and no PayPal button, off by default and not in the classic flaws. It fails `paypal_button_found` with `account_required`, and the LLM cannot get past it because of the password guard.
+
+### The payment stops at PayPal's password page
+In headless and real sandbox runs the shopper reaches PayPal's login and stops. Run 19 was the first evidence, and it is still what the user sees. A real AI shopping agent would not type a password either. Fix: vault payment. The buyer approves once, and the agent pays with the saved token through the store's `POST /api/paypal/agent-orders` (Orders v2 with `payment_source.paypal.vault_id`). Mock tests only so far. The real sandbox run is still to do.
+
 ## 2026-11-08 (blockers and audit fixes)
 
 ### A budget like 1E+30 returned 500 at run start

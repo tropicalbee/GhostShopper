@@ -1,5 +1,34 @@
 # Progress
 
+## 2026-11-09 (money first, vault payment)
+
+### Done
+- The LLM's fill_form now refuses password fields on every store, not only live ones. Two tests. Committed.
+- Docs now name NVIDIA Nemotron as the primary LLM, with Groq as a supported alternative. The provider comes from `.env` (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL`), nothing is hardcoded. Committed.
+- The Results screen leads with money (`MoneyHero.tsx`): what the shopper tried to buy and what the store lost, or what was captured, the PayPal fee and the net. A paid run with failed checks reads as paid but at risk. Mock runs say "(practice mode)". PayPalReadiness sits right under it. The run payload has a new deterministic `catalog_price` from `store/products.json`.
+- Review found that the seeded "before" run still captured $24.00 in mock, so the hero said "Yes" on the bad store. None of the four classic flaws blocks a purchase. Fixed with the at-risk wording and a new store flaw, `no_guest_checkout`. Details in issues-and-fixes.md.
+- Vault agent payment: the buyer approves once (`python -m backend.app.vault setup`, then `finish <id>`), and the agent's `pay_with_saved_paypal` tool pays through `POST /api/paypal/agent-orders` with no popup and no password. `--payment popup|vault`, default popup. On a deployed server a sandbox payment needs the presenter unlock (403 `REAL_PAYMENT_LOCKED`), and it respects `no_guest_checkout` (403 `ACCOUNT_REQUIRED`). New `vault_tokens` table.
+- The code was written by a cheaper subagent and reviewed by the main agent. The review sent back four fixes: the README "default" wording, the catalog price for the hero, a mock headline contradiction, and the vault gating plus account wall.
+- Tests: see METRICS.md.
+
+### In progress
+- Design: the user supplied a pottery storefront design (PNGs in `design/`). Deferred. The demo store has to stay plain, and a rebuild is about 4 to 6 hours.
+
+### Not verified
+- The vault payment ran in mock only. Not yet known: whether PayPal needs `stored_credential` for this order, and whether it returns COMPLETED right away. The code handles both.
+- No Nemotron run has been recorded.
+
+### Next
+1. User: enable "Save payment methods" on the sandbox app, run `vault setup` and log in once.
+2. One live Nemotron run, bad store, then the fixed store, with `--payment vault`.
+3. Render deploy, README hosted URL, fresh-clone test.
+4. Video and Devpost.
+
+### Blockers
+- The real vault payment needs the user's sandbox app setting and one login.
+
+---
+
 ## 2026-11-08 (blockers and audit fixes)
 
 ### Done

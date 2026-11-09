@@ -84,3 +84,10 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - PayPal v6 component names checked against PayPal's docs and corrected.
 - The budget is checked against the amount the store charges, before anything is approved.
 - Fixes from a security and production review of the PayPal features: refund error handling, a crash on oversized budgets and refund id checks.
+
+## 2026-11-09 (money first, vault payment)
+- The LLM can no longer fill password fields on any store.
+- Docs name NVIDIA Nemotron as the primary LLM, with Groq as an alternative. The provider is set in `.env`.
+- The results screen leads with money: lost sale, captured payment with fee and net, or paid but at risk. Mock runs are labelled practice mode. PayPal readiness sits right under it.
+- New store flaw `no_guest_checkout`: an account wall with no PayPal button. It fails the PayPal button check with `account_required`.
+- Vault agent payment: `python -m backend.app.vault setup`, then `--payment vault` pays with the buyer's saved PayPal account through `POST /api/paypal/agent-orders`, with no popup or password. A deployed sandbox payment needs the presenter unlock.

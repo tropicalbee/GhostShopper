@@ -92,6 +92,17 @@ One row per check per run (`UNIQUE(run_id, check_key)`; the first outcome wins).
 | excluded | TEXT | JSON list of excluded checks |
 | rules_version | TEXT | `scoring.RULES_VERSION` |
 
+## vault_tokens
+The sandbox buyer's saved PayPal account (Vault v3), created once by `python -m backend.app.vault`. The payment token is secret-ish: it is never sent to the LLM and is redacted in run logs.
+
+| field | type | notes |
+|---|---|---|
+| id | INTEGER PK | the newest row per mode is used |
+| paypal_mode | TEXT | sandbox or mock; a token only works in the mode that made it |
+| payment_token_id | TEXT | the Vault payment token id, sent only to the store's `/api/paypal/agent-orders` |
+| customer_id | TEXT | PayPal's customer id for the token |
+| created_at | TEXT | |
+
 ## Indexes and pragmas
 Every connection (the store's too) sets WAL, `synchronous=NORMAL` and a 5000 ms busy timeout. Indexes, all created idempotently in `db.py`:
 
