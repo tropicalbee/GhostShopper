@@ -1,0 +1,159 @@
+{
+  "recorded_from": "openai-compatible:nvidia/nemotron-3.5-super-vl-120b-a12b",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-f1238b4a-9948-494c-95e4-47e4d94891c5",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"https://sauce-demo.myshopify.com/\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-888c0630-2237-401c-987d-f12212f51b2c",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-bf59760a-c9cf-42a4-9c7b-cd8a2b705c19",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e21\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-3fb88982-0715-4a92-874d-38367e8f15dc",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-70192389-c968-4fc8-844f-457c4c34aecd",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-7098d41c-5351-4f7d-9b18-5fe2347bc4cf",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e25\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-ee8cae9a-bbda-461f-b15a-3e82a07e2f68",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e7\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-ec8a0439-4f6e-472e-9b83-60bd3d314292",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e8\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-301c4f91-5ad7-4931-a667-e79901c2a2e5",
+          "type": "function",
+          "function": {
+            "name": "check_paypal_button",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-492d82d7-309d-4515-896f-2674aedd7be8",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-d85b5904-0b9e-4508-94c5-55720344d321",
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "arguments": "{\"outcome\":\"reached_checkout\",\"summary\":\"Visited https://sauce-demo.myshopify.com/, found the Grey jacket product, read its price (\u00a355.00), added it to the cart, and navigated to the cart page. Stock status was not explicitly displayed on the product page. The PayPal button was checked on the cart page and is not usable.\",\"price\":\"\u00a355.00\",\"in_stock\":\"unknown\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

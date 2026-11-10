@@ -1,0 +1,131 @@
+{
+  "recorded_from": "openai-compatible:nvidia/nemotron-3.5-super-vl-120b-a12b",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-b3d5d79a-4512-4287-8ff6-06cda3b109ed",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"http://localhost:8000/store/\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-8a045bd3-926f-44e5-946d-0d6f5a6229b2",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-3265f83c-c202-4c49-a31b-d43dd4cf31ea",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e9\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-5efed3d2-248b-45f0-8364-ea4fa934b94b",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-b863f56e-7088-4c0d-b8a3-f4b9b5d438c9",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-a9044b53-1724-4276-ae03-aa84475d0acd",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e10\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-95a896ea-20cd-4d43-a7fe-f504d2c4e9cb",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-2131d150-328b-4062-86be-68b76b6551ba",
+          "type": "function",
+          "function": {
+            "name": "pay_with_paypal",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-863e3000-9390-493c-be9a-9833b4a1497b",
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "arguments": "{\"outcome\":\"purchased\",\"summary\":\"Found the Speckled Stoneware Mug on the store page, read its price ($24.00) and stock status (In stock), clicked Buy now to go to checkout, and paid with PayPal. Payment completed successfully.\",\"price\":\"$24.00\",\"in_stock\":\"In stock\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

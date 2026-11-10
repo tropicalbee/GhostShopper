@@ -1,0 +1,271 @@
+{
+  "recorded_from": "openai-compatible:nvidia/nemotron-3.5-super-vl-120b-a12b",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-09bd9613-bb82-4a9f-abb5-53738654fa3d",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"http://localhost:8000/store/\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-b85ccc94-0b43-40dd-840a-756f9fa13e17",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-71c720f2-9723-46b3-ba65-0a659cc33485",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-bee9211e-a48a-482c-b1ed-59aeae7e2b90",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"http://localhost:8000/store/products/speckled-stoneware-mug\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-6626f7e8-5499-4a4d-89a7-be2013c7d0dc",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-22b1f543-8bc0-490d-9686-0b67e269154b",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-55d9751c-3c2d-47cc-8fdf-d9a61451ccbb",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e10\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-af32a188-8516-4811-b1e6-cf611d317d7d",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"http://localhost:8000/store/products/speckled-stoneware-mug\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-4bf44efb-8576-4de4-8971-952cd6fa90dd",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e11\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-036d96ca-f9ba-4e48-9db0-d763f5e320c2",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"http://localhost:8000/store/products/speckled-stoneware-mug\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-5e2da81e-ccd2-4d11-8f1a-00c597d2c5de",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e12\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-e87b957b-0f49-4b62-a8fa-9522b89355cd",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-e0d04f7f-ccaa-4944-a93d-95f6c190a57a",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-ef4abe72-5040-4fdc-87ba-62aebbd3c07d",
+          "type": "function",
+          "function": {
+            "name": "fill_form",
+            "arguments": "{\"fields\":[{\"element_id\":\"e4\",\"value\":\"customer@example.com\"},{\"element_id\":\"e5\",\"value\":\"Search engine\"},{\"element_id\":\"e6\",\"value\":\"true\"}]}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-0c148b16-fdff-4bcb-b6c4-963fbdff7702",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e7\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-08a021cb-5412-4a4e-96d7-370baf0c0257",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-5536b4f6-99f5-40fe-a968-4450ec9ee665",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-844184e0-8fd8-433f-9630-9110dca02ab3",
+          "type": "function",
+          "function": {
+            "name": "pay_with_paypal",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-d69e9483-da49-4213-b947-323c7ef968ed",
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "arguments": "{\"outcome\":\"purchased\",\"summary\":\"Found the Speckled Stoneware Mug at http://localhost:8000/store/products/speckled-stoneware-mug, added it to checkout, filled in customer details (email, heard-about-us, agreed to policies), proceeded to payment, and completed payment via PayPal. Order number: 4PX60387GH784405X. Payment amount: 24.00 USD (PayPal capture 3UK25263HR129600H, status COMPLETED). Price and stock status were not explicitly displayed on the product page (price field was blank in order summary; item was available for purchase, not marked sold out).\",\"price\":\"24.00 USD\",\"in_stock\":\"available (not marked sold out)\"}"
+          }
+        }
+      ]
+    }
+  ]
+}
