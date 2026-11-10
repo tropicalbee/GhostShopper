@@ -52,6 +52,64 @@ function Chip({ children, on }: { children: ReactNode; on?: boolean }) {
   return <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-[3px] text-xs leading-4 font-medium whitespace-nowrap", on ? "border-[#2e2e2e] bg-[#1a1a1a] text-foreground" : "border-[#262626] bg-[#141414] text-muted-foreground")}>{children}</span>;
 }
 
+const TRACE_STEPS = [
+  ["agent_wanted", "Agent wanted", "What the shopper meant to buy"],
+  ["store_order", "Store order", "What your store recorded"],
+  ["paypal_order", "PayPal order", "What PayPal was asked to charge"],
+  ["paypal_capture", "PayPal capture", "What PayPal actually took"],
+  ["store_says", "Store says", "What your store shows afterwards"],
+] as const;
+// The lit dot is the stage of the first mismatch.
+const LIT_STEP = Math.max(0, TRACE_STEPS.findIndex(([key]) => key === SAMPLE.first_mismatch?.stage));
+
+// A small ghost that travels the stepper once, from the first dot to the lit one, when it scrolls into view.
+// Desktop only: below md the stepper is a vertical list with no line.
+function TraceGhost({ count, target }: { count: number; target: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Column i starts at i * (100% / count); the dot centre is 11px in, the ghost is 16px wide.
+  const leftAt = (i: number) => `calc(${(i * 100) / count}% + 3px)`;
+
+  useEffect(() => {
+    const el = ref.current;
+    const host = el?.parentElement;
+    if (!el || !host) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || typeof IntersectionObserver === "undefined") {
+      el.style.left = leftAt(target);
+      return;
+    }
+    const travel = 380;
+    const hold = 120;
+    const total = target * travel + Math.max(0, target - 1) * hold;
+    const frames: Keyframe[] = [{ left: leftAt(0), offset: 0, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }];
+    let t = 0;
+    for (let i = 1; i <= target; i++) {
+      t += travel;
+      frames.push({ left: leftAt(i), offset: t / total, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+      if (i < target) {
+        t += hold;
+        frames.push({ left: leftAt(i), offset: t / total, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+      }
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        if (target > 0) el.animate(frames, { duration: total, fill: "forwards" }).addEventListener("finish", () => (el.style.left = leftAt(target)));
+      },
+      { threshold: 0.5 },
+    );
+    io.observe(host);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, target]);
+
+  return (
+    <div ref={ref} className="pointer-events-none absolute top-5 left-[3px] hidden size-4 text-muted-foreground md:block" aria-hidden>
+      <Logo className="size-4" />
+    </div>
+  );
+}
+
 function Node({ hit, className }: { hit?: boolean; className?: string }) {
   return (
     <span className={cn("grid size-[22px] place-items-center rounded-full border-[1.5px]", hit ? "border-foreground bg-foreground" : "border-[#4a4a4a] bg-black", className)}>
@@ -244,17 +302,10 @@ export function Landing() {
       <section id="how" className="relative border-y bg-gradient-to-b from-[#060606] to-black">
         <ol className={cn(wrap, "relative grid gap-6 pt-10 pb-9 md:grid-cols-5 md:gap-0")}>
           <div className="march absolute top-[50px] right-[calc(20%-10px)] left-2.5 hidden h-0.5 md:block" aria-hidden />
-          {(
-            [
-              ["Agent wanted", "What the shopper meant to buy"],
-              ["Store order", "What your store recorded"],
-              ["PayPal order", "What PayPal was asked to charge"],
-              ["PayPal capture", "What PayPal actually took"],
-              ["Store says", "What your store shows afterwards"],
-            ] as const
-          ).map(([t, d], i) => (
-            <li key={t} className="relative flex gap-3.5 md:block md:pr-5">
-              <Node hit={i === 4} className="relative z-[1] flex-none" />
+          <TraceGhost count={TRACE_STEPS.length} target={LIT_STEP} />
+          {TRACE_STEPS.map(([key, t, d], i) => (
+            <li key={key} className="relative flex gap-3.5 md:block md:pr-5">
+              <Node hit={i === LIT_STEP} className="relative z-[1] flex-none" />
               <div>
                 <b className="block text-[15px] leading-[22px] font-medium tracking-[-0.02em] md:mt-4">{t}</b>
                 <span className="mt-[3px] block text-[13px] leading-[19px] text-faint">{d}</span>
