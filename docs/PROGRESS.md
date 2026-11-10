@@ -1,5 +1,27 @@
 # Progress
 
+## 2026-11-10, part 3 (trace, safety guard, redesign built; docs updated)
+
+### Done (in code and mock tests, not verified live)
+- Purchase trace in `backend/app/trace.py`: five records, first mismatch, unknown / n/a / not reached. It never changes the score.
+- The demo store keeps its own orders (`store/orders.py`, `store_orders`, order page `/store/orders/{n}`). The runtime reads the order page back after payment (`agent/order_page.py`).
+- Four purchase flaws, mock scenarios `buyer_cancels` and `first_attempt_fails`, and one retry on a temporary capture error.
+- Prompt-injection guard (`agent/injection.py`): page content framed as data, hard limits, `agent_safety` on the run, flaw `hidden_agent_instructions`. Never changes the score.
+- Frontend redesign: Landing, New check, Live, Results with the trace and the safety panel.
+- Diagrams in `docs/diagrams/`. README, PRD, APPFLOW, TRD, SCHEMA, PLAN and CHANGELOG updated.
+
+### Not verified
+- Live PayPal sandbox, a live model run (Nemotron or Groq) and a real Kernel run have not been done with the new code. No new test counts were recorded in METRICS.md for this part.
+
+### Next
+1. One live Nemotron run, bad store then fixed store, plus one sandbox purchase to see the trace on real data.
+2. Shopify demo store live test.
+3. Render deploy, hosted URL in the README, fresh-clone test.
+4. Video and Devpost.
+
+### Blockers
+- Usage limits on the AI tooling, so live runs and the remaining work have to be kept small and done one at a time.
+
 ## 2026-11-10, part 2 (new direction and redesign, nothing built yet)
 
 ### Decided with the user

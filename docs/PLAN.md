@@ -90,6 +90,22 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [ ] Hosted URL in the README
 - [ ] Fresh-clone test
 
+## Nov 10, part 3: trace, safety and redesign
+- [x] Purchase trace (`backend/app/trace.py`): five records, first mismatch, unknown / n/a / not reached
+- [x] Store orders (`store/orders.py`, order page) and the order read-back after payment
+- [x] Four purchase flaws, mock scenarios `buyer_cancels` and `first_attempt_fails`, one retry on a temporary capture error
+- [x] Prompt-injection guard, `agent_safety` on the run, flaw `hidden_agent_instructions`
+- [x] Frontend redesign: Landing, New check, Live, Results with the trace and safety panel
+- [x] UI_SPEC.md rewritten; dashboard design agreed with the user
+- [x] Diagrams in docs/diagrams/ and docs updated (README, PRD, APPFLOW, TRD, SCHEMA)
+- [ ] Live Nemotron run on the bad store and the fixed store, with the trace and safety report
+- [ ] Live sandbox purchase that shows the trace end to end
+- [ ] Live test against the Shopify demo store
+- [ ] Render deploy (see D6)
+- [ ] Fresh-clone test (see D6)
+- [ ] Demo video (see D7)
+- [ ] Devpost description (see D7)
+
 ## D7 (Nov 11): video and submit
 - [x] docs/VIDEO_SCRIPT.md (3 minutes) and seed command for the demo state
 - [ ] Record the demo video (under 3 minutes)

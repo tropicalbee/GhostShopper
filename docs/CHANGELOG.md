@@ -91,3 +91,11 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - The results screen leads with money: lost sale, captured payment with fee and net, or paid but at risk. Mock runs are labelled practice mode. PayPal readiness sits right under it.
 - New store flaw `no_guest_checkout`: an account wall with no PayPal button. It fails the PayPal button check with `account_required`.
 - Vault agent payment: `python -m backend.app.vault setup`, then `--payment vault` pays with the buyer's saved PayPal account through `POST /api/paypal/agent-orders`, with no popup or password. A deployed sandbox payment needs the presenter unlock.
+
+## 2026-11-10 (purchase trace, safety guard, redesign)
+- Purchase trace: five records of one purchase (what the agent wanted, the store's order, PayPal's order, PayPal's capture, what the store says) compared field by field, with the first mismatch explained. Unknown values stay unknown. It doesn't change the score.
+- The demo store keeps its own orders and an order page. The shopper reads that page back after payment.
+- Four store flaws for purchase bugs: never marks paid, declined marked paid, success after cancel, duplicate on retry. The mock PayPal gained `buyer_cancels` and `first_attempt_fails`, and the agent retries once on a temporary capture error.
+- Prompt-injection guard: page content is framed as data, hard limits (no other hosts, no downloads, no password or card fields), a detector for text aimed at AI agents, an agent-safety report on each run and a `hidden_agent_instructions` flaw. It doesn't change the score.
+- Frontend redesign in a black monochrome receipt style: Landing, New check, Live and Results with the trace and the safety panel.
+- Architecture, sequence, trace and data-model diagrams in `docs/diagrams/`, with Mermaid versions in the docs.

@@ -15,6 +15,22 @@ SQLite file (DATABASE_PATH)
 Shopper agent: LLM (configurable provider)  <->  tools  <->  Playwright (local) | Kernel browser (real runs)
 ```
 
+Diagrams: [architecture.png](diagrams/architecture.png) (simplified) and [architecture-detailed.png](diagrams/architecture-detailed.png) (numbered steps). The simplified one again in Mermaid:
+
+```mermaid
+flowchart LR
+  M[Merchant browser] --> F[FastAPI app]
+  F --> D[(SQLite)]
+  F --> ST[Demo store]
+  F --> AG[Shopper agent]
+  AG --> LLM[LLM: Nemotron or Groq]
+  AG --> BR[Playwright or Kernel browser]
+  BR --> ST
+  ST --> PP[PayPal sandbox]
+  F --> PP
+  F --> CH[Channel3]
+```
+
 - `store/`: Fernhill Ceramics, a plain server-rendered shop (Jinja2). Flaw toggles in SQLite table `store_flaws`, edited at `/store/admin` or `PUT /store/admin/flaws.json`.
 - `backend/`: API, PayPal client, agent (`backend/app/agent/`: `loop` tool-calling loop, `browser` Playwright tools, `checks` + `engine` deterministic detectors, `paypal_flow` checkout, `llm` provider layer and replay, `recorder` SQLite), `scoring` (pure).
 - `PAYPAL_MODE=mock` swaps in `paypal_mock.py`: fake Orders client + mock v6 SDK/popup at `/mock-paypal/*`. Reported by `/api/health`. Default is `sandbox`.
@@ -40,6 +56,14 @@ Python 3.11+ (dev on 3.13), FastAPI, httpx, Jinja2, SQLite (stdlib `sqlite3`), p
 - Capture only orders this server created (checked in SQLite).
 - Missing credentials return explicit errors (503 `PAYPAL_NOT_CONFIGURED`, "PayPal is not configured" on the checkout page). No sample-data fallback.
 - Failures are detected by deterministic checks in the tool layer, not by the LLM. The score is a pure function of the recorded failures and checkout result.
+
+## Purchase trace
+
+`GET /api/runs/{id}` carries a `trace` that compares five records of one purchase, field by field (product, quantity, amount, currency, status): what the agent wanted (run target and catalog price), the demo store's own order (`store_orders`), PayPal's order (the stored GET order response), PayPal's capture (the stored capture response) and what the store's order page shows afterwards. After a payment attempt the runtime opens that order page and records it as a step. A value a source does not expose is `unknown` with a reason, never filled in. The first disagreement is flagged, with a plain explanation and a fixed fix text. The builder is `backend/app/trace.py`. It does not touch the score, and no LLM is involved. Live stores only get `unknown` for the store's order, since the shopper cannot see it. The demo store keeps its own orders in `store_orders` (`store/orders.py`, order page `/store/orders/{n}`); four purchase flaws (`never_marks_paid`, `declined_marked_paid`, `success_after_cancel`, `duplicate_on_retry`) make the store's record disagree with PayPal's. The mock PayPal has `buyer_cancels` and `first_attempt_fails`, and the agent retries once on a temporary capture error.
+
+## Prompt-injection guard
+
+Store pages are untrusted input. The system prompt frames page content as data. `agent/injection.py` flags text aimed at AI agents (hidden or visible), and the findings are saved as `agent_safety` on the run. Hard limits hold whatever a page says: no other hosts, no downloads, no password or card fields. The store flaw `hidden_agent_instructions` demonstrates it. The guard never changes the score.
 
 ## Server behaviour
 

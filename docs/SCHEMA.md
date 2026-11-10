@@ -4,11 +4,64 @@ There's one file at `DATABASE_PATH` (default `data/ghostshopper.db`). Timestamps
 
 Everything is redacted for secrets before it's written (`agent/recorder.py`). Columns added after a table first shipped are added to older databases by `init_db`.
 
+Diagram image: [data-model.png](diagrams/data-model.png). Mermaid version of the main tables (columns abbreviated; the tables below are complete):
+
+```mermaid
+erDiagram
+  runs ||--o{ steps : has
+  runs ||--o{ checks : has
+  runs ||--o| scores : has
+  runs ||--o| orders : "linked by order_id"
+  orders ||--o{ store_orders : "paypal_order_id"
+  runs ||--o{ store_orders : "run_id"
+  steps ||--o{ checks : "step_id"
+  runs {
+    int id PK
+    text status
+    text store_url
+    text order_id
+    text agent_safety
+  }
+  steps {
+    int id PK
+    int run_id FK
+    int idx
+    text tool
+    text url
+  }
+  checks {
+    int id PK
+    int run_id FK
+    int step_id FK
+    text check_key
+    int passed
+  }
+  scores {
+    int run_id PK
+    int total
+    int possible
+  }
+  orders {
+    text order_id PK
+    int run_id
+    text status
+    text capture_id
+  }
+  store_orders {
+    int number PK
+    int run_id
+    text paypal_order_id
+    text status
+  }
+```
+
+`orders.run_id` and `store_orders.run_id` are plain columns, not enforced foreign keys. Deleting a run clears them.
+
 ## store_flaws
 | field | type | notes |
 |---|---|---|
-| key | TEXT PK | one of the 10 flaws in `store/flaws.py` |
-| enabled | INTEGER | 1 = flaw on. The 4 classic flaws default to 1, the newer 6 to 0. |
+| key | TEXT PK | a flaw in `store/flaws.py` |
+| enabled | INTEGER | 1 = flaw on. The classic flaws default to 1, the newer ones (including the four purchase flaws) to 0. |
 
 ## orders
 | field | type | notes |
@@ -21,11 +74,25 @@ Everything is redacted for secrets before it's written (`agent/recorder.py`). Co
 | gross_amount, paypal_fee, net_amount | TEXT | from `seller_receivable_breakdown` |
 | created_at, captured_at | TEXT | |
 | capture_response | TEXT | raw JSON, used by verification |
+| order_response | TEXT | PayPal's GET order response, read after payment, used by the purchase trace |
+| capture_error | TEXT | PayPal's issue when the capture failed (for example INSTRUMENT_DECLINED); cleared by a later capture |
 | run_id | INTEGER | the run that bought it; null for manual purchases |
 | refund_id | TEXT | PayPal refund id, set once the test payment is refunded |
 | refund_status | TEXT | COMPLETED, PENDING, CANCELLED or FAILED |
 | refund_amount, refund_currency | TEXT | what PayPal says it returned |
 | refunded_at | TEXT | |
+
+## store_orders
+The demo store's own order records, kept apart from PayPal's. Both payment paths create them through `store/orders.py`.
+| field | type | notes |
+|---|---|---|
+| number | INTEGER PK | store order number, starts at 1042 |
+| sku, quantity | TEXT, INTEGER | |
+| amount, currency | TEXT | |
+| status | TEXT | awaiting_payment, paid, payment_failed, cancelled, confirmed (only the success_after_cancel flaw sets confirmed) |
+| paypal_order_id | TEXT | the PayPal order this store order is paid with; a retry that reuses the order points it at the newer PayPal order |
+| run_id | INTEGER | the run that made it; null for manual purchases |
+| created_at, updated_at | TEXT | |
 
 ## runs
 | field | type | notes |
@@ -48,6 +115,7 @@ Everything is redacted for secrets before it's written (`agent/recorder.py`). Co
 | order_id | TEXT | the linked order |
 | awaiting | TEXT | JSON while waiting for a human: stage, reason, since, timeout, Kernel live view URL |
 | paypal_readiness | TEXT | JSON: PayPal setup checklist, recommendations and the 0-100 PayPal readiness figure (`agent/paypal_readiness.py`). Separate from the score. |
+| agent_safety | TEXT | JSON list of text aimed at AI agents that the shopper met: where, excerpt, hidden, step, screenshot (`agent/injection.py`). Returned in the run payload as `agent_safety`. Not scored. |
 | error | TEXT | |
 | owner_hash | TEXT | SHA-256 of the browser's owner token. NULL = shared example (made by the CLI or seed). `unclaimed` = made before checks had owners; hidden from the web, kept for the CLI. |
 
@@ -112,6 +180,8 @@ Every connection (the store's too) sets WAL, `synchronous=NORMAL` and a 5000 ms 
 | idx_runs_started_at | runs(started_at) | retention purge and ordering |
 | idx_steps_run_idx | steps(run_id, idx) | a run's steps in order |
 | idx_orders_run | orders(run_id) | the order for a run |
+| idx_store_orders_paypal | store_orders(paypal_order_id) | the store order for a PayPal order |
+| idx_store_orders_run | store_orders(run_id) | a run's store orders |
 
 ## flaw_proposals
 LLM ideas for new flaws. They don't count in any benchmark until someone implements them as a toggle with a ground-truth label.
