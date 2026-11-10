@@ -22,6 +22,7 @@ STAGES = (
     ("store_says", "What the store says"),
 )
 FIELDS = ("product", "quantity", "amount", "currency", "status")
+NO_PAYPAL_ID = "the store order has no PayPal order id, so PayPal's records could not be looked up"
 COMPARED_FIELDS = ("product", "quantity", "amount", "currency")  # checked against what the agent wanted
 
 PAY_TOOLS = ("pay_with_paypal", "pay_with_saved_paypal")
@@ -64,6 +65,11 @@ EXPLANATIONS: dict[str, tuple[str, str]] = {
         "and the buyer may pay twice.",
         "After PayPal reports the capture COMPLETED, mark the order paid in your own records and show that status "
         "on the order page."),
+    "paid_without_paypal_reference": (
+        "The store marks the order {actual}, but its order holds no PayPal reference, so nobody can check the money "
+        "arrived.",
+        "Save PayPal's order id on your order when it is created, and mark the order paid only after a completed "
+        "capture for that id."),
     "duplicate_orders": (
         "The store created {actual} for one intended purchase. Unpaid duplicates confuse fulfilment and the buyer.",
         "When the buyer retries a payment, reuse the pending order instead of creating a new one: keep the order "
@@ -136,7 +142,7 @@ def _store_order(orders: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _paypal_order(paypal: dict[str, Any] | None) -> dict[str, Any]:
     if paypal is None:
-        return _stage("paypal_order", None, _all(_unknown("PayPal returned no order for this purchase")))
+        return _stage("paypal_order", None, _all(_unknown(NO_PAYPAL_ID)))
     source = paypal["id"]
     order = paypal.get("order")
     if order is None:
@@ -160,8 +166,8 @@ def _paypal_order(paypal: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def _paypal_capture(paypal: dict[str, Any] | None) -> dict[str, Any]:
-    if paypal is None:
-        return _stage("paypal_capture", None, _all(_not_reached()))
+    if paypal is None:  # only when the store order has no PayPal id: PayPal was never looked at, so never guess
+        return _stage("paypal_capture", None, _all(_unknown(NO_PAYPAL_ID)))
     na = {"product": _cell(NOT_APPLICABLE), "quantity": _cell(NOT_APPLICABLE)}
     response = paypal.get("capture")
     if response is not None:
@@ -254,7 +260,12 @@ def _links(store_orders: list[dict[str, Any]], paypal: dict[str, Any] | None, li
     response = (paypal or {}).get("capture")
     order_id = pp_id or store_paypal_id
     if response is None:
-        why = "PayPal made no capture" if (paypal or {}).get("capture_error") else "the buyer was never charged"
+        if paypal is None:  # no PayPal id on the store order: PayPal's records were never looked up, so nothing is said
+            l3 = _link(keys[2], None, None, UNKNOWN, NO_PAYPAL_ID)
+            l4 = (_link(keys[3], latest["paypal_capture_id"], None, UNKNOWN, "PayPal's capture was not read")
+                  if latest.get("paypal_capture_id") else _link(keys[3], None, None, UNKNOWN, NO_PAYPAL_ID))
+            return [l1, l2, l3, l4]
+        why = "PayPal made no capture" if paypal.get("capture_error") else "the buyer was never charged"
         l3 = _link(keys[2], order_id, None, NOT_APPLICABLE, why)
         if latest.get("paypal_capture_id"):
             l4 = _link(keys[3], latest["paypal_capture_id"], None, UNKNOWN, "PayPal's capture was not read")
@@ -312,6 +323,11 @@ def _mismatches(stages: dict[str, dict[str, Any]], orders: list[dict[str, Any]],
                 found.append(_mismatch(field, key, field, wanted[field]["value"], cell["value"]))
     if len(orders) > 1:
         found.append(_mismatch("duplicate_orders", "store_order", "status", "1 order", f"{len(orders)} orders"))
+    # A paid order with no PayPal order id is a fact about the store's own records, so it is raised once, at
+    # store_order. The PayPal stages are unknown then (never guessed), so nothing else is inferred from them.
+    if orders[-1]["status"] in SUCCESS and not orders[-1].get("paypal_order_id"):
+        found.append(_mismatch("paid_without_paypal_reference", "store_order", "status", "a PayPal order id on the order",
+                               _label(orders[-1]["status"])))
     captured = _capture_state(stages["paypal_capture"])
     for key in ("store_order", "store_says"):
         status = stages[key]["cells"]["status"]

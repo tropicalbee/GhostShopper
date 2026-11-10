@@ -99,3 +99,4 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - Prompt-injection guard: page content is framed as data, hard limits (no other hosts, no downloads, no password or card fields), a detector for text aimed at AI agents, an agent-safety report on each run and a `hidden_agent_instructions` flaw. It doesn't change the score.
 - Frontend redesign in a black monochrome receipt style: Landing, New check, Live and Results with the trace and the safety panel.
 - Architecture, sequence, trace and data-model diagrams in `docs/diagrams/`, with Mermaid versions in the docs.
+- Trace benchmark: `python -m backend.app.eval benchmark --matrix trace` runs 33 hand-labelled scenarios (store flaw by PayPal outcome, plus tampered ids) against the purchase trace. The first run got 31 of 32; a store that lost PayPal's order id is now flagged as paid without a PayPal reference, with PayPal's records unknown, and all 33 pass.

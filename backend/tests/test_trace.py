@@ -299,3 +299,20 @@ def test_a_broken_link_sorts_before_field_mismatches():
               pp=paypal(order=paypal_order(value="27.00", custom_id="2000"), cap=capture(value="27.00")))
     assert [m["field"] for m in t["mismatches"]] == ["paypal_order_to_store", "amount", "amount", "amount"]
     assert t["first_mismatch"]["field"] == "paypal_order_to_store"
+
+
+def test_paid_order_with_no_paypal_id_is_flagged_once_and_paypal_stays_unknown():
+    t = trace([read_step("paid")], orders=[store_order(paypal_order_id=None)], pp=None)
+    assert [(m["stage"], m["field"]) for m in t["mismatches"]] == [("store_order", "status")]
+    assert "no PayPal reference" in t["first_mismatch"]["explanation"]
+    for key in ("paypal_order", "paypal_capture"):
+        assert {c["kind"] for c in stage(t, key)["cells"].values()} == {"unknown"}
+        assert "no PayPal order id" in stage(t, key)["cells"]["status"]["reason"]
+    assert not [m for m in t["mismatches"] if "no completed capture" in m["explanation"]]
+    assert set(kinds(t)) == {"unknown"}
+
+
+def test_unpaid_order_with_no_paypal_id_is_unknown_and_not_a_mismatch():
+    t = trace([read_step("awaiting_payment")], orders=[store_order(status="awaiting_payment", paypal_order_id=None)], pp=None)
+    assert t["mismatches"] == []
+    assert {c["kind"] for c in stage(t, "paypal_capture")["cells"].values()} == {"unknown"}

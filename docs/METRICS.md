@@ -246,3 +246,26 @@ Mock LLM, mock PayPal, scratch database, local Chromium.
 | Ledger row after a fresh server process | `matched` (was `pending` before the fix) |
 | Full suite (user run) | 361 passed, 1 warning, 412 s |
 
+
+## 2026-11-10 (purchase trace benchmark)
+
+Command: `python -m backend.app.eval benchmark --matrix trace`. Mock PayPal, scripted navigator (not an LLM), scratch databases, local Chromium. This measures the purchase trace, which sits outside the score. The expected results are written by hand in `backend/app/eval/trace_truth.py`, one line of reasoning each. No expectation was changed to make a scenario pass.
+
+32 scenarios from 26 mock purchases: 4 on a healthy store, 1 healthy store with PayPal capturing 1.00 too much, 5 purchase flaws where they bite, 4 price_mismatch outcomes, 11 flaws switched on where the PayPal outcome never triggers them, and 7 link cases (one healthy purchase, ids tampered with, then put back). Total time 144.6 s with 4 workers.
+
+| Measure | Result |
+|---|---|
+| Scenarios passed | 31/32 |
+| First mismatch correct | 31/32 |
+| False mismatches on healthy runs | 0/4 |
+| False mismatches where a flaw is on but not triggered | 0/11 |
+| Broken link detection | 4/4 |
+| Unknown not guessed | 2/3 |
+
+The failing scenario: the store order has no PayPal order id. The trace can't reach any PayPal record, calls the capture "never charged" and reports `success_without_payment` for a store that says Paid. The expected answer is unknown with no mismatch. A real store that marks an order paid with no PayPal order at all is also worth a flag, so this one is a judgment call. It is listed as a known failure in `backend/tests/test_trace_matrix.py`.
+
+Skipped on purpose: `fee_mismatch` (fees are not a trace field), the PayPal scenarios that never reach a capture, and price_mismatch with a wrong capture amount (two causes at once).
+
+2026-11-11 rerun after the design change: 33 scenarios from 26 mock purchases, 214.5 s with 4 workers. Scenarios passed 33/33, first mismatch correct 33/33, false mismatches on healthy runs 0/4, where a flaw is on but not triggered 0/11, broken link detection 5/5, unknown not guessed 3/3. One expectation was changed by design decision: `link-store-order-id-missing` now expects `paid_without_paypal_reference` at the store order (a Paid order with no PayPal id is a fact about the store's records), with the PayPal stages unknown. A control was added: the same missing id on an awaiting_payment order must give no mismatch.
+
+These are mock runs on our own demo store, so they check the trace logic against our labels. The only real sandbox evidence so far is run 34, one live purchase where all four ID links were ok.

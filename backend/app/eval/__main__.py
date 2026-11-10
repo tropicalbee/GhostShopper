@@ -2,6 +2,7 @@
 
     python -m backend.app.eval benchmark --matrix classic            # 16 combos of the 4 original flaws
     python -m backend.app.eval benchmark --matrix random --n 30 --seed 7
+    python -m backend.app.eval benchmark --matrix trace              # the purchase trace on its own (not the score)
     python -m backend.app.eval propose --llm mock --cassette flaw_ideas
     python -m backend.app.eval judge 4 --llm mock --cassette judge_classic
 """
@@ -19,7 +20,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m backend.app.eval")
     sub = p.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("benchmark", help="detection precision/recall over flaw combinations")
-    b.add_argument("--matrix", choices=["classic", "random"], default="classic")
+    b.add_argument("--matrix", choices=["classic", "random", "trace"], default="classic")
     b.add_argument("--n", type=int, default=30)
     b.add_argument("--seed", type=int, default=7)
     b.add_argument("--workers", type=int, default=4)
@@ -32,6 +33,14 @@ def main(argv: list[str] | None = None) -> int:
                         help="live = the provider set by LLM_PROVIDER/LLM_MODEL/LLM_API_KEY (groq is an alias)")
         sp.add_argument("--cassette")
     a = p.parse_args(argv)
+
+    if a.cmd == "benchmark" and a.matrix == "trace":
+        from .trace_matrix import markdown, run_trace_matrix
+
+        report = asyncio.run(run_trace_matrix(workers=a.workers))
+        print(markdown(report))
+        print(f"\nFull report: {report['out_dir']}/report.json")
+        return 0 if not report["errors"] else 1
 
     if a.cmd == "benchmark":
         from .benchmark import markdown, run_benchmark
