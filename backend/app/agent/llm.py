@@ -21,6 +21,7 @@ import httpx
 from .. import config  # noqa: F401  (loads .env)
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1"
 ANTHROPIC_VERSION = "2023-06-01"
 MAX_BACKOFF_S = 20.0
@@ -259,6 +260,7 @@ class ProviderSpec:
 PROVIDERS: dict[str, ProviderSpec] = {
     s.name: s for s in (
         ProviderSpec("groq", OpenAICompatibleChat, GROQ_BASE_URL),
+        ProviderSpec("nvidia", OpenAICompatibleChat, NVIDIA_BASE_URL),
         ProviderSpec("openai", OpenAICompatibleChat, "https://api.openai.com/v1"),
         ProviderSpec("openrouter", OpenAICompatibleChat, "https://openrouter.ai/api/v1"),
         ProviderSpec("together", OpenAICompatibleChat, "https://api.together.xyz/v1"),

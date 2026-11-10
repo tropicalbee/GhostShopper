@@ -67,7 +67,7 @@ The script creates `.venv`, installs the dependencies and Chromium inside `.venv
 |---|---|
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Sandbox checkout (developer.paypal.com > Apps & Credentials > Sandbox) |
 | `SANDBOX_BUYER_EMAIL`, `SANDBOX_BUYER_PASSWORD` | The sandbox buyer the agent logs in as. Never logged, stored or screenshotted. |
-| `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL` | The live LLM. For Nemotron set `LLM_PROVIDER=openai-compatible` and `LLM_BASE_URL=https://integrate.api.nvidia.com/v1` (see `.env.example`). Providers: `groq`, `openai`, `openrouter`, `together`, `ollama` (local, no key), `anthropic`, or `openai-compatible` with your own `LLM_BASE_URL`. The model must support tool calling. |
+| `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL` | The live LLM. For Nemotron set `LLM_PROVIDER=nvidia` (or `openai-compatible` with `LLM_BASE_URL=https://integrate.api.nvidia.com/v1`; see `.env.example`). Providers: `nvidia`, `groq`, `openai`, `openrouter`, `together`, `ollama` (local, no key), `anthropic`, or `openai-compatible` with your own `LLM_BASE_URL`. The model must support tool calling. |
 | `GROQ_API_KEY`, `GROQ_MODEL` | Optional Groq alternative. Still work as the live LLM when `LLM_PROVIDER` is empty or `groq`, e.g. `openai/gpt-oss-120b` or `llama-3.3-70b-versatile` |
 | `KERNEL_API_KEY` and `BROWSER_PROVIDER=kernel` | Cloud browser. The store must be reachable on a public URL. |
 | `CHANNEL3_API_KEY` | Live market check. Without it you get recorded fixtures, labelled as such. |

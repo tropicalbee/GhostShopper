@@ -16,6 +16,7 @@ from backend.app.agent.llm import (
     RecordingLLM,
     live_llm_configured,
     live_llm_label,
+    load_llm_settings,
     make_llm,
 )
 
@@ -209,7 +210,7 @@ async def test_anthropic_retries_529():
 # --- Registry and environment -----------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", ["groq", "openai", "openrouter", "together", "ollama", "anthropic"])
+@pytest.mark.parametrize("name", ["groq", "nvidia", "openai", "openrouter", "together", "ollama", "anthropic"])
 def test_each_provider_resolves(clean_env, name):
     clean_env.setenv("LLM_PROVIDER", name)
     clean_env.setenv("LLM_MODEL", "some-model")
@@ -219,6 +220,13 @@ def test_each_provider_resolves(clean_env, name):
     assert isinstance(model, AnthropicChat if name == "anthropic" else OpenAICompatibleChat)
     assert live_llm_label() == f"{name}:some-model"
     assert live_llm_configured()
+
+
+def test_nvidia_provider_uses_the_nvidia_endpoint(clean_env):
+    clean_env.setenv("LLM_PROVIDER", "nvidia")
+    clean_env.setenv("LLM_MODEL", "nvidia/nemotron")
+    clean_env.setenv("LLM_API_KEY", "k")
+    assert load_llm_settings().base_url == "https://integrate.api.nvidia.com/v1"
 
 
 def test_openai_compatible_requires_base_url(clean_env):
