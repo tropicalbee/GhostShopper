@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The purchase trace</title>
+  <meta name="description" content="The five records of one purchase that GhostShopper compares, which fields are checked against what, and how the first mismatch is chosen.">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Hallmark · component: diagram · genre: modern-minimal · theme: custom (GhostShopper black receipt) · states: 8 · contrast: pass · v2.0.0 */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --paper: #0a0a0a; --ink: #ededed; --muted: #8f8f8f; --font-sans: 'Geist', system-ui, sans-serif; }
+    html, body { overflow-x: clip; }
+    body { font-family: var(--font-sans); background: var(--paper); color: var(--ink); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+    .frame { max-width: 1040px; width: 100%; }
+    h1 { font-size: clamp(1.5rem, 2.2vw + 0.75rem, 2rem); font-weight: 500; letter-spacing: -0.035em; line-height: 1.15; margin-bottom: 0.5rem; text-wrap: balance; }
+    p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.75rem; max-width: 60ch; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    svg { width: 100%; min-width: 1000px; display: block; }
+    @media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <h1>The purchase trace</h1>
+    <p>Five records of one purchase, read from their own sources. Product, quantity, amount and currency are checked against what the agent wanted; the status has to agree with PayPal’s capture. Only the earliest disagreement is marked. The example is a run with the “never marks paid” flaw on.</p>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1000 490" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="trace-title trace-desc">
+        <title id="trace-title">The purchase trace</title>
+        <desc id="trace-desc">Five stages from what the agent wanted to what the store says; the store order, PayPal order and capture are checked against the agent’s intent, the store’s statuses must agree with the capture, and in the example the store order is the first mismatch because it still says awaiting payment after PayPal captured the money.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7a7a7a"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ededed"/></marker>
+        </defs>
+        <rect width="100%" height="100%" fill="#0a0a0a"/>
+
+        <!-- order of travel -->
+        <g stroke="#7a7a7a" stroke-width="1.2">
+          <line x1="200" y1="154" x2="230" y2="154" marker-end="url(#arrow)"/>
+          <line x1="390" y1="154" x2="420" y2="154" marker-end="url(#arrow)"/>
+          <line x1="580" y1="154" x2="610" y2="154" marker-end="url(#arrow)"/>
+          <line x1="770" y1="154" x2="800" y2="154" marker-end="url(#arrow)"/>
+        </g>
+
+        <!-- rule 1: fields checked against what the agent wanted -->
+        <path d="M120,212 V256 Q120,264 128,264 H662 Q670,264 670,256 V216" fill="none" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M290,264 V216" fill="none" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <path d="M480,264 V216" fill="none" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <circle cx="290" cy="264" r="2.5" fill="#7a7a7a"/>
+        <circle cx="480" cy="264" r="2.5" fill="#7a7a7a"/>
+        <rect x="380" y="272" width="200" height="12" rx="2" fill="#0a0a0a"/>
+        <text x="480" y="281" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">checked against what the agent wanted</text>
+
+        <!-- rule 2: status has to agree with the capture -->
+        <path d="M710,212 V322 Q710,330 718,330 H852 Q860,330 860,322 V216" fill="none" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+        <circle cx="710" cy="330" r="2.5" fill="#ededed"/>
+        <path d="M710,330 H358 Q350,330 350,322 V272 a8,8 0 0,1 0,-16 V216" fill="none" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+        <rect x="430" y="338" width="184" height="12" rx="2" fill="#0a0a0a"/>
+        <text x="522" y="347" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">status has to agree with the capture</text>
+
+        <!-- stages -->
+        <g font-family="'Geist', system-ui, sans-serif" text-anchor="middle">
+          <rect x="40" y="96" width="160" height="116" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <text x="120" y="120" fill="#ededed" font-size="12" font-weight="600">Agent wanted</text>
+          <text x="120" y="136" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">intent, step 6</text>
+          <text x="120" y="162" fill="#ededed" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">mug, 1, 24.00 USD</text>
+          <text x="120" y="180" fill="#8f8f8f" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">buy</text>
+
+          <rect x="230" y="96" width="160" height="116" rx="6" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
+          <text x="310" y="120" fill="#ededed" font-size="12" font-weight="600">Store order</text>
+          <text x="310" y="136" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">#1042</text>
+          <text x="310" y="162" fill="#ededed" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">mug, 1, 24.00 USD</text>
+          <text x="310" y="180" fill="#ededed" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">awaiting payment</text>
+          <rect x="266" y="188" width="88" height="16" rx="8" fill="#ededed"/>
+          <text x="310" y="199" fill="#0a0a0a" font-size="9" font-weight="600">first mismatch</text>
+
+          <rect x="420" y="96" width="160" height="116" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="500" y="120" fill="#ededed" font-size="12" font-weight="600">PayPal order</text>
+          <text x="500" y="136" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">GET order response</text>
+          <text x="500" y="162" fill="#ededed" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">mug, 1, 24.00 USD</text>
+          <text x="500" y="180" fill="#8f8f8f" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">COMPLETED</text>
+
+          <rect x="610" y="96" width="160" height="116" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="690" y="120" fill="#ededed" font-size="12" font-weight="600">PayPal capture</text>
+          <text x="690" y="136" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">capture response</text>
+          <text x="690" y="162" fill="#ededed" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">n/a, n/a, 24.00 USD</text>
+          <text x="690" y="180" fill="#ededed" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">COMPLETED</text>
+
+          <rect x="800" y="96" width="160" height="116" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <text x="880" y="120" fill="#ededed" font-size="12" font-weight="600">Store says</text>
+          <text x="880" y="136" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">order page, step 14</text>
+          <text x="880" y="162" fill="#8f8f8f" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">status only</text>
+          <text x="880" y="180" fill="#ededed" font-size="10" font-family="'Geist Mono', ui-monospace, monospace">awaiting payment</text>
+        </g>
+
+        <!-- cell kinds -->
+        <g font-family="'Geist', system-ui, sans-serif" font-size="11" fill="#8f8f8f">
+          <text x="40" y="404" fill="#ededed" font-weight="600">Every cell is one of four kinds</text>
+          <text x="40" y="424"><tspan fill="#ededed" font-family="'Geist Mono', ui-monospace, monospace">24.00</tspan>  a value read from the source</text>
+          <text x="280" y="424"><tspan fill="#ededed" font-family="'Geist Mono', ui-monospace, monospace">Unknown</tspan>  the source does not show it, with the reason</text>
+          <text x="590" y="424"><tspan fill="#ededed" font-family="'Geist Mono', ui-monospace, monospace">n/a</tspan>  that record never has it</text>
+          <text x="770" y="424"><tspan fill="#ededed" font-family="'Geist Mono', ui-monospace, monospace">Not reached</tspan>  the run stopped first</text>
+        </g>
+
+        <!-- legend -->
+        <line x1="24" y1="444" x2="976" y2="444" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
+        <g font-family="'Geist', system-ui, sans-serif" font-size="10" fill="#8f8f8f">
+          <text x="24" y="472">Legend</text>
+          <rect x="90" y="462" width="22" height="14" rx="3" fill="#111111" stroke="#2e2e2e"/>
+          <text x="120" y="472">store record</text>
+          <rect x="220" y="462" width="22" height="14" rx="3" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="250" y="472">PayPal record</text>
+          <line x1="350" y1="468" x2="378" y2="468" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="386" y="472">compared with</text>
+          <line x1="490" y1="468" x2="518" y2="468" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+          <text x="526" y="472">status must agree with</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

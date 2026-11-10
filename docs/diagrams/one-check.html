@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One check, step by step</title>
+  <meta name="description" content="Sequence of one GhostShopper check on the demo store: the agent pays with PayPal, the store settles its own order, the agent reads the order page back, and the trace compares the five records.">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Hallmark · component: diagram · genre: modern-minimal · theme: custom (GhostShopper black receipt) · states: 8 · contrast: pass · v2.0.0 */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --paper: #0a0a0a; --ink: #ededed; --muted: #8f8f8f; --font-sans: 'Geist', system-ui, sans-serif; }
+    html, body { overflow-x: clip; }
+    body { font-family: var(--font-sans); background: var(--paper); color: var(--ink); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+    .frame { max-width: 1040px; width: 100%; }
+    h1 { font-size: clamp(1.5rem, 2.2vw + 0.75rem, 2rem); font-weight: 500; letter-spacing: -0.035em; line-height: 1.15; margin-bottom: 0.5rem; text-wrap: balance; }
+    p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.75rem; max-width: 60ch; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    svg { width: 100%; min-width: 1000px; display: block; }
+    @media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <h1>One check, step by step</h1>
+    <p>The agent pays on the demo store. The store keeps its own order and settles it when PayPal answers. Our code, not the model, then opens the order page, and the trace compares all five records.</p>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1000 660" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="one-check-title one-check-desc">
+        <title id="one-check-title">One check, step by step</title>
+        <desc id="one-check-desc">The agent clicks the PayPal button; the store creates its order and a PayPal order; the buyer approves; the capture completes; the store marks its order paid, or leaves it awaiting payment when that flaw is on; the agent reads the order page; the trace is built from all five records.</desc>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7a7a7a"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ededed"/></marker>
+        </defs>
+        <rect width="100%" height="100%" fill="#0a0a0a"/>
+
+        <!-- lifelines -->
+        <g stroke="rgba(237,237,237,0.20)" stroke-width="1" stroke-dasharray="3,3">
+          <line x1="110" y1="92" x2="110" y2="600"/>
+          <line x1="310" y1="92" x2="310" y2="600"/>
+          <line x1="510" y1="92" x2="510" y2="600"/>
+          <line x1="710" y1="92" x2="710" y2="600"/>
+          <line x1="890" y1="92" x2="890" y2="600"/>
+        </g>
+
+        <!-- alt fragment around the store settling its order -->
+        <rect x="452" y="402" width="236" height="104" rx="4" fill="rgba(237,237,237,0.04)" stroke="rgba(237,237,237,0.22)" stroke-width="1"/>
+        <rect x="452" y="402" width="32" height="16" rx="2" fill="#0a0a0a" stroke="rgba(237,237,237,0.22)" stroke-width="1"/>
+        <text x="468" y="414" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">alt</text>
+        <text x="492" y="414" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">[store works]</text>
+        <line x1="460" y1="456" x2="680" y2="456" stroke="rgba(237,237,237,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="464" y="470" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">[never marks paid flaw on]</text>
+
+        <!-- messages -->
+        <g font-family="'Geist Mono', ui-monospace, monospace" font-size="9" fill="#8f8f8f" text-anchor="middle">
+          <line x1="110" y1="132" x2="306" y2="132" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="210" y="124">PayPal button</text>
+
+          <line x1="310" y1="168" x2="506" y2="168" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="410" y="160">order #1042</text>
+
+          <line x1="510" y1="204" x2="706" y2="204" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="610" y="196">orders v2 create</text>
+
+          <line x1="710" y1="240" x2="514" y2="240" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+          <text x="610" y="232">order id</text>
+
+          <line x1="110" y1="276" x2="706" y2="276" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <rect x="164" y="259" width="92" height="12" rx="2" fill="#0a0a0a"/>
+          <text x="210" y="268">buyer approves</text>
+
+          <line x1="310" y1="312" x2="506" y2="312" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="410" y="304">capture</text>
+
+          <line x1="510" y1="348" x2="706" y2="348" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="610" y="340">capture</text>
+
+          <line x1="710" y1="384" x2="514" y2="384" stroke="#ededed" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-accent)"/>
+          <text x="610" y="376" fill="#ededed">COMPLETED</text>
+
+          <path d="M514,432 H554 V448 H518" fill="none" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="562" y="444" text-anchor="start">mark order paid</text>
+          <path d="M514,480 H554 V496 H518" fill="none" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="562" y="492" text-anchor="start">stays awaiting payment</text>
+
+          <line x1="110" y1="532" x2="306" y2="532" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="210" y="524">reads order page</text>
+
+          <line x1="510" y1="568" x2="886" y2="568" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+          <rect x="752" y="551" width="96" height="12" rx="2" fill="#0a0a0a"/>
+          <text x="800" y="560" fill="#ededed">five records</text>
+        </g>
+
+        <!-- actors -->
+        <g font-family="'Geist', system-ui, sans-serif" text-anchor="middle">
+          <rect x="40" y="40" width="140" height="52" rx="6" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
+          <text x="110" y="63" fill="#ededed" font-size="12" font-weight="600">Shopper agent</text>
+          <text x="110" y="79" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">model + runtime</text>
+
+          <rect x="240" y="40" width="140" height="52" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <text x="310" y="63" fill="#ededed" font-size="12" font-weight="600">Demo store</text>
+          <text x="310" y="79" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">checkout page</text>
+
+          <rect x="440" y="40" width="140" height="52" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <text x="510" y="63" fill="#ededed" font-size="12" font-weight="600">Store orders</text>
+          <text x="510" y="79" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">/api/paypal</text>
+
+          <rect x="640" y="40" width="140" height="52" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="710" y="63" fill="#ededed" font-size="12" font-weight="600">PayPal</text>
+          <text x="710" y="79" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">orders v2</text>
+
+          <rect x="820" y="40" width="140" height="52" rx="6" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
+          <text x="890" y="63" fill="#ededed" font-size="12" font-weight="600">Purchase trace</text>
+          <text x="890" y="79" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">trace.py, no model</text>
+        </g>
+
+        <!-- legend -->
+        <line x1="24" y1="616" x2="976" y2="616" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
+        <g font-family="'Geist', system-ui, sans-serif" font-size="10" fill="#8f8f8f">
+          <text x="24" y="642">Legend</text>
+          <line x1="90" y1="638" x2="118" y2="638" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="126" y="642">call</text>
+          <line x1="180" y1="638" x2="208" y2="638" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+          <text x="216" y="642">reply</text>
+          <line x1="276" y1="638" x2="304" y2="638" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+          <text x="312" y="642">what the trace compares</text>
+          <rect x="480" y="630" width="22" height="14" rx="3" fill="rgba(237,237,237,0.04)" stroke="rgba(237,237,237,0.22)"/>
+          <text x="510" y="642">either branch happens, set by the store flaw</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

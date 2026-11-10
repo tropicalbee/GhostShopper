@@ -1,124 +1,53 @@
 # UI spec: GhostShopper
 
-Two audiences. Small shopkeepers with little tech knowledge come first: they paste a link and want to know what to fix. Judges and technical users come second: they open the Advanced view for the evidence.
-
-The developer or web agency never logs in. They get the "Send to my developer" report. Checking many client stores in one place is a "what's next" line in the README. PayPal's platform view (how many merchants AI shoppers can't buy from, and the most common reason) is part of the pitch only: aggregated, opt-in, and not built.
+Two audiences. Small shopkeepers come first: they paste a link and want to know what to fix. Judges and technical users come second: they open the Advanced view for the evidence. The approved designs are HTML mockups in `design/mockups/` (landing, new-check, live, results). Build from them; this file says what they leave out.
 
 ## Look
 
-"Ledger": a calm working screen in the spirit of ui.shadcn.com and the user's Razorpay Buildathon dashboard. No dark mode.
+Black and monochrome, in the spirit of the vercel.com dark homepage but with our own motif: the receipt. GhostShopper proves a purchase, so the trace prints like a till receipt and the logo is a ghost whose hem is a torn receipt edge.
 
-- White ground, hairline cool-grey rules, square corners. A 1.5px dark rule closes each page head and table head.
-- Soft ink (#18181b) instead of pure black. The only dark fill on a screen is its one primary button. The score sits on a pale panel, never in a black block.
-- Geist for text. Geist Mono only for data: the score, points, money, order ids and selectors.
-- Colour carries meaning only: red for failures the store caused, green for good, amber for "some fixes needed". Status colour always comes with words.
-- Region titles are small, muted and in sentence case. No all-caps labels.
-- The signature is the shopper's path: the five stages as one strip, each as wide as the points it's worth, grey for points earned, hatched for points lost, and the plain reason in red under the stage where the shopper got stuck.
-- Charts use Recharts (score history, market check). AG Grid Community is used for the failures table and nothing else.
-- Keep it calm. A screen shows what the user needs for the next step and puts the rest behind a tab, a dialog or the Advanced view.
+- Black page (#000), text #ededed, muted #a1a1a1, faint #8f8f8f, hairlines #1a1a1a to #2e2e2e. No other colours. No red, green or amber anywhere.
+- Status shows by contrast. A mismatch or a failed check gets an outlined bright chip, a softly lit cell, or an inverted pill ("First mismatch", white on black). Normal values stay grey. Status still always comes with words.
+- Geist for text and Geist Mono for data (money, ids, points, timings), loaded from the installed `@fontsource-variable` packages, never from Google Fonts.
+- Surfaces are "glass" panels: near-black gradient fill, a 1px gradient border that is brighter at the top, a faint top sheen, 14px radius. No flat bordered boxes, no boxes inside boxes.
+- Icons are lucide (`lucide-react`, already installed), 1.75 stroke, always next to a word.
+- Buttons: one white primary per area, dark outlined secondary. Pills on the landing, 8px radius in the app.
+- Headings stay modest: hero about 58px, section heads about 44px, app page titles about 30px.
 
-## Navigation
+## Motion
 
-- Desktop: a left sidebar with New check, My checks, and the browser's six most recent checks (store, check number, date, score). When the demo store's settings are unlocked, a link to them sits at the bottom.
-- Phone: a top bar with the GhostShopper mark and a menu button. The menu opens the same sidebar as a sheet from the left.
+Keep it calm and quick. Allowed: the hero receipt printing once on load, the dashed stage path flowing slowly, the score counting up, new steps sliding into the live feed, receipt lines printing on the Live screen, a shine on white buttons and a small lift on cards when hovered, and the "What it catches" cards animating only while hovered. Not allowed: cursor spotlights, lights travelling along lines or borders, pulsing nodes, blur-in reveals. Everything turns off under `prefers-reduced-motion`. Use CSS; add Magic UI components through the shadcn CLI only when a plain CSS version is clearly worse.
 
-## Rules for every screen
+## Routes
 
-- Written for someone who doesn't read much. Short sentences, everyday words, one idea per line. Every icon has a word next to it.
-- The Simple view never says JSON-LD, selector, DOM or schema.
-- Status colour always comes with words: "Ready for AI shoppers", "Some fixes needed", "AI shoppers will struggle to buy".
-- The score label says what it's out of: "How easily AI shoppers can buy from your store", then "49% of what your store controls".
-- Mock and fixture data always carries a visible label: "Practice run (scripted shopper, not AI)", "Mock PayPal", "Sample market data".
-- Every screen works from 360px phones to 1920px screens with no sideways scrolling. Tap targets are at least 44px. The Advanced view opens from tablet width (768px); below that the toggle is hidden and its grid stacks.
-- Motion in two places only: the score counting up from before to after, and new lines arriving in the step feed. Both turn off under `prefers-reduced-motion`.
+| Route | Screen |
+|---|---|
+| `#/` | Landing (no app bar) |
+| `#/new` | New check. `#/new?store=yours` opens with "Your store" picked |
+| `#/run/{id}` | Live while the run is running or awaiting a human, then Results |
+| `#/run/{id}/advanced`, `#/run/{id}/compare`, `#/checks`, `#/ledger` | As today, restyled |
+
+Landing buttons: "Run a check on the demo store" and the nav's "Run the demo" start a demo run (`POST /api/runs {}`) and open `#/run/{id}`. "Check your own store" opens `#/new?store=yours`. The paste box at the bottom starts a run with that link and opens it. App pages share one app bar: logo, tabs (New check, My checks, Sales ledger, Advanced), a "Practice mode" chip when PayPal is mocked, and on phones a menu button that opens the tabs in a sheet.
 
 ## Screens
 
-### 1. Home
-- Heading: "Can AI shoppers buy from your store?"
-- One link box ("Your store's web address") and one button: "Check my store".
-- A small link under it: "Or try our demo store". The demo store is the only place a sandbox PayPal purchase happens.
-- One line about safety: "We look around like a shopper. On your store we never buy anything or log in."
-- Errors from `POST /api/runs` (400) show under the box in plain words, and the box keeps its text.
-- Data: `POST /api/runs {store_url}`, `GET /api/health`.
+Landing. Hero with the tagline, both buttons and the printing receipt; the five stages on a dashed path; three spine sections (the shopper's steps, the money, what the store says); the score section with the segment ring and the receipt-style sum; "What it catches" with five flaws; the paste box; a footer with a torn-receipt top edge. Copy comes from the mockup. The numbers on the landing are an illustration and say "Practice mode".
 
-### 2. Live check
-- Heading: "Checking your store…" with the store's address.
-- The shopper's path above the feed, filling stage by stage from the checks logged so far (stage points from `GET /api/rubric`).
-- The step feed from `run.feed`, polled every second. Good lines get a check mark, problems a warning sign, things that aren't the store's fault an info sign, always with words.
-- The awaiting-human banner (demo store only) says what PayPal is asking for and where to do it.
-- When the run finishes, the screen moves to Results.
-- Data: `GET /api/runs/{id}` (`status`, `feed`, `awaiting`).
+New check. Store choice (demo or your store). Demo shows the fixed product, payment mode (practice or sandbox) and the store problems from `GET /store/admin/flaws.json`, grouped into "Where the agent gets stuck" and "Where the purchase breaks". Your store shows the link box and the browse-only note. Start check posts `/api/runs` and opens the run. Errors from the API show under the field that caused them.
 
-### 3. Results, Simple view (the default)
-One score, three fixes, one main button.
-- The score panel: its label, the big number out of 100, the status line, and a compact shopper's path. On desktop it sits beside the fixes; on a phone it comes first.
-- Platform line when known: "Your store runs on Shopify".
-- For live stores: "We checked up to your PayPal button and stopped. We never pay on real stores."
-- The top 3 fixes as cards: what's wrong, why it costs sales, how to fix it (platform steps when known), and a "Show me" button that opens the screenshot.
-- "+ N more fixes" opens the Advanced view on desktop.
-- Main button: "Check my store again". Secondary: "Send to my developer".
-- "Not your store's fault" is a short note, only when there is something to say.
+Live. Title with the product, a running timer, the step count and the practice chip; a Stop button. The latest real screenshot in a browser frame with the store's URL. The step feed from `run.feed`, newest first, steps that cost points marked with their fix. On the right, the trace receipt filling in as stages become known, and a "So far" count. The awaiting-human notice when `run.status` is `awaiting_human`. Polls once a second.
 
-### 4. Send to my developer (dialog)
-- The Markdown from `GET /api/runs/{id}/developer-summary` in a scroll box.
-- Three buttons: "Copy", "Download" (a `.md` file) and "Email" (a `mailto:` link with the report in the body). No email is sent by GhostShopper.
+Results. Title says what happened to the purchase in one sentence, from the trace and the outcome. Then a four-part summary (purchase, money, readiness, shopper), the purchase trace table, the readiness score next to the money panel, and the shopper's path as a strip of real step screenshots (`GET /api/runs/{id}/files/{name}`). Before/after and the remaining sections stay below, restyled.
 
-### 5. Before and after (the demo centrepiece)
-- Old score and new score side by side. The new one counts up from the old one.
-- The change ("+51") in green.
-- Two lists: "Fixed" with a check mark and "Still to fix" with its plain fix.
-- Whether a purchase went through.
-- Reached from a result's "See before and after", only when this browser has an earlier check of the same store. A demo store visitor who can't change the demo store gets "See an example before and after" instead.
-- Data: `GET /api/runs/{id}/compare` (this check against the previous one of the same store from the same browser).
+Advanced, Before/after, My checks, Sales ledger, Send to my developer. Same layouts and data as now, moved onto the black theme. AG Grid gets a dark theme built from the same tokens.
 
-### 6. Advanced view (desktop, toggle on Results)
-A ruled grid on top, tabs underneath.
-- The grid: the score panel; the shopper's path with points per stage; what the shopper did (the feed's key lines); the payment check as a small ledger ending in "You receive", marked Verified or Not verified.
-- Tabs: Failures (AG Grid: check, cause, points, evidence, selector, technical fix), Agent steps (screenshot, tool, thought), History (score across this store's checks, `GET /api/runs`), Market (Channel3 results, "Sample market data" when `source` is `recorded`), Not the store's fault (plus "Not checked on live stores" for live runs).
-- The points the store controls sit under the score; the rules version sits at the foot of the page.
+## The purchase trace
 
-### 7. My checks (in the sidebar and the phone menu)
-- This browser's checks, newest first: score, store, date. Tapping one opens its results.
-- Each row has a Delete button with a confirm dialog ("Delete this check?", "Keep it" or "Delete").
-- One line explains it: "Saved in this browser only. Other people can't see them." Under the list: how many days checks are kept, and that clearing cookies removes them from the list.
-- The list loads 20 at a time. A "Show more" button at the end fetches the next page (`GET /api/runs` with `before`).
-- Empty: "You haven't checked a store yet." with a "Check my store" button.
-- Shared example checks show the label "Example check (shared demo, not yours)" and are never listed here.
+Data from `run.trace` (built by the backend, see TRD.md). Five columns in order: Agent wanted, Store order, PayPal order, PayPal capture, Store says. Five rows: product, quantity, amount, currency, status. Each column head shows its source (step, order number, PayPal id). A cell is a value, Unknown (with the reason under it), n/a (with the reason) or Not reached. Only the first mismatch is lit, and its explanation, fix and evidence links sit directly under the status row. On phones the table scrolls sideways inside its panel with a "Swipe to see all five records" hint, and the explanation moves under the table. The trace never changes the readiness score.
 
-## States
+## Rules for every screen
 
-| State | What shows |
-|---|---|
-| Loading | Skeletons in the shape of the final region (results, compare, history, market, My checks, sidebar), so the page doesn't jump when data arrives |
-| Link can't be checked | The plain 400 message under the link box |
-| Check already running | "A check is already running. Try again when it finishes." |
-| Site blocked us | Results with "We couldn't check your store this time" and why. Not the store's fault. |
-| No runs yet (Before/after) | "Run a check, make your fixes, and check again to see the difference." |
-| API down | "GhostShopper isn't responding" with a Retry button |
-| Someone else's check, or a deleted one | "We couldn't find that check." and a link to My checks |
-| Too many requests | "That's a lot of requests in a short time. Please wait a few minutes and try again." |
-
-## Before/after
-
-A grid on Results, directly under the money and PayPal readiness sections, shown only when an earlier check of the same store exists.
-- One row per rubric check: check, stage, points available, before and after (Pass, Fail or Not tested pills), points gained (green or red) and the fix applied (the plain-English fix from the before run).
-- Two pinned rows on top. Total score, before and after, with the points gained. Money: "Lost $X" for a run that did not capture a sale (from the demo store's catalog price), "Captured $Y, net $Z" for one that did. A figure missing from the data is left out.
-- Preset buttons: All, Fixed by the merchant, Still failing. A CSV export button (AG Grid Community).
-- Default sort: stage order, then points, high to low.
-- Data: `GET /api/runs/{after_id}/compare?before={before_id}`. Without `before`, the latest earlier check of the same store with different flaw settings, else the previous check; no earlier check answers 404 "Make your fixes, then check again to see before and after." and the grid stays hidden.
-
-## Ledger (Sales ledger in the sidebar, `#/ledger`)
-- Header: "Every AI shopper attempt, checked against PayPal." One AG Grid Community table, one row per checkout attempt: captured orders (agent or human) and checkout runs that captured nothing (lost sales). Data from `GET /api/ledger`.
-- Columns: time (newest first), source, store state (flaws that were on), outcome pill (captured, refunded, lost sale, at risk), stopped at, amount at stake, gross, PayPal fee, net, refund, PayPal status pill (matched, pending, mismatch, not checked), PayPal transaction id.
-- The pinned bottom row reads "Lost to AI shoppers: $X" and sums gross, fees, net and refunded.
-- Above the grid: a search box (quick filter), preset buttons (All, Lost sales, Agent only, Not matched in PayPal) and Export CSV. Presets use the grid's external filter.
-- If PayPal can't be reached or isn't allowed, a banner shows the reason and every row reads "Not checked". Rows still show our own numbers.
-- Footnote: Transaction Search covers 31 days and new transactions can take up to three hours, so Pending is normal at first.
-
-## Shopper and money flow
-
-Two card rows on Results, between the money hero and the PayPal readiness section. Square cards with a dark border, small uppercase grey labels, tabular numbers, thin connectors, drawn with plain React and inline SVG (no flow library). Colours come from the theme tokens (good, bad, muted) so dark mode works.
-- Shopper flow: Find product, Product page, Checkout, PayPal, Captured, Verified in PayPal. Each card shows Pass, Fail or Not tested from the rubric checks. The first failed card is red with "Stopped here" and the amount at stake (catalog price, then order amount). Cards after it are greyed out. Wraps to a column on narrow screens.
-- Money flow: a hub "Captured by PayPal" with children "PayPal fee", "Net to you" and, after a refund, "Refunded". Only real order fields are shown; a missing one is left out. With no capture on a run that tried to pay: one red card, "Not captured: $24.00 lost". Hidden for live stores and browse-only checks.
-- The shopper flow tells what happened per step; the existing points strip (ShopperPath) in the score panel shows points per stage. Both stay.
+- Short sentences and everyday words. The Simple view never says JSON-LD, selector, DOM or schema.
+- Mock or recorded data always carries a visible label: "Practice mode: mock PayPal", "Sample market data".
+- Works from 360px to 1920px with no sideways page scroll; tap targets at least 44px on phones.
+- States as before: skeletons shaped like the final layout, the plain API error under the field, "We couldn't find that check.", "GhostShopper isn't responding" with Retry.

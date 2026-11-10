@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What GhostShopper stores</title>
+  <meta name="description" content="GhostShopper's SQLite data model: a run with its steps, checks and score, PayPal orders, and the demo store's own orders.">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Hallmark · component: diagram · genre: modern-minimal · theme: custom (GhostShopper black receipt) · states: 8 · contrast: pass · v2.0.0 */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --paper: #0a0a0a; --ink: #ededed; --muted: #8f8f8f; --font-sans: 'Geist', system-ui, sans-serif; }
+    html, body { overflow-x: clip; }
+    body { font-family: var(--font-sans); background: var(--paper); color: var(--ink); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+    .frame { max-width: 1040px; width: 100%; }
+    h1 { font-size: clamp(1.5rem, 2.2vw + 0.75rem, 2rem); font-weight: 500; letter-spacing: -0.035em; line-height: 1.15; margin-bottom: 0.5rem; text-wrap: balance; }
+    p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.75rem; max-width: 60ch; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    svg { width: 100%; min-width: 1000px; display: block; }
+    @media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <h1>What GhostShopper stores</h1>
+    <p>One SQLite file. A run owns its steps, its checks and its score. PayPal’s orders and the demo store’s own orders are kept apart, because the trace compares them. Selected fields only; the full list is in SCHEMA.md.</p>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="data-model-title data-model-desc">
+        <title id="data-model-title">What GhostShopper stores</title>
+        <desc id="data-model-desc">A run has many steps and checks and one score; a run links to PayPal orders and to the demo store’s own orders; each store order is paid with one PayPal order.</desc>
+        <rect width="100%" height="100%" fill="#0a0a0a"/>
+
+        <!-- relationships (drawn before entities) -->
+        <g fill="none" stroke="#7a7a7a" stroke-width="1.2">
+          <path d="M390,150 H333 Q325,150 325,142 V124 Q325,116 317,116 H260"/>
+          <path d="M390,240 H333 Q325,240 325,248 V322 Q325,330 317,330 H260"/>
+          <path d="M610,150 H667 Q675,150 675,142 V108 Q675,100 683,100 H740"/>
+          <path d="M610,240 H667 Q675,240 675,248 V282 Q675,290 683,290 H740"/>
+          <line x1="500" y1="272" x2="500" y2="330"/>
+          <path d="M610,420 H842 Q850,420 850,412 V372"/>
+        </g>
+        <g font-family="'Geist Mono', ui-monospace, monospace" font-size="9" fill="#8f8f8f">
+          <text x="378" y="142" text-anchor="end">1</text><text x="268" y="110">N</text>
+          <text x="378" y="232" text-anchor="end">1</text><text x="268" y="324">N</text>
+          <text x="618" y="142">1</text><text x="732" y="94" text-anchor="end">1</text>
+          <text x="618" y="232">1</text><text x="732" y="284" text-anchor="end">N</text>
+          <text x="508" y="286">1</text><text x="508" y="324">N</text>
+          <text x="618" y="412">N</text><text x="858" y="388">1</text>
+          <rect x="694" y="428" width="60" height="12" rx="2" fill="#0a0a0a"/>
+          <text x="724" y="437" text-anchor="middle">paid with</text>
+        </g>
+
+        <!-- entities -->
+        <g font-family="'Geist Mono', ui-monospace, monospace" font-size="9.5" fill="#8f8f8f">
+          <!-- runs (focal) -->
+          <rect x="390" y="120" width="220" height="152" rx="6" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
+          <line x1="390" y1="148" x2="610" y2="148" stroke="rgba(237,237,237,0.25)"/>
+          <text x="404" y="139" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">runs</text>
+          <text x="404" y="166" fill="#ededed"># id</text>
+          <text x="404" y="182">store_url</text><text x="404" y="198">status, outcome</text><text x="404" y="214">paypal_mode</text>
+          <text x="404" y="230">flaws_snapshot</text><text x="404" y="246">owner_hash</text><text x="404" y="262">end_reason</text>
+
+          <!-- steps -->
+          <rect x="40" y="40" width="220" height="152" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <line x1="40" y1="68" x2="260" y2="68" stroke="#2e2e2e"/>
+          <text x="54" y="59" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">steps</text>
+          <text x="54" y="86" fill="#ededed"># id</text><text x="54" y="102">→ run_id</text><text x="54" y="118">idx, tool, args</text>
+          <text x="54" y="134">thought</text><text x="54" y="150">observation</text><text x="54" y="166">url</text><text x="54" y="182">screenshot_path</text>
+
+          <!-- checks -->
+          <rect x="40" y="260" width="220" height="152" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <line x1="40" y1="288" x2="260" y2="288" stroke="#2e2e2e"/>
+          <text x="54" y="279" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">checks</text>
+          <text x="54" y="306" fill="#ededed"># id</text><text x="54" y="322">→ run_id</text><text x="54" y="338">key, passed</text>
+          <text x="54" y="354">code, cause</text><text x="54" y="370">reason</text><text x="54" y="386">evidence</text><text x="54" y="402">fix</text>
+
+          <!-- scores -->
+          <rect x="740" y="40" width="220" height="120" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <line x1="740" y1="68" x2="960" y2="68" stroke="#2e2e2e"/>
+          <text x="754" y="59" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">scores</text>
+          <text x="754" y="86" fill="#ededed"># → run_id</text><text x="754" y="102">total, possible</text><text x="754" y="118">breakdown</text>
+          <text x="754" y="134">excluded</text><text x="754" y="150">rules_version</text>
+
+          <!-- orders -->
+          <rect x="740" y="220" width="220" height="152" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <line x1="740" y1="248" x2="960" y2="248" stroke="#2e2e2e"/>
+          <text x="754" y="239" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">orders (PayPal)</text>
+          <text x="754" y="266" fill="#ededed"># order_id</text><text x="754" y="282">→ run_id</text><text x="754" y="298">amount, currency</text>
+          <text x="754" y="314">capture_id, status</text><text x="754" y="330">order_response</text><text x="754" y="346">capture_response</text><text x="754" y="362">capture_error</text>
+
+          <!-- store_orders (focal, new) -->
+          <rect x="390" y="330" width="220" height="136" rx="6" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
+          <line x1="390" y1="358" x2="610" y2="358" stroke="rgba(237,237,237,0.25)"/>
+          <text x="404" y="349" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">store_orders</text>
+          <text x="404" y="376" fill="#ededed"># number</text><text x="404" y="392">→ run_id</text><text x="404" y="408">→ paypal_order_id</text>
+          <text x="404" y="424">sku, quantity</text><text x="404" y="440">amount, currency</text><text x="404" y="456">status</text>
+        </g>
+
+        <!-- legend -->
+        <line x1="24" y1="494" x2="976" y2="494" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
+        <g font-family="'Geist', system-ui, sans-serif" font-size="10" fill="#8f8f8f">
+          <text x="24" y="522">Legend</text>
+          <text x="90" y="522"><tspan fill="#ededed" font-family="'Geist Mono', ui-monospace, monospace"># </tspan>primary key</text>
+          <text x="190" y="522"><tspan fill="#ededed" font-family="'Geist Mono', ui-monospace, monospace">→ </tspan>points to another table</text>
+          <rect x="350" y="512" width="22" height="14" rx="3" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
+          <text x="380" y="522">the run, and the store’s own orders that the trace reads</text>
+          <rect x="680" y="512" width="22" height="14" rx="3" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="710" y="522">copied from PayPal</text>
+          <text x="830" y="522"><tspan fill="#ededed" font-family="'Geist Mono', ui-monospace, monospace">1 N </tspan>how many</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>
