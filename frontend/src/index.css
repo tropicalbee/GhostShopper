@@ -7,8 +7,7 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 
-/* Ledger: a white ground, hairline rules, square corners, a soft ink instead of black,
-   mono numerals for data, and colour only for status. */
+/* Black monochrome: glass panels, hairline rules, mono numerals for data. Status shows by contrast, never colour. */
 
 @theme inline {
     --font-heading: var(--font-sans);
@@ -40,6 +39,8 @@
     --color-warn: var(--warn);
     --color-bad: var(--bad);
     --color-bad-soft: var(--bad-soft);
+    --color-faint: var(--faint);
+    --color-dim: var(--dim);
     --radius-sm: var(--radius);
     --radius-md: var(--radius);
     --radius-lg: var(--radius);
@@ -50,33 +51,37 @@
 }
 
 :root {
-    --background: #ffffff;
-    --foreground: #18181b;
-    --card: #ffffff;
-    --card-foreground: #18181b;
-    --popover: #ffffff;
-    --popover-foreground: #18181b;
-    --primary: #18181b;
-    --primary-foreground: #fafafa;
-    --secondary: #f4f4f5;
-    --secondary-foreground: #18181b;
-    --muted: #f4f4f5;
-    --muted-foreground: #63636e;
-    --accent: #f4f4f5;
-    --accent-foreground: #18181b;
-    --destructive: #b42318;
-    --border: #e7e7ea;
-    --input: #d4d4d8;
-    --ring: #71717a;
-    --radius: 0px;
-    --panel: #f7f7f8;    /* quiet fills: the score panel, how-to-fix boxes */
-    --rule: #3f3f46;     /* the closing rule under page heads and table heads */
-    --line: #d4d4d8;     /* control borders, lost-points hatch */
-    --earned: #52525b;   /* points earned on the shopper's path */
-    --good: #18794e;
-    --warn: #93600a;
-    --bad: #b42318;
-    --bad-soft: #f4c7c2;
+    --background: #000000;
+    --foreground: #ededed;
+    --card: #0a0a0a;
+    --card-foreground: #ededed;
+    --popover: #0a0a0a;
+    --popover-foreground: #ededed;
+    --primary: #ededed;
+    --primary-foreground: #0a0a0a;
+    --secondary: #141414;
+    --secondary-foreground: #ededed;
+    --muted: #141414;
+    --muted-foreground: #a1a1a1;
+    --accent: #141414;
+    --accent-foreground: #ededed;
+    --destructive: #ededed;
+    --border: #242424;
+    --input: #2e2e2e;
+    --ring: #6a6a6a;
+    --radius: 8px;
+    --panel: #0c0c0c;    /* quiet fills: how-to-fix boxes, inset rows */
+    --rule: #2e2e2e;     /* the closing rule under page heads and table heads */
+    --line: #1a1a1a;     /* hairlines, lost-points hatch */
+    --earned: #ededed;   /* points earned on the shopper's path */
+    --faint: #8f8f8f;
+    --dim: #5c5c5c;
+    /* No colour carries status: contrast does. These keep the old names, all in greys. */
+    --good: #a1a1a1;
+    --warn: #c8c8c8;
+    --bad: #ffffff;
+    --bad-soft: #6a6a6a;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @layer base {
@@ -89,7 +94,8 @@
   html {
     @apply font-sans;
     -webkit-font-smoothing: antialiased;
-    scrollbar-color: var(--line) transparent;
+    scrollbar-color: #333 transparent;
+    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground;
@@ -124,7 +130,7 @@
 
 /* Points lost on the shopper's path. */
 .hatch {
-  background: repeating-linear-gradient(-45deg, var(--background) 0 3px, var(--line) 3px 4px);
+  background: repeating-linear-gradient(-45deg, var(--background) 0 3px, #262626 3px 4px);
 }
 
 /* The step feed is one of the two places with motion. */
@@ -133,6 +139,138 @@
   to { opacity: 1; transform: none; }
 }
 .feed-in { animation: feed-in 240ms cubic-bezier(0.25, 1, 0.5, 1) both; }
+
+/* Surfaces: near-black gradient fill, a 1px gradient border brighter at the top, a faint top sheen. */
+.glass {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, #0e0e0e, #050505) padding-box,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05) 35%, rgba(255, 255, 255, 0.03) 70%, rgba(255, 255, 255, 0.09)) border-box;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 60px -24px rgba(0, 0, 0, 0.8);
+}
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(700px circle at 50% -30%, rgba(255, 255, 255, 0.06), transparent 45%);
+}
+.glass.lift { transition: transform 0.25s var(--ease); }
+.glass.lift:hover { transform: translateY(-2px); }
+.panel-head {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* A white button gets a shine on hover. */
+.shine { position: relative; overflow: hidden; }
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.9) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--ease);
+  pointer-events: none;
+}
+.shine:hover::after { transform: translateX(120%); }
+
+/* The printed till receipt: the logo, the trace and the footer all use it. */
+.paper {
+  position: relative;
+  background: #ececec;
+  color: #111;
+  font-family: var(--font-mono);
+}
+.paper .tear {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 8px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0H12L6 8Z' fill='%23ececec'/%3E%3C/svg%3E") repeat-x;
+}
+.paper .dash { border-top: 1.5px dashed #9a9a9a; margin: 10px 0; }
+
+@keyframes print {
+  from { clip-path: inset(0 0 100% 0); translate: 0 -60px; }
+  to { clip-path: inset(0 0 -20px 0); translate: 0 0; }
+}
+.print-in { animation: print 1.4s var(--ease) 0.15s both; }
+@keyframes printline {
+  from { clip-path: inset(0 0 100% 0); }
+}
+.print-line { animation: printline 0.6s var(--ease) both; }
+@keyframes slidein {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+.slide-in { animation: slidein 0.45s var(--ease) both; }
+@keyframes march { to { background-position: 10px 0; } }
+.march { background: linear-gradient(90deg, #3a3a3a 50%, transparent 0) 0 0 / 10px 2px; animation: march 2.4s linear infinite; }
+@keyframes shimmer-up { from { opacity: 0; transform: translateY(8px); } }
+.reveal-in { animation: shimmer-up 0.45s var(--ease) both; }
+
+/* Cards in "What it catches" move only while hovered. */
+.still-until-hover:not(:hover) *,
+.still-until-hover:not(:hover) *::before { animation: none !important; }
+@keyframes scan { from { top: -40px; } to { top: 100%; } }
+@keyframes hesitate { 0%, 100% { left: 30px; } 40%, 60% { left: 118px; } }
+@keyframes dup { 0%, 20% { transform: translateY(-100%); opacity: 0; } 35%, 85% { transform: none; opacity: 1; } 100% { opacity: 0; } }
+@keyframes stamp { 0%, 30% { transform: scale(1.8); opacity: 0; } 42%, 90% { transform: none; opacity: 1; } 100% { opacity: 0; } }
+@keyframes ants { to { background-position: 10px 0, -10px 100%, 0 -10px, 100% 10px; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .feed-in { animation: none; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* The purchase trace table, shared by the landing page and Results. */
+.tbl { position: relative; border-radius: 12px; padding: 1px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 40%, rgba(255, 255, 255, 0.08)); }
+.tbl-scroll { border-radius: 11px; overflow: hidden; }
+table.trace { table-layout: fixed; width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; background: linear-gradient(180deg, #0b0b0b, #050505); }
+.trace col.lbl { width: 112px; }
+.trace th, .trace td { text-align: left; padding: 6px 14px; height: 50px; border-bottom: 1px solid #161616; border-left: 1px solid #161616; vertical-align: middle; transition: background 0.2s; overflow-wrap: anywhere; }
+.trace th:first-child, .trace td:first-child { border-left: 0; color: var(--faint); font-weight: 400; }
+.trace thead th { background: linear-gradient(180deg, #161616, #0d0d0d); height: 60px; border-bottom-color: #222; }
+.trace thead b { display: block; font-weight: 600; font-size: 13.5px; }
+.trace thead small { display: block; font: 400 10.5px/15px var(--font-mono); color: #8a8a8a; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trace tbody tr:not(.explain):hover td { background: rgba(255, 255, 255, 0.025); }
+.trace td.num { font-family: var(--font-mono); }
+.trace .unk b { display: block; font-weight: 500; color: var(--muted-foreground); }
+.trace .unk small, .trace .na small, .trace .nr small { display: block; font-size: 10.5px; color: #8a8a8a; line-height: 14px; }
+.trace .na b, .trace .nr b { display: block; font-weight: 400; color: #8a8a8a; }
+.trace .col5 { background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)); }
+.trace thead .col5 { background: linear-gradient(180deg, #1d1d1d, #121212); }
+.trace td.hit { background: radial-gradient(120% 140% at 50% 0%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)); box-shadow: inset 0 0 0 1px #6a6a6a; }
+.trace tr.explain td { height: auto; padding: 20px 14px 22px; border-bottom: 0; background: linear-gradient(90deg, #171717, #0c0c0c 60%); border-top: 1px solid #333; }
+.explain-grid { display: grid; grid-template-columns: 112px 1fr auto; gap: 18px; align-items: start; }
+.pill-inv { display: inline-block; background: var(--foreground); color: #000; border-radius: 999px; padding: 3px 10px; font: 500 11.5px/16px var(--font-sans); white-space: nowrap; box-shadow: 0 0 18px rgba(255, 255, 255, 0.22); }
+.explain-grid h4, .explain-m h4 { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
+.explain-grid p, .explain-m p { margin-top: 6px; color: var(--muted-foreground); font-size: 13.5px; line-height: 20px; max-width: 640px; }
+.explain-grid p b, .explain-m p b { color: var(--foreground); font-weight: 500; }
+.ev { display: flex; flex-direction: column; gap: 8px; }
+.ev a, .ev span { display: inline-flex; gap: 8px; align-items: center; border: 1px solid #2e2e2e; border-radius: 8px; padding: 6px 10px; font-size: 12.5px; color: var(--foreground); background: #0a0a0a; text-decoration: none; transition: border-color 0.2s; }
+.ev a:hover { border-color: #666; }
+.ev svg { width: 14px; height: 14px; color: var(--muted-foreground); }
+.explain-m { display: none; }
+@media (max-width: 767px) {
+  .tbl { margin: 0 16px; }
+  .tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+  .tbl.fade::after { content: ""; position: absolute; top: 1px; right: 1px; bottom: 1px; width: 36px; border-radius: 0 11px 11px 0; background: linear-gradient(90deg, transparent, #000); pointer-events: none; }
+  table.trace.wide { width: 760px; }
+  .trace tr.explain { display: none; }
+  .explain-m { display: block; margin: 14px 16px 0; padding: 16px; border-radius: 12px; border: 1px solid #333; background: linear-gradient(180deg, #171717, #0c0c0c); }
+  .explain-m .ev { margin-top: 12px; flex-direction: row; flex-wrap: wrap; }
+}
+
+/* The torn edge on top of the landing footer. */
+.tear-top {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10'%3E%3Cpath d='M0 10L8 0L16 10Z' fill='%230a0a0a'/%3E%3C/svg%3E") repeat-x;
 }

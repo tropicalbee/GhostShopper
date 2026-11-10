@@ -2,15 +2,16 @@ import { RotateCw } from "lucide-react";
 import { lazy, Suspense } from "react";
 
 import { Panel, RunSkeleton } from "@/components/bits";
-import { MobileBar, Sidebar } from "@/components/Nav";
+import { AppBar } from "@/components/AppBar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, RECENT_RUNS, type Run, type RunSummary } from "@/lib/api";
-import { go, useFetch, useMediaQuery, useRoute } from "@/lib/hooks";
+import { go, hashQuery, useFetch, useMediaQuery, useRoute } from "@/lib/hooks";
 import { Compare } from "@/screens/Compare";
-import { Home } from "@/screens/Home";
+import { Landing } from "@/screens/Landing";
 import { Live } from "@/screens/Live";
 import { MyChecks } from "@/screens/MyChecks";
+import { NewCheck } from "@/screens/NewCheck";
 import { Results } from "@/screens/Results";
 
 // AG Grid and the charts are most of the bundle; phones on the Simple view never load them.
@@ -73,6 +74,8 @@ export default function App() {
     rs.some((r) => r.mine && (r.status === "running" || r.status === "awaiting_human")),
   );
 
+  if (route.length === 0) return <Landing />;
+
   let screen;
   if (runId && route[2] === "compare") screen = <Compare runId={runId} />;
   else if (runId) screen = <RunScreen id={runId} advanced={route[2] === "advanced"} />;
@@ -84,23 +87,20 @@ export default function App() {
       </Suspense>
     );
   else if (health.error) screen = <Down retry={health.retry} />;
-  else if (health.data) screen = <Home />;
-  else screen = <Skeleton className="mt-24 h-72 max-w-xl" />;
+  else {
+    const yours = hashQuery().get("store") === "yours";
+    screen = <NewCheck key={String(yours)} yours={yours} />;
+  }
 
-  // null while the list loads, so the menu shows a skeleton; a failed load shows the empty note instead.
-  const nav = { route, runs: runs.data ?? (runs.error ? [] : null), health: health.data };
+  // The most recent check, for the Advanced tab when no check is open.
+  const advancedId = runId || (runs.data?.[0]?.id ?? null);
   return (
-    <div className="flex min-h-dvh">
-      <Sidebar {...nav} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <MobileBar {...nav} />
-        <main className="mx-auto w-full max-w-[76rem] flex-1 px-4 pb-20 sm:px-8 lg:px-10">{screen}</main>
-        <footer className="border-t">
-          <p className="mx-auto max-w-[76rem] px-4 py-5 text-[13px] text-muted-foreground sm:px-8 lg:px-10">
-            Scores come from checks on what the browser saw, never from the AI.
-          </p>
-        </footer>
-      </div>
+    <div className="flex min-h-dvh flex-col">
+      <AppBar route={route} health={health.data} advancedId={advancedId} />
+      <main className="mx-auto w-[min(1200px,100%-32px)] flex-1 pt-[30px] pb-20 sm:w-[min(1200px,100%-56px)]">{screen}</main>
+      <footer className="border-t">
+        <p className="mx-auto w-[min(1200px,100%-32px)] py-5 text-[13px] text-muted-foreground sm:w-[min(1200px,100%-56px)]">Scores come from checks on what the browser saw, never from the AI.</p>
+      </footer>
     </div>
   );
 }

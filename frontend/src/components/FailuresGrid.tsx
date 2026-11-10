@@ -1,24 +1,24 @@
-import { AllCommunityModule, ModuleRegistry, themeQuartz, type ColDef, type GridApi } from "ag-grid-community";
+import { AllCommunityModule, colorSchemeDark, ModuleRegistry, themeQuartz, type ColDef, type GridApi } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 
 import type { Fix } from "@/lib/api";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// Quartz in the Ledger style: flat, square, hairline rows, a heading rule, the page's own greys.
-export const theme = themeQuartz.withParams({
+// Quartz on the black theme: hairline rows, a heading rule, the page's own greys.
+export const theme = themeQuartz.withPart(colorSchemeDark).withParams({
   fontFamily: "inherit",
   fontSize: 14,
-  foregroundColor: "#18181b",
-  backgroundColor: "#ffffff",
-  borderColor: "#e7e7ea",
-  headerBackgroundColor: "#ffffff",
-  headerTextColor: "#63636e",
+  foregroundColor: "#ededed",
+  backgroundColor: "#050505",
+  borderColor: "#1a1a1a",
+  headerBackgroundColor: "#0d0d0d",
+  headerTextColor: "#a1a1a1",
   headerFontWeight: 500,
   headerFontSize: 13,
-  headerRowBorder: { width: 1.5, color: "#3f3f46" },
-  rowHoverColor: "#f7f7f8",
-  selectedRowBackgroundColor: "#f4f4f5",
+  headerRowBorder: { width: 1.5, color: "#2e2e2e" },
+  rowHoverColor: "#0f0f0f",
+  selectedRowBackgroundColor: "#141414",
   wrapperBorder: false,
   wrapperBorderRadius: 0,
   borderRadius: 0,

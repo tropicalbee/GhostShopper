@@ -74,7 +74,41 @@ export type Step = {
   ok: number;
   url: string | null;
   screenshot_path: string | null;
+  duration_ms: number | null;
+  created_at: string;
 };
+
+export type TraceCell = { kind: "known" | "unknown" | "n/a" | "not_reached"; value: string | number | null; reason: string | null };
+
+export type TraceStage = {
+  key: "agent_wanted" | "store_order" | "paypal_order" | "paypal_capture" | "store_says";
+  label: string;
+  source: string | null; // step, order number or PayPal id
+  cells: Record<"product" | "quantity" | "amount" | "currency" | "status", TraceCell>;
+  evidence: { step?: number; screenshot?: string };
+};
+
+export type TraceMismatch = {
+  stage: TraceStage["key"];
+  field: keyof TraceStage["cells"];
+  expected: string | number | null;
+  actual: string | number | null;
+  explanation: string;
+  fix: string;
+  first: boolean;
+};
+
+// Shape follows backend/app/trace.py (build_trace). Evidence only: it never changes the score.
+export type Trace = {
+  stages: TraceStage[];
+  mismatches: TraceMismatch[];
+  first_mismatch: TraceMismatch | null;
+  counts: { mismatch: number; unknown: number };
+};
+
+// Shape follows backend/app/agent/injection.py and loop.py (SafetyLog). The shopper never follows them.
+export type SafetyFinding = { where: string; excerpt: string; hidden: boolean; step: number | null; screenshot: string | null };
+export type AgentSafety = { findings: SafetyFinding[]; followed: boolean };
 
 export type Order = {
   order_id: string;
@@ -167,6 +201,7 @@ export type Run = {
   budget: string | null; // the shopper's spending limit in USD, like "30.00"
   target_product: string;
   started_at: string;
+  finished_at: string | null;
   awaiting: { stage: string; reason: string; instructions: string; popup_url?: string; live_view_url?: string | null } | null;
   feed: FeedLine[];
   steps: Step[];
@@ -176,6 +211,8 @@ export type Run = {
   scorecard: Scorecard | null;
   paypal_readiness: PayPalReadiness | null; // null on checks made before this existed
   product_feed: ProductFeed | null; // null when no product page was read, and on checks made before this existed
+  trace: Trace;
+  agent_safety: AgentSafety;
   mine: boolean; // started from this browser
   example: boolean; // a shared example check, readable by everyone
 };
@@ -278,3 +315,16 @@ export const sameSeries = (a: Pick<Run, "store_url" | "mine" | "example">, b: Ru
 export const RECENT_RUNS = 50;
 
 export const DEMO_SKU = "FH-MUG-01";
+// The demo store's one product (store/catalog.py), the same in every demo check.
+export const DEMO_PRODUCT = { name: "Speckled Stoneware Mug", price: "24.00 USD" };
+
+// The file name of a step's screenshot, as GET /api/runs/{id}/files/{name} takes it.
+export const shotName = (path: string | null) => (path ? path.split(/[\/]/).pop() ?? null : null);
+export const shotUrl = (runId: number, name: string) => `/api/runs/${runId}/files/${name}`;
+
+// What the store's problems are called. The API gives keys and on/off only (GET /store/admin/flaws.json).
+export type FlawState = Record<string, boolean>;
+export const storeApi = {
+  flaws: () => request<FlawState>("/store/admin/flaws.json"),
+  setFlaws: (flaws: FlawState) => request<FlawState>("/store/admin/flaws.json", { method: "PUT", body: JSON.stringify({ flaws }) }),
+};

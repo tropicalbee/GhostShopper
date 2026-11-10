@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-// Hash routes, so a reload or a shared link lands on the same screen: #/, #/run/12, #/run/12/advanced, #/compare.
+// Hash routes, so a reload or a shared link lands on the same screen: #/, #/new, #/run/12, #/run/12/advanced.
+// A query after the path (#/new?store=yours) is read with hashQuery.
 export function useRoute(): string[] {
-  const read = () => window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  const read = () => window.location.hash.replace(/^#\/?/, "").split("?")[0].split("/").filter(Boolean);
   const [parts, setParts] = useState(read);
   useEffect(() => {
     const onChange = () => {
@@ -14,6 +15,8 @@ export function useRoute(): string[] {
   }, []);
   return parts;
 }
+
+export const hashQuery = () => new URLSearchParams(window.location.hash.split("?")[1] ?? "");
 
 export const go = (path: string) => {
   window.location.hash = path;

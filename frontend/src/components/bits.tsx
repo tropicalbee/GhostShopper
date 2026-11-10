@@ -4,12 +4,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Health, Run, Scorecard } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+// The ghost: its hem is a torn receipt edge.
 export function Logo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={cn("size-7 shrink-0", className)} aria-hidden="true">
-      <rect x="1" y="1" width="30" height="30" fill="var(--background)" stroke="var(--foreground)" strokeWidth="2" />
-      <path d="M21 10.5H10.5v11H21v-5.5h-5" fill="none" stroke="var(--foreground)" strokeWidth="2.4" strokeLinecap="square" />
-      <rect x="22.5" y="22.5" width="3.5" height="3.5" fill="var(--foreground)" />
+    <svg viewBox="0 0 120 120" className={cn("size-6 shrink-0", className)} aria-hidden="true">
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M20 58A40 40 0 0 1 100 58V108L90 98L80 108L70 98L60 108L50 98L40 108L30 98L20 108Z M45 52.5A4.5 4.5 0 0 1 54 52.5V60.5A4.5 4.5 0 0 1 45 60.5Z M66 52.5A4.5 4.5 0 0 1 75 52.5V60.5A4.5 4.5 0 0 1 66 60.5Z"
+      />
     </svg>
   );
 }
@@ -25,28 +28,28 @@ export function Label({ children, aside, className }: { children: ReactNode; asi
 }
 
 export function Panel({ className, children }: { className?: string; children?: ReactNode }) {
-  return <section className={cn("border bg-card p-6", className)}>{children}</section>;
+  return <section className={cn("glass p-6", className)}>{children}</section>;
 }
 
-const STATUS_COLOUR: Record<Scorecard["simple"]["status"], string> = {
-  good: "bg-good",
-  warn: "bg-warn",
-  bad: "bg-bad",
-  unknown: "bg-line",
+const STATUS_MARK: Record<Scorecard["simple"]["status"], string> = {
+  good: "bg-muted-foreground",
+  warn: "bg-foreground/70",
+  bad: "bg-white shadow-[0_0_10px_rgba(255,255,255,0.55)]",
+  unknown: "bg-dim",
 };
 
-// Colour never stands alone: a small square plus the words.
+// Contrast never stands alone: a small mark, brighter when worse, plus the words.
 export function StatusLine({ level, text, className }: { level: Scorecard["simple"]["status"]; text: string; className?: string }) {
   return (
     <p className={cn("flex items-start gap-2 font-medium", className)}>
-      <span className={cn("mt-[0.55em] size-2 shrink-0", STATUS_COLOUR[level])} aria-hidden />
+      <span className={cn("mt-[0.55em] size-2 shrink-0 rounded-full", STATUS_MARK[level])} aria-hidden />
       {text}
     </p>
   );
 }
 
 export function Tag({ children }: { children: ReactNode }) {
-  return <span className="inline-flex items-center border px-2.5 py-0.5 text-xs text-foreground/80">{children}</span>;
+  return <span className="inline-flex items-center rounded-full border border-[#262626] bg-[#141414] px-2.5 py-0.5 text-xs font-medium text-muted-foreground">{children}</span>;
 }
 
 // Visible labels for anything that isn't the real thing (spec rule: mock data always says so).

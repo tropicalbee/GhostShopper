@@ -83,7 +83,7 @@ function Body({ run, order: o }: { run: Run; order: Order }) {
   return (
     <>
       {captured ? (
-        <dl className="mt-4 grid gap-x-8 sm:grid-cols-4">
+        <dl className="mt-4 grid grid-cols-2 gap-x-8">
           <Figure label="Customer paid" value={money(o.gross_amount, o.currency)} />
           <Figure label="PayPal fee" value={o.paypal_fee ? `−${money(o.paypal_fee, o.currency)}` : "Not reported"} />
           <Figure label="You keep" value={money(o.net_amount, o.currency)} strong />
@@ -120,16 +120,13 @@ function Body({ run, order: o }: { run: Run; order: Order }) {
   );
 }
 
-// Money for the run's own order: what the customer paid, what PayPal kept and what the store receives.
-export function YourMoney({ run, className }: { run: Run; className?: string }) {
+// The money details for the run's own order: spending limit, what the customer paid, what PayPal kept, the order
+// timeline and the test refund. Shown inside the Money panel on Results.
+export function MoneyDetails({ run }: { run: Run }) {
   const o = run.order;
   const running = run.status === "running" || run.status === "awaiting_human";
-  const practice = run.paypal_mode === "mock";
   return (
-    <section className={cn("border bg-card p-6", className)} aria-labelledby="your-money">
-      <Label className="text-[15px]" aside={o ? (practice ? "Practice payment, not PayPal" : "PayPal sandbox payment") : undefined}>
-        <span id="your-money">Your money</span>
-      </Label>
+    <>
       <BudgetLine run={run} />
       {o ? (
         <Body key={o.order_id} run={run} order={o} />
@@ -144,6 +141,19 @@ export function YourMoney({ run, className }: { run: Run; className?: string }) 
                 : "This check did not include a payment."}
         </p>
       )}
+    </>
+  );
+}
+
+// Money for the run's own order as its own card. Results shows MoneyDetails in the Money panel instead.
+export function YourMoney({ run, className }: { run: Run; className?: string }) {
+  const practice = run.paypal_mode === "mock";
+  return (
+    <section className={cn("border bg-card p-6", className)} aria-labelledby="your-money">
+      <Label className="text-[15px]" aside={run.order ? (practice ? "Practice payment, not PayPal" : "PayPal sandbox payment") : undefined}>
+        <span id="your-money">Your money</span>
+      </Label>
+      <MoneyDetails run={run} />
     </section>
   );
 }
