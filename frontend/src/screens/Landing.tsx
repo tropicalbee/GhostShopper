@@ -1,5 +1,5 @@
 import { ArrowRight, Camera, Check, CreditCard, Crosshair, Globe, Image as ImageIcon, MousePointer2, MousePointerClick, ReceiptText, ScanEye, Store, Timer, X } from "lucide-react";
-import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 
 import { Logo } from "@/components/bits";
 import { ScoreRing, type RingMark } from "@/components/ReadinessPanels";
@@ -85,7 +85,29 @@ export function Landing() {
   const [url, setUrl] = useState("");
   const [after, setAfter] = useState(false);
   const [touched, setTouched] = useState(false);
+  const [ctaInView, setCtaInView] = useState(false);
+  const navCtas = useRef<HTMLDivElement>(null);
   const score = useCountUp(after ? 100 : 62, touched ? (after ? 62 : 100) : 0, 1100);
+
+  // The header CTAs duplicate the in-page ones, so hide them while a [data-cta] section is on screen.
+  useEffect(() => {
+    const seen = new Set<Element>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) seen.add(e.target);
+          else seen.delete(e.target);
+        }
+        setCtaInView(seen.size > 0);
+      },
+      { rootMargin: "-64px 0px 0px 0px" }, // the sticky header covers the top 64px
+    );
+    document.querySelectorAll("[data-cta]").forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    navCtas.current?.toggleAttribute("inert", ctaInView);
+  }, [ctaInView]);
 
   const start = async (storeUrl: string | null) => {
     setBusy(true);
@@ -133,7 +155,7 @@ export function Landing() {
               ))}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div ref={navCtas} aria-hidden={ctaInView || undefined} className={cn("flex gap-2 transition-opacity duration-150 motion-reduce:transition-none", ctaInView && "pointer-events-none opacity-0")}>
             <a href="#/new?store=yours" className="inline-flex h-[34px] items-center rounded-md border border-[#2e2e2e] bg-card px-3 text-[13.5px] font-medium whitespace-nowrap text-foreground no-underline hover:border-[#555] max-sm:hidden">
               Check your store
             </a>
@@ -144,7 +166,7 @@ export function Landing() {
         </div>
       </nav>
 
-      <section className="relative overflow-hidden pt-16 pb-20 lg:pt-24 lg:pb-[110px]">
+      <section data-cta className="relative overflow-hidden pt-16 pb-20 lg:pt-24 lg:pb-[110px]">
         <div className={cn(wrap, "relative grid items-center gap-12 lg:grid-cols-[1fr_430px]")}>
           <div className="reveal-in">
             <h1 className="text-[clamp(40px,4vw,58px)] leading-[1.02] font-medium tracking-[-0.045em] text-balance">See your store through an AI shopper&apos;s eyes.</h1>
@@ -504,7 +526,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden border-t py-24 text-center lg:py-[120px] lg:pb-[130px]">
+      <section data-cta className="relative overflow-hidden border-t py-24 text-center lg:py-[120px] lg:pb-[130px]">
         <div className={cn(wrap, "reveal-in relative")}>
           <h2 className="text-[clamp(32px,3.4vw,48px)] leading-[1.05] font-medium tracking-[-0.04em]">Find the bug before a shopper does.</h2>
           <p className="mt-3.5 text-base text-muted-foreground">Paste a link. On live stores the shopper browses but never pays.</p>
