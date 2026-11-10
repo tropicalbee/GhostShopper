@@ -34,3 +34,6 @@ runs/
 .DS_Store
 Thumbs.db
 .impeccable/mocks/
+
+# rough design folder
+design/
