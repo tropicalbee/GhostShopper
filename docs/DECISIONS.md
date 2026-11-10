@@ -245,3 +245,13 @@ Rules `2026-11-05.3`, 100 points in total.
 - `followed` is always false. The guards refuse every action injected text could ask for, so the field records that by construction. It is not measured.
 - New store flaw `hidden_agent_instructions` (off by default, empty ground-truth label, outside the random benchmark pool) puts an off-screen line in the first review.
 - We turned down letting the LLM judge whether text is an injection (not repeatable) and blocking only by prompt wording.
+
+## 2026-11-11: ID links, Kernel, logo
+
+- The store order number goes to PayPal as `custom_id`. We turned down `invoice_id`: PayPal rejects a repeated invoice id, and store numbers restart at 1042 on a fresh deploy.
+- Broken ID links sort before field mismatches. Comparing fields means nothing if the records are different purchases.
+- A paid order with no PayPal reference makes the PayPal side unknown and raises its own mismatch. We turned down guessing "never charged" and leaving it as a known failure.
+- Tests never touch paid services, whatever `.env` says. The root `conftest.py` forces the local browser and blanks the keys.
+- Kernel runs only on the hosted server (`BROWSER_PROVIDER=kernel` on Render). Locally the variable is unset or `local`.
+- The logo is a ghost carrying a shopping bag, used everywhere including the favicon. We turned down keeping the plain ghost.
+- No personal name on the site. Devpost carries the author name.

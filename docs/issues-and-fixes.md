@@ -2,6 +2,32 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-11 (session 4: live runs, Kernel)
+
+### Live run stopped at config
+`LLM_PROVIDER=nvidia` was unknown. Only `openai-compatible` plus a base URL was supported. Fix: an `nvidia` provider with the NVIDIA base URL.
+
+### "Not tested: never reached the product page" on runs that reached it
+The reason was a stage level fallback. Fix: per check reasons when the stage was reached (currency_stated, price_consistent, buy_button_unobstructed).
+
+### Two pytest runs at once collided and hung
+The agent started a second run while one was going. Fix: one run at a time, in the foreground with a timeout.
+
+### Kernel run hung on Shopify
+Run 36 hung about 8 minutes and was killed by hand. Shopify registers a service worker. Over CDP the context route handler received its requests, and in Playwright both the frame access and continue raise, so the requests were never resolved. Fix: service workers blocked locally and bypassed in Kernel (`Network.setBypassServiceWorker`), the request guard never raises, inactivity timeout 300 s, run limit 600 s, session always deleted on error, timeout, cancel or Ctrl+C. Run 37 finished in 19 steps. Run 36 still shows "running" in the local DB.
+
+### Browser tests opened start.duckduckgo.com and failed
+Error: "Only pages on 127.0.0.1 can be opened". `BROWSER_PROVIDER=kernel` in the developer's `.env` made tests use Kernel cloud browsers, which can't reach localhost. Fix: set `BROWSER_PROVIDER=local`, and the root `conftest.py` now forces local and blanks paid keys.
+
+### Ledger: Transaction Search NOT_AUTHORIZED
+The "Transaction search" feature was not enabled on the sandbox REST app. After enabling it PayPal took a while to add the scope, and the running server kept an old token. Fix: enable the feature, wait, restart the server. Rows for runs 18, 31, 32 and 34 now show matched.
+
+### Trace benchmark miss: store order without a PayPal id
+The trace guessed "never charged". Fix, by user decision: PayPal stages unknown plus the mismatch `paid_without_paypal_reference`. Benchmark is 33/33.
+
+### Open: flaky matrix test
+`test_trace_matrix` subset test failed twice under load, then passed in later full runs. Cause not verified.
+
 ## 2026-11-09, part 2 (ledger, flow cards)
 
 ### "Stopped at" pointed at a step the shopper got past

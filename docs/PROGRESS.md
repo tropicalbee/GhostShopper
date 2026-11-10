@@ -1,5 +1,33 @@
 # Progress
 
+## 2026-11-11, session 4 (live runs, ID links, Kernel fix, new logo)
+
+### Done
+- Live runs with real Nemotron and the real PayPal sandbox: bad store 49/100 and purchased (run 31), fixed store 100/100 (run 32), cassettes recorded. Run 34 after the ID-link change: 100/100, all four ID links ok on real sandbox data.
+- Shopify demo store, browse only: 62/100 on 84 of 100 points, same 5 issues locally (run 33) and in Kernel (run 37).
+- Trace: four ID link checks, `records_not_linked`, broken links first. A paid order with no PayPal id makes the PayPal stages unknown and raises `paid_without_paypal_reference`. Trace benchmark now 33/33.
+- Store order is created before the PayPal order, its number goes to PayPal as `custom_id`, and the capture id is saved on it.
+- Kernel fix: service workers blocked locally and bypassed in Kernel, request guard never raises, run limit 600 s, session always deleted.
+- `LLM_PROVIDER=nvidia`, accurate "not tested" reasons, tests never use Kernel or paid keys from `.env`.
+- Ledger shows matched for sandbox runs 18, 31, 32 and 34 after enabling Transaction search.
+- Frontend: "Linked by ID" section, ghost with a shopping bag as logo and favicon, header buttons hide when the page shows the same ones, the ghost walks the landing page stepper to the first mismatch.
+- Full suite 488 passed. Numbers in METRICS.md.
+
+### Not verified
+- The Linked by ID section has not been seen on screen with real data.
+- A Kernel purchase on the hosted URL.
+- The `test_trace_matrix` subset test failed twice under load, then passed in later full runs. Cause unknown.
+
+### Next
+1. Render deploy with Kernel as the hosted browser (`BROWSER_PROVIDER=kernel` on Render), a sandbox purchase on the hosted URL, hosted URL in the README.
+2. README limitation wording: the full five stage trace works on the demo store only, real stores don't expose their order records yet. Carry it into Devpost and the video script. Humanizer pass.
+3. Fresh-clone test.
+4. Devpost text and video.
+5. Optional: Channel3 key.
+
+### Blockers
+- None. Kernel credit left: 4.95 of 5.00 USD.
+
 ## 2026-11-10, part 3 (trace, safety guard, redesign built; docs updated)
 
 ### Done (in code and mock tests, not verified live)

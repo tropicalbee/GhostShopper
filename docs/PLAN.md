@@ -80,12 +80,13 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] End-to-end test in a browser, including refund and budget against the real sandbox (purchase was hand-assisted; one live confirm of the Complete Purchase fix left)
 - [x] Hosted real payment per run, PayPal flaw toggles, v6 name fixes, PayPal audit fixes (Nov 8, code and tests only)
 - [ ] One headed sandbox purchase and one Kernel real run after the Nov 8 changes (user)
+  - Headed sandbox done; Kernel verified browse-only on Shopify (run 37); Kernel purchase waits for Render
 - [x] Money-first results screen, catalog price, `no_guest_checkout` flaw (Nov 9)
 - [x] Vault agent payment, mock tests only (Nov 9)
 - [x] Before/after grid, flow cards, sales ledger, hero names the real stop point, mock ledger survives a restart (Nov 9 to 10)
 - [ ] Real sandbox vault payment: enable "Save payment methods", `vault setup`, one paid run (user)
-- [ ] One live Nemotron run, bad store then fixed store, and record the cassette (user)
-- [ ] Record a before/after pair against the real sandbox
+- [x] One live Nemotron run, bad store then fixed store, and record the cassette (user)
+- [x] Record a before/after pair against the real sandbox
 - [ ] Render free tier deploy, env vars set, sandbox purchase on the hosted URL
 - [ ] Hosted URL in the README
 - [ ] Fresh-clone test
@@ -98,9 +99,9 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] Frontend redesign: Landing, New check, Live, Results with the trace and safety panel
 - [x] UI_SPEC.md rewritten; dashboard design agreed with the user
 - [x] Diagrams in docs/diagrams/ and docs updated (README, PRD, APPFLOW, TRD, SCHEMA)
-- [ ] Live Nemotron run on the bad store and the fixed store, with the trace and safety report
-- [ ] Live sandbox purchase that shows the trace end to end
-- [ ] Live test against the Shopify demo store
+- [x] Live Nemotron run on the bad store and the fixed store, with the trace and safety report
+- [x] Live sandbox purchase that shows the trace end to end
+- [x] Live test against the Shopify demo store
 - [ ] Render deploy (see D6)
 - [ ] Fresh-clone test (see D6)
 - [ ] Demo video (see D7)

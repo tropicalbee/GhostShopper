@@ -269,3 +269,27 @@ Skipped on purpose: `fee_mismatch` (fees are not a trace field), the PayPal scen
 2026-11-11 rerun after the design change: 33 scenarios from 26 mock purchases, 214.5 s with 4 workers. Scenarios passed 33/33, first mismatch correct 33/33, false mismatches on healthy runs 0/4, where a flaw is on but not triggered 0/11, broken link detection 5/5, unknown not guessed 3/3. One expectation was changed by design decision: `link-store-order-id-missing` now expects `paid_without_paypal_reference` at the store order (a Paid order with no PayPal id is a fact about the store's records), with the PayPal stages unknown. A control was added: the same missing id on an awaiting_payment order must give no mismatch.
 
 These are mock runs on our own demo store, so they check the trace logic against our labels. The only real sandbox evidence so far is run 34, one live purchase where all four ID links were ok.
+
+## 2026-11-11 (live runs and suite)
+
+Recorded by the CLI. Runs 31 to 37 used real services except where PayPal says none.
+
+| Run | LLM | Browser | Store | PayPal | Score | Steps | Outcome |
+|---|---|---|---|---|---|---|---|
+| 30 | mock replay | local, headed | bad | mock | 49/100 | 16 | purchased |
+| 31 | Nemotron | local, headed | bad (classic flaws) | sandbox | 49/100 | 20 | purchased, order 4PX60387GH784405X, capture 3UK25263HR129600H, 24.00 USD, fee 1.33, net 22.67 |
+| 32 | Nemotron | local, headed | fixed | sandbox | 100/100 | 10 | purchased, order 0FN59308RY982621L, capture 62L48939HA821962H |
+| 33 | Nemotron | local | sauce-demo.myshopify.com | none | 62/100 (84 of 100 points judged) | 11 | browse only, 5 issues worth 28 points |
+| 34 | Nemotron | local | fixed | sandbox | 100/100 | 11 | purchased, store order 1047, order 9P171796J2912013M, capture 7GJ425816G1525704 |
+| 36 | Nemotron | Kernel | Shopify | none | none | | hung about 8 min on service worker requests, killed by hand |
+| 37 | Nemotron | Kernel | Shopify | none | 62/100 | 19 | browse only, same 5 issues as run 33, session deleted |
+
+Run 33 issues: no Product JSON-LD, no stock status, alt text "Product Image", no PayPal button, task not completed. The redirect guard did not trigger. Cassettes: `live_sandbox_flaws_on`, `live_sandbox_flaws_off`, `live_shopify_sauce`. In run 34 all four ID links were ok on real sandbox data, and PayPal echoed `custom_id=1047` on the order and the capture. Kernel credit after the session: 4.95 of 5.00 USD.
+
+| Full suite | Tests | Result | Time |
+|---|---|---|---|
+| After the reason and nvidia fix | 451 | passed | 778 s |
+| After the ID links | 469 | passed | about 11 min |
+| After the trace matrix | 470 | passed | 620 s |
+| After paid without PayPal reference | 472 | passed | 788 s |
+| After the Kernel fix and env guard | 488 | passed | 616 s |

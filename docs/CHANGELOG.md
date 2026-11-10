@@ -100,3 +100,12 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - Frontend redesign in a black monochrome receipt style: Landing, New check, Live and Results with the trace and the safety panel.
 - Architecture, sequence, trace and data-model diagrams in `docs/diagrams/`, with Mermaid versions in the docs.
 - Trace benchmark: `python -m backend.app.eval benchmark --matrix trace` runs 33 hand-labelled scenarios (store flaw by PayPal outcome, plus tampered ids) against the purchase trace. The first run got 31 of 32; a store that lost PayPal's order id is now flagged as paid without a PayPal reference, with PayPal's records unknown, and all 33 pass.
+
+## 2026-11-11 (live runs, ID links, Kernel fix)
+- Live runs with Nemotron on the real PayPal sandbox: bad store 49/100 and purchased, fixed store 100/100, cassettes recorded. A Shopify demo store browse run scored 62/100 locally and in Kernel.
+- Trace checks the four ID links between the store order, PayPal order and capture. Broken links come first, and a paid order with no PayPal id leaves PayPal's side unknown.
+- The store order is created before the PayPal order and sent as `custom_id`. The capture id is saved on it.
+- Kernel runs no longer hang on sites with service workers. Sessions are always deleted, and live and Kernel runs stop at 600 s.
+- `LLM_PROVIDER=nvidia`, and "not tested" reasons that say what actually happened.
+- Tests never use Kernel or paid API keys from `.env`.
+- Frontend: a "Linked by ID" section under the trace, a ghost with a shopping bag as logo and favicon, and the ghost walks the landing page stepper to the first mismatch.
