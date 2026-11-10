@@ -5,6 +5,7 @@ always yields the same ids. That keeps recorded LLM responses replayable.
 """
 
 import asyncio
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ import httpx
 os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
 
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright  # noqa: E402
+from playwright.async_api import Error as PlaywrightError  # noqa: E402
 
 from .injection import Segment  # noqa: E402
 from .site import USER_AGENT, Politeness, SiteError, check_host  # noqa: E402
@@ -264,6 +266,10 @@ AGENT_TEXT_JS = r"""
 PROVIDERS = ("local", "kernel")
 KERNEL_API_BASE = "https://api.onkernel.com"
 VIEWPORT = {"width": 1280, "height": 900}
+# Kernel's timeout_seconds is an inactivity timeout: the session dies after this long with no CDP activity.
+KERNEL_TIMEOUT_S = 300
+
+log = logging.getLogger(__name__)
 
 
 class BrowserConfigError(ValueError):
@@ -310,7 +316,7 @@ class BrowserSession:
     The agent code above this class is identical for both."""
 
     def __init__(self, headless: bool = True, provider: str | None = None,
-                 kernel: KernelBrowsers | None = None, kernel_timeout_s: int = 900,
+                 kernel: KernelBrowsers | None = None, kernel_timeout_s: int = KERNEL_TIMEOUT_S,
                  politeness: Politeness | None = None, allow_private: bool = True):
         self.headless = headless
         self.provider = resolve_provider(provider) if kernel is None else "kernel"
@@ -323,6 +329,8 @@ class BrowserSession:
         self.allow_private = allow_private
         self.refused: dict[str, str] = {}  # url -> why we didn't load it
         self._host_ok: dict[str, str | None] = {}  # host -> None if public, else why it's refused (per run)
+        self._route_errors_logged = False
+        self._tasks: set[asyncio.Task] = set()  # keeps popup setup tasks alive until done
         self._pw: Playwright | None = None
         self.browser: Browser | None = None
         self.context: BrowserContext | None = None
@@ -337,7 +345,8 @@ class BrowserSession:
                 channel = os.getenv("PLAYWRIGHT_CHANNEL") or None  # e.g. "msedge" to use the installed Edge
                 self.browser = await self._pw.chromium.launch(headless=self.headless, channel=channel)
                 extra = {"user_agent": USER_AGENT} if self.politeness else {}
-                self.context = await self.browser.new_context(viewport=VIEWPORT, **extra)
+                # Service workers would bypass or stall context.route(), so they are blocked (Playwright's advice).
+                self.context = await self.browser.new_context(viewport=VIEWPORT, service_workers="block", **extra)
                 self.page = await self.context.new_page()
             if self.politeness:
                 await self.context.route("**/*", self._guard)
@@ -346,16 +355,34 @@ class BrowserSession:
             raise
         return self
 
+    async def _resolve(self, route, abort: str | None = None) -> None:
+        """Continue or abort a route; a route that can't be resolved (page closed, service worker request)
+        is logged once at debug level instead of raising into Playwright's event loop."""
+        try:
+            if abort:
+                await route.abort(abort)
+            else:
+                await route.continue_()
+        except PlaywrightError as exc:
+            if not self._route_errors_logged:
+                self._route_errors_logged = True
+                log.debug("route not resolved: %s", str(exc).splitlines()[0])
+
     async def _guard(self, route, request) -> None:
         """Live stores. Every request (pages, frames, images, scripts) must go to a public host, so a page
         can't make our browser load an internal address and show it in a screenshot. Main-frame page loads
-        also follow robots.txt and a polite pace."""
+        also follow robots.txt and a polite pace. Never raises: service worker requests have no frame."""
         url = request.url
         if not url.startswith(("http://", "https://")):
-            await route.continue_()  # data:, blob: and the like never leave the browser
+            await self._resolve(route)  # data:, blob: and the like never leave the browser
             return
-        frame = request.frame
-        main_load = (request.resource_type == "document" and request.is_navigation_request()
+        frame = None
+        service_worker = getattr(request, "service_worker", None) is not None
+        try:
+            frame = request.frame
+        except PlaywrightError:
+            service_worker = True  # "Service Worker requests do not have an associated frame"
+        main_load = (not service_worker and request.resource_type == "document" and request.is_navigation_request()
                      and not (frame and frame.parent_frame is not None))
         host = urlparse(url).hostname or ""
         if host not in self._host_ok:
@@ -368,15 +395,29 @@ class BrowserSession:
         if refusal:
             if main_load:
                 self.refused[url] = refusal
-            await route.abort("blockedbyclient")
+            await self._resolve(route, "blockedbyclient")
             return
         if main_load and self.politeness:
             if not await self.politeness.allowed(url):
                 self.refused[url] = "robots.txt asks automated visitors not to open this page"
-                await route.abort("blockedbyclient")
+                await self._resolve(route, "blockedbyclient")
                 return
             await self.politeness.wait_turn(url)
-        await route.continue_()
+        await self._resolve(route)
+
+    def _on_new_page(self, page: Page) -> None:
+        task = asyncio.ensure_future(self._bypass_service_workers(page))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def _bypass_service_workers(self, page: Page) -> None:
+        """Kernel reuses the browser's existing context, which can't be created with service_workers="block".
+        Instead tell the page to skip service workers, so every request goes through _guard. Not fatal if it fails."""
+        try:
+            cdp = await self.context.new_cdp_session(page)
+            await cdp.send("Network.setBypassServiceWorker", {"bypass": True})
+        except Exception as exc:  # noqa: BLE001 - a CDP hiccup must not stop the run
+            log.warning("could not bypass service workers on a Kernel page: %s", str(exc).splitlines()[0] if str(exc) else exc)
 
     async def _open_kernel(self) -> None:
         if self._kernel is None:
@@ -388,6 +429,10 @@ class BrowserSession:
         self.context = self.browser.contexts[0] if self.browser.contexts else await self.browser.new_context()
         self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
         await self.page.set_viewport_size(VIEWPORT)
+        if self.politeness:
+            await self._bypass_service_workers(self.page)
+            # Popups and new tabs are new pages with their own service worker setting.
+            self.context.on("page", self._on_new_page)
 
     async def __aexit__(self, *exc) -> None:
         try:
@@ -396,10 +441,14 @@ class BrowserSession:
             if self.browser:
                 await self.browser.close()  # for Kernel this only disconnects CDP
         finally:
-            if self._kernel and self.session_id:
-                await self._kernel.delete(self.session_id)
-            if self._pw:
-                await self._pw.stop()
+            try:
+                if self._kernel and self.session_id:
+                    await self._kernel.delete(self.session_id)
+            except Exception as exc:  # noqa: BLE001 - never mask the run's own error with a cleanup failure
+                log.error("Kernel session %s was NOT deleted (it may still be billing): %s", self.session_id, exc)
+            finally:
+                if self._pw:
+                    await self._pw.stop()
 
 
 def describe_controls(controls: list[dict[str, Any]], kind: str = "all") -> str:
@@ -481,7 +530,10 @@ class PageTools:
         self.page.on("download", lambda d: self._refuse_download(d))
 
     async def _route(self, route, request) -> None:
-        frame = request.frame
+        try:
+            frame = request.frame
+        except PlaywrightError:
+            frame = None  # service worker request: no frame, never a page navigation
         leaves = (request.is_navigation_request() and not (frame and frame.parent_frame is not None)
                   and urlparse(request.url).netloc != self._origin)
         if leaves:

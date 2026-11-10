@@ -117,6 +117,8 @@ class PaymentHandler(Protocol):
     # (step args, observation, ok) for the order page the store shows after payment; None if no order was made
     async def read_back(self, tools: PageTools) -> tuple[dict[str, Any], str, bool] | None: ...
 
+DEFAULT_RUN_LIMIT_S = 600.0
+
 
 @dataclass
 class RunConfig:
@@ -133,6 +135,7 @@ class RunConfig:
     step_timeout_s: float = 30.0
     llm_timeout_s: float = 120.0
     max_timeouts_in_a_row: int = 3
+    max_run_s: float | None = None  # whole-run limit; None = 600s for live stores and Kernel, no limit otherwise
     headless: bool = True
     browser: str | None = None  # local | kernel; None = BROWSER_PROVIDER env (default local)
     runs_dir: Path = field(default_factory=lambda: REPO_ROOT / "runs")
@@ -183,8 +186,13 @@ async def run_shopper(
     loops = LoopDetector()
     safety = SafetyLog()
     engine: CheckEngine | None = None
+    run_limit = cfg.max_run_s
+    if run_limit is None and (cfg.live or provider == "kernel"):
+        # Kernel bills by the minute: a stuck run must stop itself. A checkout may wait on a human first.
+        run_limit = DEFAULT_RUN_LIMIT_S + (getattr(payment, "max_duration_s", 0) if payment else 0)
     try:
-        async with session_cm as session:
+        # The timeout wraps the session, so the browser (and a Kernel session) is closed on timeout, Ctrl+C or error.
+        async with asyncio.timeout(run_limit), session_cm as session:
             tools = PageTools(session, cfg.store_url, shots_dir)
             await tools.guard()
             engine = CheckEngine(rec, cfg.target_product, tools, live=cfg.live,
@@ -277,8 +285,15 @@ async def run_shopper(
                         break
                     if idx >= cfg.max_steps:
                         break
+    except TimeoutError:
+        status, end_reason = "error", "error"
+        error = (f"TimeoutError: the run hit its {run_limit:.0f}s time limit and was stopped" if run_limit
+                 else "TimeoutError: a browser operation timed out")
     except Exception as exc:
         status, end_reason, error = "error", "error", f"{type(exc).__name__}: {str(exc)[:500]}"
+    except asyncio.CancelledError:
+        status, end_reason, error = "error", "error", "Cancelled: the run was interrupted"
+        raise
     finally:
         if engine is None:
             engine = CheckEngine(rec, cfg.target_product, _NoShots(), live=cfg.live)

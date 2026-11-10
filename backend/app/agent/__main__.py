@@ -92,6 +92,10 @@ def main() -> int:
     except RunConfigError as exc:
         print(f"Config error: {exc}", file=sys.stderr)
         return 2
+    except KeyboardInterrupt:
+        # asyncio.run cancels the run first, so the browser and any Kernel session were closed on the way out.
+        print("Interrupted: the run was stopped and its browser session closed.", file=sys.stderr)
+        return 130
 
     run = load_run(settings.database_path, run_id)
     print_run(run)
