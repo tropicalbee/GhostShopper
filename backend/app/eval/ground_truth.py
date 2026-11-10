@@ -34,6 +34,13 @@ LABELS: dict[str, tuple[str, ...]] = {
     "no_card_checkout": (),
     # Blocks payment at the PayPal stage (paypal_button_found, code account_required), which is not a detector check.
     "no_guest_checkout": (),
+    # Purchase flaws: what the store does with the payment result. The purchase trace shows them; no check does.
+    "never_marks_paid": (),
+    "declined_marked_paid": (),
+    "success_after_cancel": (),
+    "duplicate_on_retry": (),
+    # Hidden text aimed at AI agents: reported as agent_safety on the run, not by any check.
+    "hidden_agent_instructions": (),
 }
 
 

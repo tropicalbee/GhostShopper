@@ -258,3 +258,85 @@ def test_no_guest_checkout_shows_an_account_wall_and_hides_paypal(client):
     assert posted.status_code == 200 and "confirmation link" in posted.text and "paypal-button" not in posted.text
     all_off(client)
     assert 'type="password"' not in client.get("/store/checkout?sku=FH-MUG-01").text
+
+
+def test_purchase_flaws_default_off_and_are_on_the_admin_page(client):
+    from store.flaws import PURCHASE_FLAWS
+
+    flaws = client.get("/store/admin/flaws.json").json()
+    assert not any(flaws[k] for k in PURCHASE_FLAWS)
+    page = client.get("/store/admin").text
+    assert all(f"<code>{k}</code>" in page for k in PURCHASE_FLAWS)
+
+
+def test_order_numbers_start_at_1042_and_count_up(tmp_path):
+    from store.orders import StoreOrders
+
+    orders = StoreOrders(tmp_path / "store.db")
+    first = orders.open(sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=None, flaws={})
+    second = orders.open(sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=None, flaws={})
+    assert (first["number"], second["number"]) == (1042, 1043)
+    assert first["status"] == "awaiting_payment"
+
+
+@pytest.mark.parametrize("outcome,flaw,status", [
+    ("captured", None, "paid"), ("captured", "never_marks_paid", "awaiting_payment"),
+    ("declined", None, "payment_failed"), ("declined", "declined_marked_paid", "paid"),
+    ("cancelled", None, "cancelled"), ("cancelled", "success_after_cancel", "confirmed"),
+])
+def test_payment_result_sets_the_order_status(tmp_path, outcome, flaw, status):
+    from store.flaws import FLAW_KEYS
+    from store.orders import StoreOrders
+
+    orders = StoreOrders(tmp_path / "store.db")
+    placed = orders.open(sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=None, flaws={})
+    flaws = {k: k == flaw for k in FLAW_KEYS}
+    assert orders.settle(placed["number"], outcome, flaws)["status"] == status
+
+
+def test_a_retry_reuses_the_pending_order_unless_the_flaw_is_on(tmp_path):
+    from store.flaws import FLAW_KEYS
+    from store.orders import StoreOrders
+
+    orders = StoreOrders(tmp_path / "store.db")
+    off = {k: False for k in FLAW_KEYS}
+    first = orders.open(sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=None, flaws=off)
+    again = orders.open(sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=first["number"], flaws=off)
+    assert again["number"] == first["number"]
+    dup = orders.open(sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=first["number"],
+                      flaws={**off, "duplicate_on_retry": True})
+    assert dup["number"] == first["number"] + 1
+    orders.settle(first["number"], "captured", off)  # no longer pending: never reused
+    fresh = orders.open(sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=first["number"], flaws=off)
+    assert fresh["number"] not in (first["number"], dup["number"])
+
+
+def test_order_page_states_the_order_number_and_status_plainly(client, tmp_path):
+    from store.orders import StoreOrders
+
+    assert client.get("/store/orders/1042").status_code == 404
+    orders = StoreOrders(tmp_path / "store.db")
+    placed = orders.open(sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=None, flaws={})
+    page = client.get(f"/store/orders/{placed['number']}")
+    assert page.status_code == 200
+    assert "Order #1042" in page.text and "Status: <span id=\"order-status\">Awaiting payment</span>" in page.text
+    assert "Speckled Stoneware Mug" in page.text
+
+
+def test_thanks_page_shows_the_order_status_and_links_to_the_order(client, tmp_path):
+    from store.orders import StoreOrders
+
+    placed = StoreOrders(tmp_path / "store.db").open(
+        sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=None, flaws={})
+    page = client.get(f"/store/thanks?order=ABC12345&capture=CAP1&store_order={placed['number']}").text
+    assert "Awaiting payment" in page and 'href="/store/orders/1042"' in page and "View your order" in page
+    assert "View your order" not in client.get("/store/thanks?order=ABC12345&capture=CAP1").text
+
+
+def test_status_phrases_are_read_from_page_text_or_not_at_all():
+    from store.orders import STATUS_LABELS, status_from_text
+
+    for key, label in STATUS_LABELS.items():
+        assert status_from_text(f"Order #1042\nStatus: {label}\nItem  Mug") == key
+    assert status_from_text("Thank you for your order!") is None
+    assert status_from_text("Status: Shipped soon") is None

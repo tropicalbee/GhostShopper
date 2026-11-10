@@ -3,6 +3,7 @@
 (function () {
   var root = document.getElementById("checkout");
   var statusEl = document.getElementById("checkout-status");
+  var storeOrder = null;  // the store's order number, sent again when the buyer pays again after a failed attempt
 
   function setStatus(msg, isError) {
     statusEl.textContent = msg;
@@ -23,11 +24,19 @@
     var resp = await fetch("/api/paypal/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sku: root.dataset.sku, quantity: 1 }),
+      body: JSON.stringify({ sku: root.dataset.sku, quantity: 1, store_order: storeOrder }),
     });
     if (!resp.ok) throw new Error(await readError(resp));
     var order = await resp.json();
+    storeOrder = order.store_order;
     return { orderId: order.id };
+  }
+
+  function goToThanks(orderId, captureId, number) {
+    var url = root.dataset.thanksUrl + "?order=" + encodeURIComponent(orderId) +
+      "&capture=" + encodeURIComponent(captureId || "");
+    if (number) url += "&store_order=" + encodeURIComponent(number);
+    window.location.href = url;
   }
 
   async function onApprove(data) {
@@ -41,10 +50,21 @@
       return;
     }
     var result = await resp.json();
-    window.location.href =
-      root.dataset.thanksUrl +
-      "?order=" + encodeURIComponent(result.order_id) +
-      "&capture=" + encodeURIComponent(result.capture_id);
+    goToThanks(result.order_id, result.capture_id, result.store_order);
+  }
+
+  async function onCancel(data) {
+    try {
+      var resp = await fetch("/api/paypal/orders/" + encodeURIComponent(data.orderId) + "/cancel", { method: "POST" });
+      if (resp.ok) {
+        var result = await resp.json();
+        if (result.status === "confirmed") {
+          goToThanks(data.orderId, "", result.store_order);
+          return;
+        }
+      }
+    } catch (err) { /* the store could not record it: the buyer still sees the cancellation below */ }
+    setStatus("Payment cancelled. You have not been charged.");
   }
 
   window.onPayPalFailed = function () {
@@ -61,7 +81,7 @@
   function sessionCallbacks() {
     return {
       onApprove: onApprove,
-      onCancel: function () { setStatus("Payment cancelled. You have not been charged."); },
+      onCancel: onCancel,
       onError: function (err) { setStatus("PayPal error: " + (err && err.message ? err.message : err), true); },
     };
   }

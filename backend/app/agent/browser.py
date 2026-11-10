@@ -4,6 +4,7 @@ Element ids (e1, e2, ...) are assigned in DOM order each time the page is inspec
 always yields the same ids. That keeps recorded LLM responses replayable.
 """
 
+import asyncio
 import os
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
 
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright  # noqa: E402
 
+from .injection import Segment  # noqa: E402
 from .site import USER_AGENT, Politeness, SiteError, check_host  # noqa: E402
 
 FACTS_JS = r"""
@@ -211,6 +213,53 @@ PAYPAL_CHECK_JS = r"""
 }
 """
 
+
+# Every piece of text on the page an agent could read, with whether a person looking at the page would see it.
+# Visible text is one segment (the page's innerText); each element a person cannot see (hidden, collapsed, moved
+# off the page or the colour of its background) contributes its own text, and so do alt, title and aria-label
+# attributes and HTML comments. aria-hidden counts as hidden: it is kept from screen reader users.
+AGENT_TEXT_JS = r"""
+() => {
+  const out = [{ kind: 'page text', hidden: false, text: (document.body ? document.body.innerText : '').slice(0, 20000) }];
+  const rgb = (c) => (c || '').replace(/\s+/g, '');
+  const backdrop = (el) => {
+    for (; el; el = el.parentElement) {
+      const bg = getComputedStyle(el).backgroundColor;
+      if (!/rgba\(.*,\s*0\)$/.test(bg) && bg !== 'transparent') return rgb(bg);
+    }
+    return 'rgb(255,255,255)';
+  };
+  const SKIP = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
+  const hiddenHow = (el) => {
+    const s = getComputedStyle(el), r = el.getBoundingClientRect();
+    if (s.display === 'none' || el.hidden) return 'display:none';
+    if (s.visibility === 'hidden') return 'visibility:hidden';
+    if (el.getAttribute('aria-hidden') === 'true') return 'aria-hidden';
+    if (Number(s.opacity) === 0 || parseFloat(s.fontSize) === 0) return 'transparent or zero-size text';
+    if (s.display === 'contents') return null;
+    if (r.width < 2 || r.height < 2) return 'zero-size box';
+    if (r.right + scrollX <= 0 || r.bottom + scrollY <= 0) return 'off-screen';
+    const own = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+    if (own && rgb(s.color) === backdrop(el)) return 'same colour as background';
+    return null;
+  };
+  let last = null;
+  for (const el of document.body.querySelectorAll('*')) {
+    if (SKIP.has(el.tagName) || (last && last.contains(el))) continue;
+    const how = hiddenHow(el), text = (el.textContent || '').trim();
+    if (how && text) { out.push({ kind: how, hidden: true, text: text.slice(0, 2000) }); last = el; }
+    for (const a of ['alt', 'title', 'aria-label']) {
+      const v = el.getAttribute(a);
+      if (v && v.length > 20) out.push({ kind: a + ' attribute', hidden: true, text: v.slice(0, 2000) });
+    }
+  }
+  const comments = document.createTreeWalker(document, NodeFilter.SHOW_COMMENT);
+  for (let n = comments.nextNode(); n; n = comments.nextNode()) {
+    if (n.textContent.trim()) out.push({ kind: 'html comment', hidden: true, text: n.textContent.slice(0, 2000) });
+  }
+  return out.slice(0, 80);
+}
+"""
 
 PROVIDERS = ("local", "kernel")
 KERNEL_API_BASE = "https://api.onkernel.com"
@@ -410,6 +459,7 @@ class PageTools:
         self._origin = urlparse(store_url).netloc
         self.shots_dir = shots_dir
         self._shot_n = 0
+        self.blocked: list[str] = []  # navigations to other hosts and downloads the guard refused
 
     @property
     def page(self) -> Page:
@@ -418,6 +468,31 @@ class PageTools:
 
     async def facts(self) -> dict[str, Any]:
         return await self.page.evaluate(FACTS_JS)
+
+    async def agent_text(self) -> list[Segment]:
+        """What this page says to an agent: visible text plus text people do not see. See AGENT_TEXT_JS."""
+        found = await self.page.evaluate(AGENT_TEXT_JS)
+        return [Segment(f["text"], f"{self.page.url}: {f['kind']}", f["hidden"]) for f in found]
+
+    async def guard(self) -> None:
+        """The shopper's page may not leave the store's host and may not download files, whatever a page asks
+        for. Popups (the PayPal window) are other pages and are not covered."""
+        await self.page.route("**/*", self._route)
+        self.page.on("download", lambda d: self._refuse_download(d))
+
+    async def _route(self, route, request) -> None:
+        frame = request.frame
+        leaves = (request.is_navigation_request() and not (frame and frame.parent_frame is not None)
+                  and urlparse(request.url).netloc != self._origin)
+        if leaves:
+            self.blocked.append(request.url)
+            await route.abort("blockedbyclient")
+        else:
+            await route.fallback()  # the live-store guard on the context still runs
+
+    def _refuse_download(self, download) -> None:
+        self.blocked.append(f"download {download.url}")
+        asyncio.ensure_future(download.cancel())
 
     async def _settle(self) -> None:
         try:
@@ -475,6 +550,17 @@ class PageTools:
                 return True
         return False
 
+    async def has_card_field(self, fields: list[dict[str, Any]]) -> bool:
+        """Card number, security code or expiry fields: card details are never typed by the agent."""
+        for f in fields or []:
+            loc = await self._locate(f.get("element_id"))
+            if await loc.evaluate(
+                r"el => /cc-(number|csc|exp)|card.?(number|no\b)|\bcvv\b|\bcvc\b|security.?code/i.test("
+                "[el.autocomplete, el.name, el.id, el.placeholder, el.getAttribute('aria-label') || '',"
+                " [...(el.labels || [])].map(l => l.textContent).join(' ')].join(' '))"):
+                return True
+        return False
+
     async def element_tag(self, element_id: str) -> str:
         loc = await self._locate(element_id)
         return await loc.evaluate("el => el.tagName.toLowerCase()")
@@ -483,9 +569,15 @@ class PageTools:
         loc = await self._locate(element_id)
         label = (await loc.inner_text(timeout=2_000)).strip()[:60] if await loc.count() else ""
         refused_before = len(self.s.refused)
+        blocked_before = len(self.blocked)
         await loc.click(timeout=5_000)
         await self.page.wait_for_timeout(300)  # let onclick navigations start
         await self._settle()
+        if len(self.blocked) > blocked_before:
+            if self.page.url.startswith("chrome-error:"):
+                await self.page.go_back()  # leave the browser's error page for the page the click came from
+            raise ToolError(f"Clicked '{label}' but the browser refused to follow it (another website, or a file "
+                            f"download). Only pages on {self._origin} can be opened in this run.")
         if len(self.s.refused) > refused_before:
             why = list(self.s.refused.values())[-1]
             raise ToolError(f"Clicked '{label}' but the page was not opened: {why}. Try another link.")

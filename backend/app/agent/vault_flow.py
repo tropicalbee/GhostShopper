@@ -18,6 +18,7 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 from store.app import ADMIN_COOKIE
+from store.orders import StoreOrders
 
 from .. import db
 from ..failures import BUYER_SIDE_CAPTURE_ISSUES
@@ -25,6 +26,7 @@ from ..vault import VaultError, load_token
 from . import checks
 from .browser import PageTools, ToolError
 from .engine import CheckEngine
+from .order_page import read_order_status
 from .paypal_flow import PaymentConfigError, PayPalCheckout, _origin
 from .recorder import RunRecorder
 
@@ -42,6 +44,7 @@ class VaultPayment:
         self.mode = mode
         self.secrets = tuple(s for s in (vault_id, customer_id) if s)
         self.max_duration_s = BUTTON_WAIT_S[mode] + REQUEST_TIMEOUT_S + 30
+        self.store_orders: list[int] = []  # the demo store's order numbers this payment made
 
     async def _fail(self, rec: RunRecorder, tools: PageTools, key: str, code: str, reason: str, evidence: dict) -> str:
         try:
@@ -63,6 +66,16 @@ class VaultPayment:
                          {"url": url, "payment": "vault"})
 
     async def pay(self, tools: PageTools, rec: RunRecorder, engine: CheckEngine) -> str:
+        self.store_orders = []
+        try:
+            return await self._pay(tools, rec, engine)
+        finally:
+            StoreOrders(rec.db_path).link_run(self.store_orders, rec.run_id)
+
+    async def read_back(self, tools: PageTools) -> tuple[dict, str, bool] | None:
+        return await read_order_status(tools, self.store_orders)
+
+    async def _pay(self, tools: PageTools, rec: RunRecorder, engine: CheckEngine) -> str:
         page = tools.page
         facts = await tools.facts()
         if not checks.is_checkout_page(facts):
@@ -115,6 +128,8 @@ class VaultPayment:
                 detail = parsed if isinstance(parsed, dict) else {}
             except ValueError:
                 pass
+            if detail.get("store_order"):
+                self.store_orders.append(detail["store_order"])
             if resp.status_code == 403 and detail.get("error") == "ACCOUNT_REQUIRED":
                 return await self._fail(rec, tools, "paypal_button_found", "account_required",
                                         "Checkout asks the shopper to create an account before any payment.",
@@ -142,6 +157,7 @@ class VaultPayment:
 
         # 3. Same recording and verification as the popup flow, read back from the backend.
         order_id = resp.json()["order_id"]
+        self.store_orders.append(resp.json()["store_order"])
         stored = await self._get(f"/api/paypal/orders/{order_id}")
         ok = (stored is not None and stored.get("status") == "COMPLETED"
               and stored.get("capture_status") == "COMPLETED" and stored.get("capture_id"))

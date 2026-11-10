@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from store.orders import SCHEMA as STORE_ORDERS_SCHEMA
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS orders (
     order_id         TEXT PRIMARY KEY,
@@ -23,6 +25,8 @@ CREATE TABLE IF NOT EXISTS orders (
     net_amount       TEXT,
     captured_at      TEXT,
     capture_response TEXT,
+    order_response   TEXT,                  -- PayPal's GET order response, read after payment
+    capture_error    TEXT,                  -- PayPal's issue when the capture failed (e.g. INSTRUMENT_DECLINED)
     run_id           INTEGER,
     refund_id        TEXT,
     refund_status    TEXT,
@@ -66,6 +70,7 @@ CREATE TABLE IF NOT EXISTS runs (
     paypal_readiness TEXT,                  -- JSON: PayPal setup checklist, recommendations and 0-100 figure
     budget          TEXT,                   -- spending limit in USD ("30.00"), NULL = none
     product_snapshot TEXT,                  -- JSON: what the shopper read on the product page (feeds the product feed)
+    agent_safety    TEXT,                   -- JSON: text aimed at AI agents the shopper met (agent/injection.py). Not scored.
     error           TEXT,
     owner_hash      TEXT                    -- SHA-256 of the browser's owner token; NULL = shared example
 );
@@ -138,10 +143,10 @@ UNCLAIMED = "unclaimed"  # owner_hash of runs made before checks belonged to a b
 # Columns added after a table first shipped; CREATE TABLE IF NOT EXISTS won't add them to old databases.
 ADDED_COLUMNS = {
     "orders": {"run_id": "INTEGER", "refund_id": "TEXT", "refund_status": "TEXT", "refund_amount": "TEXT",
-               "refund_currency": "TEXT", "refunded_at": "TEXT"},
+               "refund_currency": "TEXT", "refunded_at": "TEXT", "order_response": "TEXT", "capture_error": "TEXT"},
     "runs": {"end_reason": "TEXT", "awaiting": "TEXT", "live": "INTEGER NOT NULL DEFAULT 0", "platform": "TEXT",
              "platform_evidence": "TEXT", "owner_hash": "TEXT", "paypal_readiness": "TEXT", "budget": "TEXT",
-             "product_snapshot": "TEXT"},
+             "product_snapshot": "TEXT", "agent_safety": "TEXT"},
     "checks": {"code": "TEXT", "cause": "TEXT"},
     "scores": {"possible": "INTEGER", "outcome": "INTEGER", "excluded": "TEXT"},
 }
@@ -184,6 +189,7 @@ def init_db(db_path: Path) -> None:
                         # them shared examples, so they become unclaimed: hidden from the web, kept for the CLI.
                         conn.execute("UPDATE runs SET owner_hash = ?", (UNCLAIMED,))
         conn.executescript(SCHEMA)
+        conn.executescript(STORE_ORDERS_SCHEMA)
         conn.executescript(INDEXES)
 
 
@@ -229,7 +235,7 @@ def record_capture(db_path: Path, order_id: str, capture: dict[str, Any], raw: d
     with connect(db_path) as conn:
         conn.execute(
             "UPDATE orders SET status = ?, capture_id = ?, capture_status = ?, gross_amount = ?,"
-            " paypal_fee = ?, net_amount = ?, captured_at = ?, capture_response = ? WHERE order_id = ?",
+            " paypal_fee = ?, net_amount = ?, captured_at = ?, capture_response = ?, capture_error = NULL WHERE order_id = ?",
             (
                 capture["order_status"],
                 capture["capture_id"],
@@ -242,6 +248,18 @@ def record_capture(db_path: Path, order_id: str, capture: dict[str, Any], raw: d
                 order_id,
             ),
         )
+
+
+def record_capture_failure(db_path: Path, order_id: str, issue: str) -> None:
+    """Keep what PayPal said when the capture failed, so the purchase trace can show it."""
+    with connect(db_path) as conn:
+        conn.execute("UPDATE orders SET capture_error = ? WHERE order_id = ?", (issue, order_id))
+
+
+def record_order_snapshot(db_path: Path, order_id: str, raw: dict[str, Any]) -> None:
+    """Keep PayPal's GET order response, read after payment."""
+    with connect(db_path) as conn:
+        conn.execute("UPDATE orders SET order_response = ? WHERE order_id = ?", (json.dumps(raw), order_id))
 
 
 def record_refund(db_path: Path, order_id: str, refund: dict[str, Any]) -> None:
@@ -264,6 +282,7 @@ def get_order(db_path: Path, order_id: str, include_raw: bool = False) -> dict[s
     order = dict(row)
     if not include_raw:
         order.pop("capture_response", None)
+        order.pop("order_response", None)
     return order
 
 
@@ -274,6 +293,7 @@ def delete_run(db_path: Path, run_id: int, runs_dir: Path) -> None:
     """
     with connect(db_path) as conn:
         conn.execute("UPDATE orders SET run_id = NULL WHERE run_id = ?", (run_id,))
+        conn.execute("UPDATE store_orders SET run_id = NULL WHERE run_id = ?", (run_id,))
         for table in ("steps", "checks", "scores"):
             conn.execute(f"DELETE FROM {table} WHERE run_id = ?", (run_id,))
         if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'judge_ratings'").fetchone():

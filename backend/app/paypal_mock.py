@@ -21,10 +21,14 @@ from .paypal import PayPalError, check_search_window
 MOCK_CLIENT_ID = "mock-client-id"
 MOCK_SDK_PATH = "/mock-paypal/sdk.js"
 SCENARIOS = ("ok", "no_button", "popup_blocked", "approval_stuck", "capture_declined",
-             "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch", "seller_login")
+             "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch", "seller_login",
+             "buyer_cancels", "first_attempt_fails")
 Scenario = Literal["ok", "no_button", "popup_blocked", "approval_stuck", "capture_declined",
-                   "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch", "seller_login"]
+                   "captcha", "verification_required", "capture_amount_mismatch", "fee_mismatch", "seller_login",
+                   "buyer_cancels", "first_attempt_fails"]
 # seller_login: the buyer logs in with the seller's account and PayPal answers with its error page.
+# buyer_cancels: the buyer logs in, then cancels in the PayPal window.
+# first_attempt_fails: PayPal answers the first capture with a temporary 503; the next capture works.
 SELLER_LOGIN_ERROR_CODE = base64.urlsafe_b64encode(b"CANNOT_PAY_SELF").decode().rstrip("=")
 
 # PayPal US standard checkout rate, used only to make fake fee numbers realistic.
@@ -55,6 +59,7 @@ class FakePayPalClient:
     def __init__(self):
         self.orders: dict[str, dict[str, Any]] = {}
         self.scenario: str = "ok"
+        self.transient_failure_sent = False  # first_attempt_fails: the one temporary failure has been used
         self.captures: dict[str, dict[str, str]] = {}  # capture id -> amount, so a refund can return it
         self.refunds: dict[str, dict[str, Any]] = {}
         # Vaulted orders: True = answer COMPLETED with the capture inside (what PayPal usually does);
@@ -103,10 +108,20 @@ class FakePayPalClient:
         self.request_ids[request_id] = response
         return response
 
+    async def get_order(self, order_id: str) -> dict[str, Any]:
+        order = self.orders.get(order_id)
+        if order is None:
+            raise PayPalError(404, {"name": "RESOURCE_NOT_FOUND", "details": [{"issue": "INVALID_RESOURCE_ID"}]})
+        return {"id": order_id, "intent": "CAPTURE", "status": order["status"], "purchase_units": [order["purchase_unit"]]}
+
     async def capture_order(self, order_id: str) -> dict[str, Any]:
         order = self.orders.get(order_id)
         if order is None:
             raise PayPalError(404, {"name": "RESOURCE_NOT_FOUND", "details": [{"issue": "INVALID_RESOURCE_ID"}]})
+        if self.scenario == "first_attempt_fails" and not self.transient_failure_sent:
+            self.transient_failure_sent = True
+            raise PayPalError(503, {"name": "SERVICE_UNAVAILABLE", "debug_id": "mock-debug",
+                                    "message": "Service Unavailable."})
         if self.scenario == "capture_declined":
             raise PayPalError(422, {"name": "UNPROCESSABLE_ENTITY", "debug_id": "mock-debug",
                                     "message": "The instrument presented was declined.",
@@ -332,6 +347,7 @@ button{{width:100%;padding:12px;margin-top:8px;border:0;border-radius:20px;backg
   document.getElementById('btnLogin').onclick = function () {{
     var pw = document.getElementById('password');
     if (pw.value) {{ pw.value = ''; document.getElementById('email').value = '';
+      if (scenario === 'buyer_cancels') {{ send('cancel'); return; }}
       if (scenario === 'seller_login') {{ location.href = '/mock-paypal/checkoutweb/genericError?code={error_code}'; return; }}
       show(scenario === 'verification_required' ? 'step-verify' : 'step-review'); }}
   }};
@@ -383,6 +399,7 @@ def mock_router(fake: FakePayPalClient) -> APIRouter:
     @router.put("/scenario")
     def set_scenario(body: ScenarioBody):
         fake.scenario = body.scenario
+        fake.transient_failure_sent = False
         return {"scenario": fake.scenario}
 
     return router

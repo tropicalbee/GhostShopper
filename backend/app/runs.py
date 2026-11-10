@@ -7,6 +7,7 @@ run id answers 404, exactly like a run that doesn't exist.
 
 import asyncio
 import hmac
+import json
 import logging
 import re
 from pathlib import Path
@@ -26,7 +27,10 @@ from .agent.site import allow_private_hosts
 from .devsummary import developer_summary
 from .feed import feed_csv
 from .ratelimit import rate_limit
+from .trace import build_trace
+from store import catalog
 from store.app import ADMIN_COOKIE
+from store.orders import StoreOrders
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 log = logging.getLogger(__name__)
@@ -307,6 +311,22 @@ def delete_run(run_id: int, request: Request):
     return Response(status_code=204)
 
 
+def _purchase_trace(db_path: Path, run: dict[str, Any]) -> dict[str, Any]:
+    """The run's purchase trace, from the store's orders and PayPal's stored records for this run."""
+    store_orders = StoreOrders(db_path).for_run(run["id"])
+    paypal = None
+    if store_orders and store_orders[-1]["paypal_order_id"]:
+        order_id = store_orders[-1]["paypal_order_id"]
+        stored = db.get_order(db_path, order_id, include_raw=True) or {}
+        paypal = {"id": order_id, "capture_error": stored.get("capture_error"),
+                  "order": json.loads(stored["order_response"]) if stored.get("order_response") else None,
+                  "capture": json.loads(stored["capture_response"]) if stored.get("capture_response") else None}
+    product = catalog.get_by_name(run["target_product"]) if run["target_product"] else None
+    return build_trace(run, product.sku if product else None, store_orders, paypal)
+
+
 @router.get("/{run_id}")
 def get_run(run_id: int, request: Request):
-    return _public(_readable(request, run_id), request.state.owner)
+    run = _readable(request, run_id)
+    run["trace"] = _purchase_trace(request.app.state.settings.database_path, run)
+    return _public(run, request.state.owner)

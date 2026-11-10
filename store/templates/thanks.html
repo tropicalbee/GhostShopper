@@ -11,6 +11,10 @@
       <dt>Order number</dt><dd><span id="order-id">{{ order_id }}</span></dd>
       {% if capture_id %}<dt>Payment reference</dt><dd><span id="capture-id">{{ capture_id }}</span></dd>{% endif %}
     </dl>
+    {% if placed %}
+    <p>Status: <span id="order-status">{{ status_label }}</span></p>
+    <p><a href="{{ base }}/orders/{{ placed.number }}">View your order</a></p>
+    {% endif %}
     {% else %}
     <h1>Thank you for your order!</h1>
     <p>We couldn't find an order number for this page.</p>

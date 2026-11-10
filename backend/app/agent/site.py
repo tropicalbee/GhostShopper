@@ -92,6 +92,7 @@ class Politeness:
         self.allow_private = allow_private
         self._transport = transport  # tests: a mock transport behind the same host checks
         self._robots: dict[str, RobotFileParser | bool] = {}
+        self.robots_texts: dict[str, str] = {}  # origin -> robots.txt as served, for the agent-instruction scan
         self._last: dict[str, float] = {}
         self.min_interval_s = min_interval_s
         self._lock = asyncio.Lock()
@@ -117,6 +118,7 @@ class Politeness:
             elif resp.status_code >= 400:
                 result = True  # no robots.txt: everything is allowed
             else:
+                self.robots_texts[origin] = resp.text
                 parser = RobotFileParser()
                 parser.parse(resp.text.splitlines())
                 result = parser

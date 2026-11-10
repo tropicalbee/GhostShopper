@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from store.flaws import AGENT_FLAWS, FLAW_KEYS, PAYPAL_FLAWS
+from store.flaws import AGENT_FLAWS, FLAW_KEYS, PAYPAL_FLAWS, PURCHASE_FLAWS, SAFETY_FLAWS
 
 from .. import db
 from ..agent.llm import LLM
@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS flaw_proposals (
 
 
 def implemented_flaws() -> tuple[str, ...]:
-    """Flaws that are both a store toggle and labelled with ground truth (PayPal-setup flaws trigger no check)."""
-    return tuple(k for k in FLAW_KEYS if k in LABELS and k not in PAYPAL_FLAWS)
+    """Flaws that are both a store toggle and labelled with ground truth (PayPal-setup, purchase and safety flaws trigger no check)."""
+    return tuple(k for k in FLAW_KEYS if k in LABELS and k not in PAYPAL_FLAWS + PURCHASE_FLAWS + SAFETY_FLAWS)
 
 
 def classic_matrix() -> list[tuple[str, ...]]:

@@ -82,6 +82,10 @@ class PayPalClient:
             {"PayPal-Request-Id": str(uuid.uuid4())},
         )
 
+    async def get_order(self, order_id: str) -> dict[str, Any]:
+        """GET /v2/checkout/orders/{id}: the order as PayPal holds it (status, purchase units, items)."""
+        return await self._get(f"/v2/checkout/orders/{order_id}")
+
     async def capture_order(self, order_id: str) -> dict[str, Any]:
         return await self._post(
             f"/v2/checkout/orders/{order_id}/capture",

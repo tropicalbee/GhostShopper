@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Order #{{ placed.number }} | {{ store_name }}{% endblock %}
+{% block content %}
+<div class="container narrow-page">
+  <div class="panel thanks">
+    <h1>Order #{{ placed.number }}</h1>
+    <p>Status: <span id="order-status">{{ status_label }}</span></p>
+    <dl class="order-facts">
+      <dt>Item</dt><dd>{{ product.name if product else placed.sku }}</dd>
+      <dt>Quantity</dt><dd>{{ placed.quantity }}</dd>
+      <dt>Total</dt><dd>{{ placed.amount }} {{ placed.currency }}</dd>
+    </dl>
+    <p><a class="btn" href="{{ base }}/">Continue shopping</a></p>
+  </div>
+</div>
+{% endblock %}

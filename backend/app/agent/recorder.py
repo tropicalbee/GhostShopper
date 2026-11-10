@@ -179,6 +179,11 @@ class RunRecorder:
         with db.connect(self.db_path) as conn:
             conn.execute("UPDATE runs SET product_snapshot = ? WHERE id = ?", (self._redact.json(snapshot), self.run_id))
 
+    def set_agent_safety(self, findings: list[dict[str, Any]]) -> None:
+        with db.connect(self.db_path) as conn:
+            conn.execute("UPDATE runs SET agent_safety = ? WHERE id = ?",
+                         (self._redact.json(findings) if findings else None, self.run_id))
+
     def set_awaiting(self, info: dict[str, Any] | None) -> None:
         """Pause marker for human approval; None resumes the run."""
         with db.connect(self.db_path) as conn:
@@ -272,10 +277,9 @@ def catalog_price_of(run: dict[str, Any]) -> dict[str, str] | None:
     product the demo catalog does not list, so nothing is guessed."""
     if run.get("live") or not run.get("target_product"):
         return None
-    from store.catalog import load_products
+    from store.catalog import get_by_name
 
-    name = run["target_product"].strip().lower()
-    product = next((p for p in load_products() if p.name.lower() == name), None)
+    product = get_by_name(run["target_product"])
     if product is None:
         return None
     return {"amount": f"{product.price:.2f}", "currency": product.currency}
@@ -295,6 +299,9 @@ def _build_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
     out = dict(run)
     for key in ("flaws_snapshot", "agent_report", "awaiting", "platform_evidence", "paypal_readiness"):
         out[key] = _loads(out.get(key))
+    # The guards in loop.py and browser.py refuse every action an injected instruction could ask for, so `followed`
+    # is false by construction; the findings are what the shopper met.
+    out["agent_safety"] = {"findings": _loads(out.get("agent_safety")) or [], "followed": False}
     out["product_feed"] = build_feed(_loads(out.pop("product_snapshot", None)))
     out["steps"] = [{**dict(r), "args": _loads(r["args"])} for r in steps]
     out["checks"] = [{**dict(r), "evidence": _loads(r["evidence"]), "status": status_of(r["passed"], r["cause"])}

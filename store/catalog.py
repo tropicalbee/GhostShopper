@@ -101,5 +101,10 @@ def get_by_sku(sku: str) -> Product | None:
     return next((p for p in load_products() if p.sku == sku), None)
 
 
+def get_by_name(name: str) -> Product | None:
+    wanted = name.strip().lower()
+    return next((p for p in load_products() if p.name.lower() == wanted), None)
+
+
 def get_by_slug(slug: str) -> Product | None:
     return next((p for p in load_products() if p.slug == slug), None)

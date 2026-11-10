@@ -43,6 +43,9 @@ class FakePayPal:
         self.created.append(purchase_unit)
         return {"id": "ORDER123ABC", "status": "CREATED"}
 
+    async def get_order(self, order_id):
+        return {"id": order_id, "status": "CREATED", "purchase_units": [self.created[-1]]}
+
     async def capture_order(self, order_id):
         if self.fail_capture:
             raise self.fail_capture
@@ -81,7 +84,8 @@ def test_health(client):
 def test_create_order_prices_from_catalog(client, fake):
     r = client.post("/api/paypal/orders", json={"sku": "FH-MUG-01", "quantity": 2})
     assert r.status_code == 201
-    assert r.json() == {"id": "ORDER123ABC", "status": "CREATED", "amount": "48.00", "currency": "USD"}
+    assert r.json() == {
+        "id": "ORDER123ABC", "status": "CREATED", "amount": "48.00", "currency": "USD", "store_order": 1042}
     unit = fake.created[0]
     assert unit["amount"]["value"] == "48.00"
     assert unit["amount"]["breakdown"]["item_total"]["value"] == "48.00"
@@ -126,6 +130,7 @@ def test_capture_records_fees(client, tmp_path):
         "gross_amount": "24.00",
         "paypal_fee": "1.33",
         "net_amount": "22.67",
+        "store_order": 1042,
     }
     stored = db.get_order(tmp_path / "test.db", "ORDER123ABC")
     assert stored["status"] == "COMPLETED"

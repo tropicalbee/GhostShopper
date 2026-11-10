@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from . import catalog
 from .flaws import CLASSIC_FLAWS, FLAWS, FlawStore
+from .orders import STATUS_LABELS, StoreOrders
 from .price_image import render_price_svg, token_for
 
 HERE = Path(__file__).parent
@@ -38,6 +39,7 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
     the URL is not accepted: it would end up in access logs and browser history."""
     app = FastAPI(title=STORE_NAME, docs_url=None, redoc_url=None, openapi_url=None)
     flaw_store = FlawStore(db_path)
+    store_orders = StoreOrders(db_path)
     templates = Jinja2Templates(directory=HERE / "templates")
     # Cache-busting version for the stylesheet: changes whenever style.css changes.
     css_version = hashlib.sha256((HERE / "static" / "style.css").read_bytes()).hexdigest()[:10]
@@ -207,8 +209,18 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
         )
 
     @app.get("/thanks", response_class=HTMLResponse)
-    def thanks(request: Request, order: str = "", capture: str = ""):
-        return render(request, "thanks.html", order_id=order, capture_id=capture)
+    def thanks(request: Request, order: str = "", capture: str = "", store_order: int | None = None):
+        placed = store_orders.get(store_order) if store_order is not None else None
+        return render(request, "thanks.html", order_id=order, capture_id=capture, placed=placed,
+                      status_label=STATUS_LABELS[placed["status"]] if placed else "")
+
+    @app.get("/orders/{number}", response_class=HTMLResponse)
+    def order_status(request: Request, number: int):
+        placed = store_orders.get(number)
+        if placed is None:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return render(request, "order.html", placed=placed, product=catalog.get_by_sku(placed["sku"]),
+                      status_label=STATUS_LABELS[placed["status"]])
 
     @app.get("/newsletter", response_class=HTMLResponse)
     def newsletter(request: Request):

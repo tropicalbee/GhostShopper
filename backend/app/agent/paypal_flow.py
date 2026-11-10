@@ -27,12 +27,15 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Locator, Page
 from playwright.async_api import TimeoutError as PlaywrightTimeout
 
+from store.orders import StoreOrders
+
 from .. import db
 from ..config import BuyerCredentials, sandbox_buyer
 from ..failures import BUYER_SIDE_CAPTURE_ISSUES
 from . import checks
 from .browser import PageTools, ToolError
 from .engine import CheckEngine
+from .order_page import read_order_status
 from .recorder import RunRecorder
 
 
@@ -50,7 +53,9 @@ class Timeouts:
 
     @property
     def total_s(self) -> float:
-        return self.button_s + self.popup_s * 2 + self.approval_s + self.human_s + self.capture_s + 30
+        # One try, plus the allowance for the single retry after a temporary PayPal error (no second human check).
+        one_try = self.popup_s * 2 + self.approval_s + self.capture_s
+        return self.button_s + one_try * 2 + self.human_s + 30
 
 
 MOCK_TIMEOUTS = Timeouts(button_s=10, popup_s=5, approval_s=8, capture_s=8, human_s=20)
@@ -80,6 +85,8 @@ BLOCKER_TEXT = re.compile(
     r"captcha|verify (it'?s|it is) you|security (check|challenge)|one-?time (code|passcode)|enter the code|"
     r"we sent (you )?a code|confirm (it'?s|it is) you|are you a robot|i'?m not a robot", re.I)
 ISSUE_RE = re.compile(r"\(([A-Z_]{4,})\)")
+# A temporary PayPal problem on capture: a buyer would simply click pay again, once.
+TRANSIENT_ERROR_RE = re.compile(r"SERVICE_UNAVAILABLE|INTERNAL_SERVER_ERROR")
 
 # PayPal's popup error page: /checkoutweb/genericError?code=<base64 issue name>.
 ERROR_PAGE_PATH = "/checkoutweb/genericError"
@@ -157,6 +164,7 @@ class PayPalCheckout:
         self.mode = mode
         self.on_awaiting_human = on_awaiting_human
         self._hook_tasks: set[asyncio.Task] = set()
+        self.store_orders: list[int] = []  # the demo store's order numbers this payment made
 
     @property
     def secrets(self) -> tuple[str, ...]:
@@ -175,6 +183,9 @@ class PayPalCheckout:
         except PlaywrightError:
             return ""
 
+    async def read_back(self, tools: PageTools) -> tuple[dict[str, Any], str, bool] | None:
+        return await read_order_status(tools, self.store_orders)
+
     async def _fail(self, rec: RunRecorder, tools: PageTools, key: str, code: str, reason: str,
                     evidence: dict[str, Any]) -> str:
         # Evidence is the store page only. Never the popup, which may hold typed credentials.
@@ -186,6 +197,13 @@ class PayPalCheckout:
         return f"Payment failed: {reason}"
 
     async def pay(self, tools: PageTools, rec: RunRecorder, engine: CheckEngine) -> str:
+        self.store_orders = []
+        try:
+            return await self._pay(tools, rec, engine)
+        finally:
+            StoreOrders(rec.db_path).link_run(self.store_orders, rec.run_id)
+
+    async def _pay(self, tools: PageTools, rec: RunRecorder, engine: CheckEngine) -> str:
         page = tools.page
         facts = await tools.facts()
         if not checks.is_checkout_page(facts):
@@ -195,18 +213,21 @@ class PayPalCheckout:
         t = self.timeouts
         # The spending limit is enforced on the real order amount (read from the store's create-order response),
         # after the order exists but before anything is approved. Page text can lie or mention other prices.
+        # The same response names the store's order, which the run keeps for the purchase trace.
         created: list[Decimal] = []
 
         async def on_response(resp: Any) -> None:
             if resp.request.method != "POST" or urlparse(resp.url).path.rstrip("/") != "/api/paypal/orders":
                 return
             try:
-                created.append(Decimal(str((await resp.json())["amount"])))
-            except Exception:  # an unreadable body leaves the amount unknown
+                body = await resp.json()
+                created.append(Decimal(str(body["amount"])))
+                if body["store_order"] not in self.store_orders:  # a retry reuses the order, unless the store makes a second
+                    self.store_orders.append(body["store_order"])
+            except Exception:  # an unreadable body leaves the amount and the order number unknown
                 pass
 
-        if engine.budget is not None:
-            page.on("response", on_response)
+        page.on("response", on_response)
 
         # 1. PayPal button rendered by the SDK.
         button = page.locator("paypal-button").first
@@ -219,6 +240,90 @@ class PayPalCheckout:
                                     {"url": page.url, "selector": "paypal-button", "status_text": status})
         # The page scan can run before the SDK draws the button; this sighting is the reliable one.
         engine.paypal.note_button(page.url, True, "paypal-button")
+
+        outcome = await self._attempt(tools, rec, engine, facts, created, button)
+        retried = False
+        if not isinstance(outcome, str) and outcome[0] == "error" and TRANSIENT_ERROR_RE.search(outcome[1]):
+            retried = True
+            created.clear()  # the budget check waits for the second order's response
+            outcome = await self._attempt(tools, rec, engine, facts, created, button)
+        if isinstance(outcome, str):
+            return outcome
+        result, detail, approved_by = outcome
+        if result == "cancelled":
+            return await self._fail(rec, tools, "payment_approved", "approval_cancelled",
+                                    f"The payment was cancelled in the PayPal window. Page says: {detail}",
+                                    {"url": page.url, "status_text": detail, "approved_by": approved_by})
+        rec.record_check("payment_approved", True,
+                         "Buyer logged in and approved the payment." if approved_by == "agent"
+                         else "A human completed PayPal's check and approved the payment.",
+                         {"url": page.url, "approved_by": approved_by})
+        if result != "thanks":
+            issue_match = ISSUE_RE.search(detail or "")
+            issue = issue_match.group(1) if issue_match else None
+            if result == "error":
+                code = "capture_declined" if issue in BUYER_SIDE_CAPTURE_ISSUES else "capture_error"
+            else:
+                code = "capture_unconfirmed"
+            reason = {"capture_declined": f"The buyer's funding source declined the payment ({issue}).",
+                      "capture_error": f"Capture failed after approval{f' ({issue})' if issue else ''}.",
+                      "capture_unconfirmed": "No confirmation page after approval."}[code]
+            return await self._fail(rec, tools, "capture_completed", code,
+                                    reason + (f" Page says: {detail}" if detail else ""),
+                                    {"url": page.url, "status_text": detail, "issue": issue})
+
+        order_id = (parse_qs(urlparse(page.url).query).get("order") or [""])[0]
+        order = await self._backend_get(f"/api/paypal/orders/{order_id}") if order_id else None
+        ok = (order is not None and order.get("status") == "COMPLETED"
+              and order.get("capture_status") == "COMPLETED" and order.get("capture_id"))
+        if not ok:
+            return await self._fail(rec, tools, "capture_completed", "capture_unconfirmed",
+                                    f"Backend does not confirm a completed capture for order {order_id or '(none)'}.",
+                                    {"url": page.url, "order_id": order_id, "backend_order": order})
+        linked = db.link_order_to_run(rec.db_path, order_id, rec.run_id)
+        summary = {k: order.get(k) for k in ("order_id", "capture_id", "status", "capture_status", "amount",
+                                             "currency", "gross_amount", "paypal_fee", "net_amount")}
+        if not linked:
+            summary["note"] = "order not found in this run's database; not linked"
+        rec.record_check("capture_completed", True, f"Order {order_id} captured ({order.get('capture_id')}).",
+                         {"url": page.url, **summary})
+
+        # 5. Verification: order <-> capture <-> advertised amount <-> fees, and the spending limit if there is one.
+        verification = await self._backend_get(f"/api/paypal/orders/{order_id}/verify")
+        budget_evidence = self._budget_evidence(engine.budget, order)
+        extra = {"budget": budget_evidence} if budget_evidence else {}
+        if verification is None:
+            rec.record_check("payment_verified", False, "The backend could not verify the order.",
+                             {"order_id": order_id, **extra}, code="verification_unavailable")
+        elif verification["ok"] and budget_evidence and not budget_evidence["within"]:
+            rec.record_check("payment_verified", False,
+                             f"Captured {budget_evidence['captured']} is over the {budget_evidence['limit']} spending limit.",
+                             {"order_id": order_id, "checked": verification["checked"], **extra}, code="amount_mismatch")
+        elif verification["ok"]:
+            rec.record_check("payment_verified", True,
+                             "Order, capture, advertised amount and fees all match"
+                             + (f", and {budget_evidence['captured']} is within the {budget_evidence['limit']} limit."
+                                if budget_evidence else "."),
+                             {"order_id": order_id, "checked": verification["checked"], **extra})
+        else:
+            first = verification["mismatches"][0]
+            rec.record_check("payment_verified", False,
+                             "; ".join(m["detail"] for m in verification["mismatches"]),
+                             {"order_id": order_id, "mismatches": verification["mismatches"],
+                              "checked": verification["checked"], **extra}, code=verification["code"] or first["code"])
+        approved_note = " A human completed PayPal's extra check." if approved_by == "human" else ""
+        approved_note += " The first try hit a temporary PayPal error, so the agent paid again once." if retried else ""
+        verdict = ("verified" if verification and verification["ok"]
+                   and not (budget_evidence and not budget_evidence["within"]) else "NOT verified")
+        return (f"Payment complete.{approved_note} Order {order_id}, capture {order.get('capture_id')}, status "
+                f"{order.get('status')}, amount {order.get('amount')} {order.get('currency')}, "
+                f"PayPal fee {order.get('paypal_fee')}, net {order.get('net_amount')}. Payment {verdict}.")
+
+    async def _attempt(self, tools: PageTools, rec: RunRecorder, engine: CheckEngine, facts: dict[str, Any],
+                       created: list[Decimal], button: Locator) -> str | tuple[str, str, str]:
+        """One try at paying: click PayPal, approve in its window, wait for the store's answer. Returns the failure
+        observation if the try broke before the store answered, else (result, detail, approved_by)."""
+        page, t = tools.page, self.timeouts
 
         def button_ok() -> None:
             rec.record_check("paypal_button_found", True, "PayPal button visible on checkout.",
@@ -285,73 +390,7 @@ class PayPalCheckout:
 
         # 4. The store captures on approval and shows a confirmation, or an error / cancellation.
         result, detail = await self._wait_for_result(page, t.capture_s)
-        if result == "cancelled":
-            return await self._fail(rec, tools, "payment_approved", "approval_cancelled",
-                                    f"The payment was cancelled in the PayPal window. Page says: {detail}",
-                                    {"url": page.url, "status_text": detail, "approved_by": approved_by})
-        rec.record_check("payment_approved", True,
-                         "Buyer logged in and approved the payment." if approved_by == "agent"
-                         else "A human completed PayPal's check and approved the payment.",
-                         {"url": page.url, "approved_by": approved_by})
-        if result != "thanks":
-            issue_match = ISSUE_RE.search(detail or "")
-            issue = issue_match.group(1) if issue_match else None
-            if result == "error":
-                code = "capture_declined" if issue in BUYER_SIDE_CAPTURE_ISSUES else "capture_error"
-            else:
-                code = "capture_unconfirmed"
-            reason = {"capture_declined": f"The buyer's funding source declined the payment ({issue}).",
-                      "capture_error": f"Capture failed after approval{f' ({issue})' if issue else ''}.",
-                      "capture_unconfirmed": "No confirmation page after approval."}[code]
-            return await self._fail(rec, tools, "capture_completed", code,
-                                    reason + (f" Page says: {detail}" if detail else ""),
-                                    {"url": page.url, "status_text": detail, "issue": issue})
-
-        order_id = (parse_qs(urlparse(page.url).query).get("order") or [""])[0]
-        order = await self._backend_get(f"/api/paypal/orders/{order_id}") if order_id else None
-        ok = (order is not None and order.get("status") == "COMPLETED"
-              and order.get("capture_status") == "COMPLETED" and order.get("capture_id"))
-        if not ok:
-            return await self._fail(rec, tools, "capture_completed", "capture_unconfirmed",
-                                    f"Backend does not confirm a completed capture for order {order_id or '(none)'}.",
-                                    {"url": page.url, "order_id": order_id, "backend_order": order})
-        linked = db.link_order_to_run(rec.db_path, order_id, rec.run_id)
-        summary = {k: order.get(k) for k in ("order_id", "capture_id", "status", "capture_status", "amount",
-                                             "currency", "gross_amount", "paypal_fee", "net_amount")}
-        if not linked:
-            summary["note"] = "order not found in this run's database; not linked"
-        rec.record_check("capture_completed", True, f"Order {order_id} captured ({order.get('capture_id')}).",
-                         {"url": page.url, **summary})
-
-        # 5. Verification: order <-> capture <-> advertised amount <-> fees, and the spending limit if there is one.
-        verification = await self._backend_get(f"/api/paypal/orders/{order_id}/verify")
-        budget_evidence = self._budget_evidence(engine.budget, order)
-        extra = {"budget": budget_evidence} if budget_evidence else {}
-        if verification is None:
-            rec.record_check("payment_verified", False, "The backend could not verify the order.",
-                             {"order_id": order_id, **extra}, code="verification_unavailable")
-        elif verification["ok"] and budget_evidence and not budget_evidence["within"]:
-            rec.record_check("payment_verified", False,
-                             f"Captured {budget_evidence['captured']} is over the {budget_evidence['limit']} spending limit.",
-                             {"order_id": order_id, "checked": verification["checked"], **extra}, code="amount_mismatch")
-        elif verification["ok"]:
-            rec.record_check("payment_verified", True,
-                             "Order, capture, advertised amount and fees all match"
-                             + (f", and {budget_evidence['captured']} is within the {budget_evidence['limit']} limit."
-                                if budget_evidence else "."),
-                             {"order_id": order_id, "checked": verification["checked"], **extra})
-        else:
-            first = verification["mismatches"][0]
-            rec.record_check("payment_verified", False,
-                             "; ".join(m["detail"] for m in verification["mismatches"]),
-                             {"order_id": order_id, "mismatches": verification["mismatches"],
-                              "checked": verification["checked"], **extra}, code=verification["code"] or first["code"])
-        approved_note = " A human completed PayPal's extra check." if approved_by == "human" else ""
-        verdict = ("verified" if verification and verification["ok"]
-                   and not (budget_evidence and not budget_evidence["within"]) else "NOT verified")
-        return (f"Payment complete.{approved_note} Order {order_id}, capture {order.get('capture_id')}, status "
-                f"{order.get('status')}, amount {order.get('amount')} {order.get('currency')}, "
-                f"PayPal fee {order.get('paypal_fee')}, net {order.get('net_amount')}. Payment {verdict}.")
+        return result, detail, approved_by
 
     @staticmethod
     def _budget_evidence(budget: Decimal | None, order: dict[str, Any]) -> dict[str, Any] | None:
@@ -403,7 +442,10 @@ class PayPalCheckout:
                     await popup.keyboard.press("Enter")
             if time.monotonic() > deadline:
                 raise _Stuck(f"at '{state}'")
-            await popup.wait_for_timeout(200)
+            try:
+                await popup.wait_for_timeout(200)
+            except PlaywrightError:
+                return "agent"  # the buyer cancelled and the window closed while waiting
 
     async def _await_human(self, popup: Page, rec: RunRecorder, tools: PageTools, stage: str, reason: str) -> str:
         session = tools.s

@@ -16,6 +16,9 @@ class FakeTools:
     async def has_password_field(self, fields):
         return self.has_password
 
+    async def has_card_field(self, fields):
+        return False
+
     async def fill_form(self, fields):
         self.filled.append(fields)
         return "Filled."
