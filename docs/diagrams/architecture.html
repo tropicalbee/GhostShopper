@@ -4,140 +4,124 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>How GhostShopper is wired</title>
+  <meta name="description" content="Architecture of GhostShopper: dashboard, API, shopper agent, demo store with its checkout API, SQLite, and the browser, language model, live stores and PayPal it talks to.">
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <meta name="description" content="Architecture of GhostShopper: dashboard, API, shopper agent, demo store, SQLite, and the browser, language model and PayPal services it calls.">
   <style>
     /* Hallmark · component: diagram · genre: modern-minimal · theme: custom (GhostShopper black receipt) · states: 8 · contrast: pass · v2.0.0 */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --paper: #0a0a0a;
-      --ink: #ededed;
-      --muted: #8f8f8f;
-      --font-sans: 'Geist', system-ui, sans-serif;
-    }
+    :root { --paper: #0a0a0a; --ink: #ededed; --muted: #8f8f8f; --font-sans: 'Geist', system-ui, sans-serif; }
     html, body { overflow-x: clip; }
     body { font-family: var(--font-sans); background: var(--paper); color: var(--ink); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
-    .frame { max-width: 1040px; width: 100%; }
+    .frame { max-width: 1080px; width: 100%; }
     h1 { font-size: clamp(1.5rem, 2.2vw + 0.75rem, 2rem); font-weight: 500; letter-spacing: -0.035em; line-height: 1.15; margin-bottom: 0.5rem; text-wrap: balance; }
-    p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.75rem; max-width: 60ch; }
+    p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.75rem; max-width: 64ch; }
     .diagram-container { width: 100%; overflow-x: auto; }
-    svg { width: 100%; min-width: 1000px; display: block; }
+    svg { width: 100%; min-width: 1040px; display: block; }
     @media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
   </style>
 </head>
 <body>
   <div class="frame">
     <h1>How GhostShopper is wired</h1>
-    <p>One FastAPI process serves the dashboard API and the demo store. The shopper agent drives a real browser, asks the language model for its next tool, and logs every step. The trace and the score are built from that log, never by the model.</p>
+    <p>One FastAPI process serves the dashboard API, the demo store and the store’s checkout API. The shopper agent drives a real browser and asks the language model for its next tool; without a model key it runs a scripted navigator instead. The trace and the score are built from the logged steps and orders, never by the model. The Channel3 market check is left out here.</p>
     <div class="diagram-container">
-      <svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="architecture-title architecture-desc">
+      <svg viewBox="0 0 1040 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="architecture-title architecture-desc">
         <title id="architecture-title">How GhostShopper is wired</title>
-        <desc id="architecture-desc">The dashboard calls the API; the API starts the shopper agent, which asks the language model for its next tool and drives a browser that shops the demo store; the store pays through PayPal; the agent, the store and the API share one SQLite database.</desc>
+        <desc id="architecture-desc">The dashboard calls the API, which starts the shopper agent; the agent asks the language model for its next tool and drives a browser that shops the demo store or a live store; the buyer approves payment in PayPal’s popup; the demo store’s checkout API creates and captures the PayPal order; the agent, the API and the store share one SQLite database.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7a7a7a"/></marker>
           <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ededed"/></marker>
-          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7a7a7a"/></marker>
         </defs>
-
         <rect width="100%" height="100%" fill="#0a0a0a"/>
 
         <!-- zones -->
-        <rect x="24" y="150" width="192" height="144" rx="8" fill="rgba(237,237,237,0.02)" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
-        <text x="40" y="172" fill="#8f8f8f" font-size="10" font-family="'Geist', system-ui, sans-serif">Merchant’s browser</text>
-        <rect x="272" y="64" width="396" height="372" rx="8" fill="rgba(237,237,237,0.02)" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
-        <text x="288" y="86" fill="#8f8f8f" font-size="10" font-family="'Geist', system-ui, sans-serif">GhostShopper server, one FastAPI process</text>
-        <rect x="744" y="40" width="232" height="396" rx="8" fill="rgba(237,237,237,0.02)" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
-        <text x="760" y="62" fill="#8f8f8f" font-size="10" font-family="'Geist', system-ui, sans-serif">Outside services</text>
+        <g font-family="'Geist', system-ui, sans-serif" font-size="10" fill="#8f8f8f">
+          <rect x="24" y="150" width="192" height="144" rx="8" fill="rgba(237,237,237,0.02)" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
+          <text x="40" y="172">Merchant’s browser</text>
+          <rect x="272" y="64" width="396" height="372" rx="8" fill="rgba(237,237,237,0.02)" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
+          <text x="288" y="86">GhostShopper server, one FastAPI process</text>
+          <rect x="744" y="40" width="232" height="472" rx="8" fill="rgba(237,237,237,0.02)" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
+          <text x="760" y="62">Outside services and stores</text>
+        </g>
 
         <!-- connectors (drawn before nodes) -->
-        <!-- dashboard to API -->
-        <path d="M200,222 H237 Q245,222 245,214 V150 Q245,142 253,142 H290" fill="none" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <!-- API starts the agent -->
-        <line x1="450" y1="142" x2="500" y2="142" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
-        <!-- agent asks the language model -->
-        <line x1="650" y1="122" x2="760" y2="122" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow-link)"/>
-        <rect x="681" y="101" width="48" height="12" rx="2" fill="#0a0a0a"/>
-        <text x="705" y="110" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">next tool</text>
-        <!-- agent drives the browser -->
-        <path d="M650,158 H697 Q705,158 705,166 V214 Q705,222 713,222 H760" fill="none" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
-        <rect x="713" y="182" width="28" height="12" rx="2" fill="#0a0a0a"/>
-        <text x="727" y="191" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">acts</text>
-        <!-- browser shops the demo store -->
-        <path d="M760,238 H583 Q575,238 575,246 V350" fill="none" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
-        <rect x="612" y="217" width="36" height="12" rx="2" fill="#0a0a0a"/>
-        <text x="630" y="226" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">shops</text>
-        <!-- store pays through PayPal -->
-        <line x1="650" y1="382" x2="760" y2="382" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow-link)"/>
-        <rect x="681" y="361" width="48" height="12" rx="2" fill="#0a0a0a"/>
-        <text x="705" y="370" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">orders v2</text>
-        <!-- agent logs steps and checks -->
-        <path d="M500,166 H483 Q475,166 475,174 V358 Q475,366 467,366 H450" fill="none" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <rect x="437" y="253" width="30" height="12" rx="2" fill="#0a0a0a"/>
-        <text x="452" y="262" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">logs</text>
-        <!-- API reads the log -->
-        <line x1="370" y1="174" x2="370" y2="350" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
-        <rect x="378" y="253" width="34" height="12" rx="2" fill="#0a0a0a"/>
-        <text x="395" y="262" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">reads</text>
-        <!-- store keeps its own orders -->
-        <line x1="500" y1="398" x2="450" y2="398" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <g fill="none" stroke-width="1.2">
+          <path d="M200,222 H237 Q245,222 245,214 V150 Q245,142 253,142 H290" stroke="#7a7a7a" marker-end="url(#arrow)"/>
+          <line x1="450" y1="142" x2="500" y2="142" stroke="#ededed" marker-end="url(#arrow-accent)"/>
+          <line x1="650" y1="122" x2="760" y2="122" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+          <path d="M650,158 H697 Q705,158 705,166 V214 Q705,222 713,222 H760" stroke="#ededed" marker-end="url(#arrow-accent)"/>
+          <path d="M760,238 H583 Q575,238 575,246 V350" stroke="#ededed" marker-end="url(#arrow-accent)"/>
+          <line x1="860" y1="254" x2="860" y2="300" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+          <path d="M960,222 H980 Q988,222 988,230 V434 Q988,442 980,442 H960" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+          <path d="M650,398 H697 Q705,398 705,406 V418 Q705,426 713,426 H760" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+          <path d="M500,166 H483 Q475,166 475,174 V358 Q475,366 467,366 H450" stroke="#7a7a7a" marker-end="url(#arrow)"/>
+          <line x1="370" y1="174" x2="370" y2="350" stroke="#7a7a7a" marker-end="url(#arrow)"/>
+          <line x1="500" y1="398" x2="450" y2="398" stroke="#7a7a7a" marker-end="url(#arrow)"/>
+        </g>
+        <g font-family="'Geist Mono', ui-monospace, monospace" font-size="9" fill="#8f8f8f" text-anchor="middle">
+          <rect x="681" y="101" width="48" height="12" rx="2" fill="#0a0a0a"/><text x="705" y="110">next tool</text>
+          <rect x="713" y="182" width="28" height="12" rx="2" fill="#0a0a0a"/><text x="727" y="191">acts</text>
+          <rect x="612" y="217" width="36" height="12" rx="2" fill="#0a0a0a"/><text x="630" y="226">shops</text>
+          <rect x="868" y="271" width="44" height="12" rx="2" fill="#0a0a0a"/><text x="890" y="280">browses</text>
+          <rect x="994" y="323" width="40" height="12" rx="2" fill="#0a0a0a"/><text x="1014" y="332">popup</text>
+          <rect x="654" y="377" width="40" height="12" rx="2" fill="#0a0a0a"/><text x="674" y="386">orders</text>
+          <rect x="437" y="253" width="30" height="12" rx="2" fill="#0a0a0a"/><text x="452" y="262">logs</text>
+          <rect x="378" y="253" width="34" height="12" rx="2" fill="#0a0a0a"/><text x="395" y="262">reads</text>
+        </g>
 
         <!-- nodes -->
-        <g font-family="'Geist', system-ui, sans-serif">
-          <rect x="40" y="190" width="160" height="64" rx="6" fill="#0a0a0a"/>
-          <rect x="40" y="190" width="160" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-width="1"/>
-          <text x="120" y="218" fill="#ededed" font-size="12" font-weight="600" text-anchor="middle">Dashboard</text>
-          <text x="120" y="236" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">react + vite</text>
+        <g font-family="'Geist', system-ui, sans-serif" text-anchor="middle">
+          <rect x="40" y="190" width="160" height="64" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <text x="120" y="218" fill="#ededed" font-size="12" font-weight="600">Dashboard</text>
+          <text x="120" y="236" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">react + vite</text>
 
-          <rect x="290" y="110" width="160" height="64" rx="6" fill="#0a0a0a"/>
           <rect x="290" y="110" width="160" height="64" rx="6" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
-          <text x="370" y="138" fill="#ededed" font-size="12" font-weight="600" text-anchor="middle">API, trace and score</text>
-          <text x="370" y="156" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">deterministic, no model</text>
+          <text x="370" y="138" fill="#ededed" font-size="12" font-weight="600">API, trace and score</text>
+          <text x="370" y="156" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">score uses no model</text>
 
-          <rect x="500" y="110" width="150" height="64" rx="6" fill="#0a0a0a"/>
           <rect x="500" y="110" width="150" height="64" rx="6" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
-          <text x="575" y="138" fill="#ededed" font-size="12" font-weight="600" text-anchor="middle">Shopper agent</text>
-          <text x="575" y="156" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">tool-calling loop</text>
+          <text x="575" y="138" fill="#ededed" font-size="12" font-weight="600">Shopper agent</text>
+          <text x="575" y="156" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">tool-calling loop</text>
 
-          <rect x="290" y="350" width="160" height="64" rx="6" fill="#0a0a0a"/>
-          <rect x="290" y="350" width="160" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-width="1"/>
-          <text x="370" y="378" fill="#ededed" font-size="12" font-weight="600" text-anchor="middle">SQLite</text>
-          <text x="370" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">runs, steps, orders</text>
+          <rect x="290" y="350" width="160" height="64" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <text x="370" y="378" fill="#ededed" font-size="12" font-weight="600">SQLite</text>
+          <text x="370" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">runs, steps, orders</text>
 
-          <rect x="500" y="350" width="150" height="64" rx="6" fill="#0a0a0a"/>
-          <rect x="500" y="350" width="150" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-width="1"/>
-          <text x="575" y="378" fill="#ededed" font-size="12" font-weight="600" text-anchor="middle">Demo store</text>
-          <text x="575" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">/store, keeps its orders</text>
+          <rect x="500" y="350" width="150" height="64" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <text x="575" y="378" fill="#ededed" font-size="12" font-weight="600">Demo store</text>
+          <text x="575" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">/store + /api/paypal</text>
 
-          <rect x="760" y="80" width="200" height="64" rx="6" fill="#0a0a0a"/>
-          <rect x="760" y="80" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-width="1" stroke-dasharray="4,3"/>
-          <text x="860" y="108" fill="#ededed" font-size="12" font-weight="600" text-anchor="middle">Language model</text>
-          <text x="860" y="126" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">nemotron or groq</text>
+          <rect x="760" y="80" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="860" y="108" fill="#ededed" font-size="12" font-weight="600">Language model</text>
+          <text x="860" y="126" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">nemotron or groq, optional</text>
 
-          <rect x="760" y="190" width="200" height="64" rx="6" fill="#0a0a0a"/>
-          <rect x="760" y="190" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-width="1" stroke-dasharray="4,3"/>
-          <text x="860" y="218" fill="#ededed" font-size="12" font-weight="600" text-anchor="middle">Browser</text>
-          <text x="860" y="236" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">playwright or kernel</text>
+          <rect x="760" y="190" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="860" y="218" fill="#ededed" font-size="12" font-weight="600">Browser</text>
+          <text x="860" y="236" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">playwright, or kernel when hosted</text>
 
-          <rect x="760" y="350" width="200" height="64" rx="6" fill="#0a0a0a"/>
-          <rect x="760" y="350" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-width="1" stroke-dasharray="4,3"/>
-          <text x="860" y="378" fill="#ededed" font-size="12" font-weight="600" text-anchor="middle">PayPal</text>
-          <text x="860" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">sandbox, or mock in practice</text>
+          <rect x="760" y="300" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="860" y="328" fill="#ededed" font-size="12" font-weight="600">Your store</text>
+          <text x="860" y="346" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">any link, browse only</text>
+
+          <rect x="760" y="410" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="860" y="438" fill="#ededed" font-size="12" font-weight="600">PayPal</text>
+          <text x="860" y="456" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">sandbox, or mock in practice</text>
         </g>
 
         <!-- legend -->
-        <line x1="24" y1="462" x2="976" y2="462" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
+        <line x1="24" y1="530" x2="1016" y2="530" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
         <g font-family="'Geist', system-ui, sans-serif" font-size="10" fill="#8f8f8f">
-          <text x="24" y="492">Legend</text>
-          <rect x="90" y="482" width="22" height="14" rx="3" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
-          <text x="120" y="492">decides the outcome</text>
-          <rect x="250" y="482" width="22" height="14" rx="3" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
-          <text x="280" y="492">outside service</text>
-          <line x1="390" y1="488" x2="418" y2="488" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
-          <text x="426" y="492">the shopping path</text>
-          <line x1="540" y1="488" x2="568" y2="488" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow-link)"/>
-          <text x="576" y="492">call to an outside service</text>
-          <line x1="720" y1="488" x2="748" y2="488" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
-          <text x="756" y="492">internal call</text>
+          <text x="24" y="560">Legend</text>
+          <rect x="90" y="550" width="22" height="14" rx="3" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
+          <text x="120" y="560">decides the outcome</text>
+          <rect x="250" y="550" width="22" height="14" rx="3" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="280" y="560">outside GhostShopper</text>
+          <line x1="410" y1="556" x2="438" y2="556" stroke="#ededed" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+          <text x="446" y="560">the shopping path</text>
+          <line x1="560" y1="556" x2="588" y2="556" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+          <text x="596" y="560">call to an outside service or store</text>
+          <line x1="780" y1="556" x2="808" y2="556" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <text x="816" y="560">internal call</text>
         </g>
       </svg>
     </div>

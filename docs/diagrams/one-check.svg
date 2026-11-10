@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 1000 660" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="one-check-title one-check-desc" id="one-check-root">
         <title id="one-check-title">One check, step by step</title>
-        <desc id="one-check-desc">The agent clicks the PayPal button; the store creates its order and a PayPal order; the buyer approves; the capture completes; the store marks its order paid, or leaves it awaiting payment when that flaw is on; the agent reads the order page; the trace is built from all five records.</desc>
+        <desc id="one-check-desc">The agent clicks the PayPal button; the store creates its order and a PayPal order; the buyer approves; the capture completes; the store marks its order paid, or leaves it awaiting payment when that flaw is on; the agent reads the order page; when Results asks, the trace is built from the stored records.</desc>
         <defs>
       <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
       #one-check-root { --paper: #0a0a0a; --ink: #ededed; --muted: #8f8f8f; --font-sans: 'Geist', system-ui, sans-serif; }
@@ -67,9 +67,9 @@
           <line x1="110" y1="532" x2="306" y2="532" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#one-check-arrow)"/>
           <text x="210" y="524">reads order page</text>
 
-          <line x1="510" y1="568" x2="886" y2="568" stroke="#ededed" stroke-width="1.2" marker-end="url(#one-check-arrow-accent)"/>
-          <rect x="752" y="551" width="96" height="12" rx="2" fill="#0a0a0a"/>
-          <text x="800" y="560" fill="#ededed">five records</text>
+          <line x1="890" y1="568" x2="514" y2="568" stroke="#ededed" stroke-width="1.2" marker-end="url(#one-check-arrow-accent)"/>
+          <rect x="740" y="551" width="96" height="12" rx="2" fill="#0a0a0a"/>
+          <text x="788" y="560" fill="#ededed">reads the records</text>
         </g>
 
         <!-- actors -->
@@ -83,7 +83,7 @@
           <text x="310" y="79" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">checkout page</text>
 
           <rect x="440" y="40" width="140" height="52" rx="6" fill="#111111" stroke="#2e2e2e"/>
-          <text x="510" y="63" fill="#ededed" font-size="12" font-weight="600">Store orders</text>
+          <text x="510" y="63" fill="#ededed" font-size="12" font-weight="600">Checkout API</text>
           <text x="510" y="79" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">/api/paypal</text>
 
           <rect x="640" y="40" width="140" height="52" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
@@ -92,7 +92,7 @@
 
           <rect x="820" y="40" width="140" height="52" rx="6" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
           <text x="890" y="63" fill="#ededed" font-size="12" font-weight="600">Purchase trace</text>
-          <text x="890" y="79" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">trace.py, no model</text>
+          <text x="890" y="79" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">built on request</text>
         </g>
 
         <!-- legend -->
@@ -104,7 +104,7 @@
           <line x1="180" y1="638" x2="208" y2="638" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#one-check-arrow)"/>
           <text x="216" y="642">reply</text>
           <line x1="276" y1="638" x2="304" y2="638" stroke="#ededed" stroke-width="1.2" marker-end="url(#one-check-arrow-accent)"/>
-          <text x="312" y="642">what the trace compares</text>
+          <text x="312" y="642">what the trace reads</text>
           <rect x="480" y="630" width="22" height="14" rx="3" fill="#ededed" stroke="#ededed" fill-opacity="0.04" stroke-opacity="0.22"/>
           <text x="510" y="642">either branch happens, set by the store flaw</text>
         </g>
