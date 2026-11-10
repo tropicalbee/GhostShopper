@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-11-10, part 2 (new direction and redesign, nothing built yet)
+
+### Decided with the user
+- New pitch: GhostShopper proves that the agent's intended purchase, the PayPal transaction and the store's own order all agree, and shows where they break. The readiness score stays, as the reason the agent got stuck.
+- Results becomes a 5 stage purchase trace: agent wanted, store order, PayPal order, PayPal capture, store says. Each stage shows product, qty, amount, currency, status. The first mismatch is highlighted with its fix.
+- New store flaws to add: buyer cancels but the store shows success, payment declined but the store marks it paid, captured but the store never marks it paid, duplicate order on retry. Price mismatch already exists (`price_mismatch`, `verification.py`). The store needs an order status the agent can read.
+- UI redesign in a Stripe-dashboard style: light grey page, white panels, small clean type, aligned numbers, one blue accent, red only in small badges. This replaces the "Ledger" look (the user said the current screen hurts their eyes: full red hero box, giant headline, boxes in boxes). Also a proper landing page.
+- Landing page main button: "Run a check on the demo store", second button "Check your own store".
+- Process: show visual mockups (real HTML pages, screenshotted) of the landing page, Results and New check before any frontend code. The user can't read ASCII sketches. A cheaper model writes the production code; Opus reviews.
+- Skipped: WebMCP, the PayPal Agent Toolkit.
+
+### Open
+- Figma MCP needs a login (`/mcp`, figma) before designs can come from Figma.
+- Kernel bug: "Pay with the real PayPal sandbox" on Home asks for `KERNEL_API_KEY` even locally (`runs.py:136`, `agent/service.py:107`). Planned fix: web real runs pay with vault and use the local browser; Kernel only when hosted. Waiting on the error from `python -m backend.app.vault setup`.
+
+### Next
+1. Build the 3 mockups (landing, Results trace, New check) and show them.
+2. After approval: trace + 4 flaws in the backend, then the frontend redesign.
+3. Kernel/vault fix, one live Nemotron + sandbox run, Render deploy, video.
+
 ## 2026-11-10 (build check, interrupted fixes)
 
 ### Done
