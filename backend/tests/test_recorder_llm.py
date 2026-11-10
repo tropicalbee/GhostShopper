@@ -59,6 +59,19 @@ def test_first_check_outcome_wins_and_untested_are_filled(tmp_path):
     assert reasons["capture_completed"] == "payment skipped"
 
 
+def test_untested_reason_can_be_overridden_per_check(tmp_path):
+    rec = start(tmp_path)
+    rec.mark_untested({"details": "Not tested: the agent never reached the product page."},
+                      check_reasons={"currency_stated": "Not tested: no readable price text on the page.",
+                                     "buy_button_unobstructed": "Not tested: no buy control was found on the page to check."})
+    reasons = {c["check_key"]: c["reason"] for c in load_run(tmp_path / "t.db", rec.run_id)["checks"]}
+    assert reasons["currency_stated"] == "Not tested: no readable price text on the page."
+    assert reasons["buy_button_unobstructed"] == "Not tested: no buy control was found on the page to check."
+    other = next(k for k, c in CHECKS.items() if c.stage == "details" and k != "currency_stated")
+    assert reasons[other] == "Not tested: the agent never reached the product page."
+    assert rec.results()["currency_stated"] == "not_tested"
+
+
 def test_failure_code_decides_the_cause_and_environment_failures_are_excluded(tmp_path):
     rec = start(tmp_path)
     rec.record_check("price_in_text", False, "image only", code="price_image_only")

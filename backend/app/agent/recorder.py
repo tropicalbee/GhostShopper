@@ -156,13 +156,16 @@ class RunRecorder:
         return any(r["passed"] == 0 and r["cause"] == ENVIRONMENT for r in self.rows())
 
     def mark_untested(self, reasons: dict[str, str], blocked_by_environment: bool = False,
-                      stage_codes: dict[str, str] | None = None) -> None:
+                      stage_codes: dict[str, str] | None = None,
+                      check_reasons: dict[str, str] | None = None) -> None:
         """Record every check that never ran as not tested. If the run was stopped by something that is
         not the store's fault, those checks are excluded rather than counted against the store.
-        stage_codes overrides the code for a whole stage (live stores: payment is out of scope)."""
+        stage_codes overrides the code for a whole stage (live stores: payment is out of scope).
+        check_reasons overrides the reason for single checks (the stage was reached, the check couldn't run)."""
         default = NOT_TESTED_ENVIRONMENT if blocked_by_environment else NOT_TESTED_STORE
         for key, check in CHECKS.items():
-            reason = reasons.get(check.stage, "Not tested: the agent did not reach this stage.")
+            reason = (check_reasons or {}).get(key) or reasons.get(
+                check.stage, "Not tested: the agent did not reach this stage.")
             self.record_check(key, None, reason, code=(stage_codes or {}).get(check.stage, default))
 
     def set_platform(self, detected: dict[str, Any]) -> None:

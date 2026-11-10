@@ -242,7 +242,15 @@ class CheckEngine:
                              code="not_tested")
             reasons["payment"] = "Not tested on live stores: GhostShopper only pays on its own demo store."
             stage_codes["payment"] = "live_store_browse_only"
-        rec.mark_untested(reasons, blocked_by_environment=env_failure, stage_codes=stage_codes)
+        # Reached the page but there was nothing readable to test: say that, not "never reached".
+        check_reasons = {}
+        if self.product_seen:
+            check_reasons["currency_stated"] = "Not tested: no readable price text on the page."
+        if self.checkout_seen:
+            check_reasons["buy_button_unobstructed"] = "Not tested: no buy control was found on the page to check."
+            check_reasons["price_consistent"] = "Not tested: no readable product price to compare with checkout."
+        rec.mark_untested(reasons, blocked_by_environment=env_failure, stage_codes=stage_codes,
+                          check_reasons=check_reasons)
         return outcome
 
 
