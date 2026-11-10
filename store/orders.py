@@ -35,11 +35,25 @@ CREATE TABLE IF NOT EXISTS store_orders (
     paypal_order_id TEXT,
     run_id          INTEGER,
     created_at      TEXT NOT NULL,
-    updated_at      TEXT NOT NULL
+    updated_at      TEXT NOT NULL,
+    paypal_capture_id TEXT,
+    request_id      TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_store_orders_paypal ON store_orders (paypal_order_id);
 CREATE INDEX IF NOT EXISTS idx_store_orders_run ON store_orders (run_id);
 """
+# Columns added after the table first shipped; CREATE TABLE IF NOT EXISTS won't add them to an old database file.
+ADDED_COLUMNS = {"paypal_capture_id": "TEXT", "request_id": "TEXT"}
+
+
+def ensure_schema(conn: sqlite3.Connection) -> None:
+    """Create the table, or bring an older one up to date. Existing rows are kept."""
+    conn.executescript(SCHEMA)
+    have = {r[1] for r in conn.execute("PRAGMA table_info(store_orders)")}
+    for name, sql_type in ADDED_COLUMNS.items():
+        if name not in have:
+            conn.execute(f"ALTER TABLE store_orders ADD COLUMN {name} {sql_type}")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_store_orders_request ON store_orders (request_id)")
 
 
 def status_from_text(text: str) -> str | None:
@@ -69,7 +83,7 @@ class StoreOrders:
         self._db_path = db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
-            conn.executescript(SCHEMA)
+            ensure_schema(conn)
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -83,10 +97,17 @@ class StoreOrders:
             conn.close()
 
     def open(self, *, sku: str, quantity: int, amount: str, currency: str, retry_of: int | None,
-             flaws: dict[str, bool]) -> dict[str, Any]:
+             flaws: dict[str, bool], request_id: str | None = None) -> dict[str, Any]:
         """The order for a payment attempt. A retry of a still-pending order reuses it, unless the
-        duplicate_on_retry flaw is on: then every attempt makes a new order."""
+        duplicate_on_retry flaw is on: then every attempt makes a new order. A repeated request_id (the agent's
+        PayPal-Request-Id) always answers with the order it first opened, because PayPal answers it with the same
+        PayPal order."""
         with self._connect() as conn:
+            if request_id is not None:
+                known = conn.execute("SELECT * FROM store_orders WHERE request_id = ? ORDER BY number LIMIT 1",
+                                     (request_id,)).fetchone()
+                if known is not None:
+                    return dict(known)
             if retry_of is not None and not flaws["duplicate_on_retry"]:
                 pending = conn.execute("SELECT * FROM store_orders WHERE number = ? AND sku = ? AND status = ?",
                                        (retry_of, sku, "awaiting_payment")).fetchone()
@@ -94,9 +115,9 @@ class StoreOrders:
                     return dict(pending)
             now = _now()
             cur = conn.execute(
-                "INSERT INTO store_orders (number, sku, quantity, amount, currency, status, created_at, updated_at)"
-                " SELECT COALESCE(MAX(number), ?) + 1, ?, ?, ?, ?, ?, ?, ? FROM store_orders",
-                (FIRST_NUMBER - 1, sku, quantity, amount, currency, "awaiting_payment", now, now))
+                "INSERT INTO store_orders (number, sku, quantity, amount, currency, status, created_at, updated_at,"
+                " request_id) SELECT COALESCE(MAX(number), ?) + 1, ?, ?, ?, ?, ?, ?, ?, ? FROM store_orders",
+                (FIRST_NUMBER - 1, sku, quantity, amount, currency, "awaiting_payment", now, now, request_id))
             return dict(conn.execute("SELECT * FROM store_orders WHERE rowid = ?", (cur.lastrowid,)).fetchone())
 
     def attach_paypal(self, number: int, paypal_order_id: str) -> None:
@@ -104,10 +125,13 @@ class StoreOrders:
             conn.execute("UPDATE store_orders SET paypal_order_id = ?, updated_at = ? WHERE number = ?",
                          (paypal_order_id, _now(), number))
 
-    def settle(self, number: int, outcome: str, flaws: dict[str, bool]) -> dict[str, Any]:
+    def settle(self, number: int, outcome: str, flaws: dict[str, bool],
+               capture_id: str | None = None) -> dict[str, Any]:
+        """Record PayPal's answer. A capture id is kept whatever status the store shows for it."""
         with self._connect() as conn:
-            conn.execute("UPDATE store_orders SET status = ?, updated_at = ? WHERE number = ?",
-                         (settled_status(outcome, flaws), _now(), number))
+            conn.execute("UPDATE store_orders SET status = ?, updated_at = ?,"
+                         " paypal_capture_id = COALESCE(?, paypal_capture_id) WHERE number = ?",
+                         (settled_status(outcome, flaws), _now(), capture_id, number))
             return dict(conn.execute("SELECT * FROM store_orders WHERE number = ?", (number,)).fetchone())
 
     def get(self, number: int) -> dict[str, Any] | None:

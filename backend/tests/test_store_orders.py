@@ -148,3 +148,91 @@ def test_a_declined_agent_payment_names_its_store_order(client):
     flaw(client, "declined_marked_paid")
     r = client.post("/api/paypal/agent-orders", json={**VAULT, "request_id": "req-0002-abcd"})
     assert r.status_code == 422 and order_page_status(client, r.json()["detail"]["store_order"]) == "Paid"
+
+
+# Two-way identifiers: the store's number goes to PayPal as custom_id, and PayPal's capture id comes back to the store.
+
+def stored_order(client, number) -> dict:
+    from store.orders import StoreOrders
+
+    return StoreOrders(client.app.state.settings.database_path).get(number)
+
+
+def test_the_browser_create_request_carries_the_store_order_number_as_custom_id(client):
+    order = place(client)
+    unit = client.fake.orders[order["id"]]["purchase_unit"]
+    assert unit["custom_id"] == "1042" and "invoice_id" not in unit
+    assert stored_order(client, 1042)["paypal_order_id"] == order["id"]
+    retry = place(client, store_order=order["store_order"])  # a retry reuses the pending order, so the same number
+    assert client.fake.orders[retry["id"]]["purchase_unit"]["custom_id"] == "1042"
+
+
+def test_the_agent_create_request_carries_the_store_order_number_as_custom_id(client):
+    r = client.post("/api/paypal/agent-orders", json=VAULT)
+    assert r.status_code == 201
+    unit = client.fake.orders[r.json()["id"]]["purchase_unit"]
+    assert unit["custom_id"] == "1042" and "invoice_id" not in unit
+    # PayPal echoes it on the order and on the capture
+    got = client.fake.orders[r.json()["id"]]
+    assert got["captures"][0]["custom_id"] == "1042"
+
+
+def test_the_capture_id_is_saved_on_the_store_order(client):
+    order = place(client)
+    assert stored_order(client, 1042)["paypal_capture_id"] is None
+    captured = client.post(f"/api/paypal/orders/{order['id']}/capture").json()
+    assert captured["capture_id"].startswith("MOCKCAP")
+    assert stored_order(client, 1042)["paypal_capture_id"] == captured["capture_id"]
+    agent = client.post("/api/paypal/agent-orders", json=VAULT).json()
+    assert stored_order(client, agent["store_order"])["paypal_capture_id"] == agent["capture_id"]
+
+
+def test_a_repeated_agent_request_id_keeps_one_store_order(client):
+    first = client.post("/api/paypal/agent-orders", json=VAULT).json()
+    again = client.post("/api/paypal/agent-orders", json=VAULT).json()
+    assert first["id"] == again["id"] and first["store_order"] == again["store_order"] == 1042
+    assert client.get("/store/orders/1043").status_code == 404
+    assert client.fake.orders[first["id"]]["purchase_unit"]["custom_id"] == "1042"
+
+
+def test_a_paypal_create_failure_leaves_an_unpaid_store_order_and_returns_its_number(client):
+    from backend.app.paypal import PayPalError
+
+    async def refuse(unit):
+        raise PayPalError(422, {"name": "UNPROCESSABLE_ENTITY", "debug_id": "mock-debug", "message": "No.",
+                                "details": [{"issue": "INVALID_REQUEST"}]})
+
+    client.fake.create_order = refuse
+    r = client.post("/api/paypal/orders", json={"sku": SKU, "quantity": 1})
+    assert r.status_code == 422 and r.json()["detail"]["store_order"] == 1042
+    assert order_page_status(client, 1042) == "Awaiting payment"
+    assert stored_order(client, 1042)["paypal_order_id"] is None
+    bad = client.post("/api/paypal/agent-orders", json={**VAULT, "vault_id": "NOTAVAULT123"})
+    assert bad.status_code == 422 and bad.json()["detail"]["store_order"] == 1043
+    assert order_page_status(client, 1043) == "Awaiting payment"
+
+
+def test_an_old_store_orders_table_gains_the_new_columns_and_keeps_its_rows(tmp_path):
+    import sqlite3
+
+    from store.orders import StoreOrders
+
+    path = tmp_path / "old.db"
+    conn = sqlite3.connect(path)
+    conn.executescript("""
+        CREATE TABLE store_orders (
+            number INTEGER PRIMARY KEY, sku TEXT NOT NULL, quantity INTEGER NOT NULL, amount TEXT NOT NULL,
+            currency TEXT NOT NULL, status TEXT NOT NULL, paypal_order_id TEXT, run_id INTEGER,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+        INSERT INTO store_orders VALUES (1042, 'FH-MUG-01', 1, '24.00', 'USD', 'paid', 'OLDORDER1', 7, 't', 't');
+    """)
+    conn.commit()
+    conn.close()
+    orders = StoreOrders(path)
+    old = orders.get(1042)
+    assert old["paypal_order_id"] == "OLDORDER1" and old["paypal_capture_id"] is None and old["request_id"] is None
+    new = orders.open(sku="FH-MUG-01", quantity=1, amount="24.00", currency="USD", retry_of=None, flaws={})
+    assert new["number"] == 1043
+    orders.settle(1043, "captured", {"never_marks_paid": False, "declined_marked_paid": False, "success_after_cancel": False}, "CAP1")
+    assert orders.get(1043)["paypal_capture_id"] == "CAP1"
+    StoreOrders(path)  # opening it again does not try to add the columns twice

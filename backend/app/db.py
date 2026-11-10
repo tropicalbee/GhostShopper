@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from store.orders import SCHEMA as STORE_ORDERS_SCHEMA
+from store.orders import ensure_schema as ensure_store_orders
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS orders (
@@ -189,7 +189,7 @@ def init_db(db_path: Path) -> None:
                         # them shared examples, so they become unclaimed: hidden from the web, kept for the CLI.
                         conn.execute("UPDATE runs SET owner_hash = ?", (UNCLAIMED,))
         conn.executescript(SCHEMA)
-        conn.executescript(STORE_ORDERS_SCHEMA)
+        ensure_store_orders(conn)
         conn.executescript(INDEXES)
 
 

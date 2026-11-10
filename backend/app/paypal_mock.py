@@ -112,7 +112,10 @@ class FakePayPalClient:
         order = self.orders.get(order_id)
         if order is None:
             raise PayPalError(404, {"name": "RESOURCE_NOT_FOUND", "details": [{"issue": "INVALID_RESOURCE_ID"}]})
-        return {"id": order_id, "intent": "CAPTURE", "status": order["status"], "purchase_units": [order["purchase_unit"]]}
+        unit = dict(order["purchase_unit"])
+        if order.get("captures"):  # like PayPal, a captured order lists its captures
+            unit["payments"] = {"captures": order["captures"]}
+        return {"id": order_id, "intent": "CAPTURE", "status": order["status"], "purchase_units": [unit]}
 
     async def capture_order(self, order_id: str) -> dict[str, Any]:
         order = self.orders.get(order_id)
@@ -138,14 +141,16 @@ class FakePayPalClient:
         self.captures[capture_id] = money(_money(gross))
         self.transactions.append(_reporting_row(capture_id, "T0006", "S", money(_money(gross)), money(_money(-fee)),
                                                 order_id, "ODR"))
-        return {
+        response = {
             "id": order_id,
             "status": "COMPLETED",
             "purchase_units": [{
                 "reference_id": order["purchase_unit"].get("reference_id"),
+                **({"custom_id": order["purchase_unit"]["custom_id"]} if order["purchase_unit"].get("custom_id") else {}),
                 "payments": {"captures": [{
                     "id": capture_id,
                     "status": "COMPLETED",
+                    **({"custom_id": order["purchase_unit"]["custom_id"]} if order["purchase_unit"].get("custom_id") else {}),
                     "amount": money(_money(gross)),
                     "final_capture": True,
                     "seller_receivable_breakdown": {
@@ -156,6 +161,8 @@ class FakePayPalClient:
                 }]},
             }],
         }
+        order["captures"] = response["purchase_units"][0]["payments"]["captures"]
+        return response
 
     async def refund_capture(self, capture_id: str) -> dict[str, Any]:
         amount = self.captures.get(capture_id)

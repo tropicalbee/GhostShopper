@@ -110,12 +110,20 @@ async def _read_back_order(paypal: PayPalClient, db_path, order_id: str) -> None
 async def create_order(body: BrowserOrderRequest, request: Request, paypal: PayPalClient = Depends(get_paypal)):
     rate_limit(request, "api_limiter")  # each call creates a PayPal sandbox order
     product, unit, flaws = _purchase_unit_for(body, request)
+    db_path = request.app.state.settings.database_path
+    # The store's order exists before PayPal's, and its number travels in custom_id: PayPal echoes it back, so the
+    # purchase trace can prove both records are the same purchase without comparing amounts.
+    store = StoreOrders(db_path)
+    store_order = store.open(sku=product.sku, quantity=body.quantity, amount=unit["amount"]["value"],
+                             currency=product.currency, retry_of=body.store_order, flaws=flaws)
+    unit["custom_id"] = str(store_order["number"])
     try:
         order = await paypal.create_order(unit)
     except PayPalError as exc:
-        raise _paypal_http_error(exc) from exc
+        failure = _paypal_http_error(exc)
+        failure.detail["store_order"] = store_order["number"]  # stays awaiting payment: nothing was charged
+        raise failure from exc
 
-    db_path = request.app.state.settings.database_path
     db.insert_order(
         db_path,
         order_id=order["id"],
@@ -125,9 +133,6 @@ async def create_order(body: BrowserOrderRequest, request: Request, paypal: PayP
         amount=unit["amount"]["value"],
         status=order["status"],
     )
-    store = StoreOrders(db_path)
-    store_order = store.open(sku=product.sku, quantity=body.quantity, amount=unit["amount"]["value"],
-                             currency=product.currency, retry_of=body.store_order, flaws=flaws)
     store.attach_paypal(store_order["number"], order["id"])
     return {"id": order["id"], "status": order["status"], "amount": unit["amount"]["value"],
             "currency": product.currency, "store_order": store_order["number"]}
@@ -166,19 +171,13 @@ async def create_agent_order(body: AgentOrderRequest, request: Request, paypal: 
             "message": f"The order total {amount} is over the spending limit {body.max_amount}; nothing was charged"})
     db_path = request.app.state.settings.database_path
     store = StoreOrders(db_path)
-
-    def store_order_number(paypal_order_id: str | None) -> int:
-        """One store order per PayPal order: a repeated request id answers with the same PayPal order."""
-        known = store.for_paypal_order(paypal_order_id) if paypal_order_id else None
-        if known:
-            return known["number"]
-        return store.open(sku=product.sku, quantity=body.quantity, amount=amount, currency=product.currency,
-                          retry_of=None, flaws=flaws)["number"]
-
-    number = None
+    # One store order per request id: a repeated PayPal-Request-Id answers with the same PayPal order (and the
+    # custom_id it was first created with), so it must find the same store order.
+    number = store.open(sku=product.sku, quantity=body.quantity, amount=amount, currency=product.currency,
+                        retry_of=None, flaws=flaws, request_id=body.request_id)["number"]
+    unit["custom_id"] = str(number)
     try:
         result = await paypal.create_vaulted_order(unit, body.vault_id, body.request_id)
-        number = store_order_number(result["id"])
         store.attach_paypal(number, result["id"])
         if not result.get("purchase_units", [{}])[0].get("payments", {}).get("captures"):
             # Not paid yet: capture it (stable PayPal-Request-Id, so a retry cannot capture twice).
@@ -188,7 +187,6 @@ async def create_agent_order(body: AgentOrderRequest, request: Request, paypal: 
             result = await paypal.capture_order(result["id"])
     except PayPalError as exc:
         log.warning("agent order failed: %s (debug_id=%s)", exc.name, exc.debug_id)  # never log the body: it may echo the token
-        number = number or store_order_number(None)
         if exc.status_code == 422 and exc.issue in BUYER_SIDE_CAPTURE_ISSUES:
             store.settle(number, "declined", flaws)
         failure = _paypal_http_error(exc)
@@ -204,7 +202,7 @@ async def create_agent_order(body: AgentOrderRequest, request: Request, paypal: 
                                                      "message": "PayPal sent a response we could not read"}) from exc
     db.record_capture(db_path, result["id"], summary, result)
     await _read_back_order(paypal, db_path, result["id"])
-    store.settle(number, "captured", flaws)
+    store.settle(number, "captured", flaws, summary["capture_id"])
     return {**summary, "id": result["id"], "status": summary["order_status"], "amount": amount,
             "currency": product.currency, "store_order": number}
 
@@ -246,7 +244,7 @@ async def capture_order(order_id: str, request: Request, paypal: PayPalClient = 
     db.record_capture(db_path, order_id, summary, result)
     await _read_back_order(paypal, db_path, order_id)
     if store_order:
-        store.settle(store_order["number"], "captured", flaws)
+        store.settle(store_order["number"], "captured", flaws, summary["capture_id"])
     return {**summary, "store_order": store_order["number"] if store_order else None}
 
 

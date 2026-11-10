@@ -91,8 +91,12 @@ The demo store's own order records, kept apart from PayPal's. Both payment paths
 | amount, currency | TEXT | |
 | status | TEXT | awaiting_payment, paid, payment_failed, cancelled, confirmed (only the success_after_cancel flaw sets confirmed) |
 | paypal_order_id | TEXT | the PayPal order this store order is paid with; a retry that reuses the order points it at the newer PayPal order |
+| paypal_capture_id | TEXT | PayPal's capture id, saved when the capture completes; the trace checks it against PayPal's capture. Null on older rows. |
+| request_id | TEXT | the agent's PayPal-Request-Id; a repeated one finds the same store order. Null for browser orders. |
 | run_id | INTEGER | the run that made it; null for manual purchases |
 | created_at, updated_at | TEXT | |
+
+The store order number is sent to PayPal as the purchase unit `custom_id`, and PayPal echoes it back. Both columns above are added to older database files by `ensure_schema` in `store/orders.py`.
 
 ## runs
 | field | type | notes |
