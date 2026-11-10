@@ -54,7 +54,7 @@
           <rect x="40" y="260" width="220" height="152" rx="6" fill="#111111" stroke="#2e2e2e"/>
           <line x1="40" y1="288" x2="260" y2="288" stroke="#2e2e2e"/>
           <text x="54" y="279" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">checks</text>
-          <text x="54" y="306" fill="#ededed"># id</text><text x="54" y="322">→ run_id</text><text x="54" y="338">key, passed</text>
+          <text x="54" y="306" fill="#ededed"># id</text><text x="54" y="322">→ run_id</text><text x="54" y="338">check_key, passed</text>
           <text x="54" y="354">code, cause</text><text x="54" y="370">reason</text><text x="54" y="386">evidence</text><text x="54" y="402">fix</text>
 
           <!-- scores -->
