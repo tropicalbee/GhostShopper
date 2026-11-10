@@ -1,7 +1,7 @@
 import { Camera, MoveHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 
-import type { Trace, TraceCell, TraceStage } from "@/lib/api";
+import type { Trace, TraceCell, TraceLink, TraceStage } from "@/lib/api";
 
 type Field = keyof TraceStage["cells"];
 
@@ -85,6 +85,51 @@ function FieldRow({ field, label, trace, name, children }: { field: Field; label
   );
 }
 
+const MARK: Record<TraceLink["kind"], string> = {
+  ok: "Linked",
+  broken: "Broken",
+  unknown: "Unknown",
+  "n/a": "n/a",
+};
+
+// Do the ids point at the same purchase? Quiet evidence under the table; a broken link is the only lit row.
+function LinkChecks({ links }: { links?: TraceLink[] }) {
+  if (!links || links.length === 0) return null;
+  const first = links[0].reason;
+  if (links.every((l) => l.kind === "n/a" && l.reason === first))
+    return <p className="mx-4 mt-3 text-xs text-faint">Not checked: {first}</p>;
+  return (
+    <section className="mx-4 mt-4" aria-labelledby="linked-by-id">
+      <h3 id="linked-by-id" className="mb-1.5 text-xs font-medium text-muted-foreground">
+        Linked by ID
+      </h3>
+      <ul className="divide-y divide-[#262626] border-y border-[#262626] text-xs">
+        {links.map((l) => (
+          <li key={l.key} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+            <span
+              className={
+                l.kind === "broken"
+                  ? "inline-flex rounded-full border border-[#9a9a9a] bg-[#0a0a0a] px-2.5 py-0.5 font-medium text-white shadow-[0_0_14px_rgba(255,255,255,0.16)]"
+                  : "inline-flex rounded-full border border-[#262626] bg-[#141414] px-2.5 py-0.5 font-medium text-muted-foreground"
+              }
+            >
+              {MARK[l.kind]}
+            </span>
+            <span className="text-foreground">{l.label}</span>
+            {l.kind === "broken" ? (
+              <span className="break-all text-faint">
+                expected {l.expected ?? "nothing"}, got {l.actual ?? "nothing"}
+              </span>
+            ) : (
+              l.kind !== "ok" && l.reason && <span className="text-faint">{l.reason}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 // The purchase trace: five records of one purchase, five fields each. Only the first mismatch is lit, and its
 // explanation sits directly under the status row (under the table on phones).
 export function TraceTable({ trace, name, evidence }: { trace: Trace; name: (sku: string) => string; evidence: Evidence[] }) {
@@ -107,7 +152,8 @@ export function TraceTable({ trace, name, evidence }: { trace: Trace; name: (sku
       ))}
     </div>
   );
-  const fieldLabel = first && FIELDS.find(([k]) => k === first.field)?.[1];
+  // A broken id link has a link key as its field, so its label comes from the links, not the field rows.
+  const fieldLabel = first && (FIELDS.find(([k]) => k === first.field)?.[1] ?? trace.links?.find((l) => l.key === first.field)?.label ?? "Linked IDs");
   return (
     <>
       <p className="mb-2.5 flex items-center gap-1.5 px-4 text-xs text-faint md:hidden">
@@ -167,6 +213,7 @@ export function TraceTable({ trace, name, evidence }: { trace: Trace; name: (sku
           {links && <div className="mt-3">{links}</div>}
         </div>
       )}
+      <LinkChecks links={trace.links} />
     </>
   );
 }

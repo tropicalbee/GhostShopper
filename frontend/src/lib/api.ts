@@ -88,9 +88,19 @@ export type TraceStage = {
   evidence: { step?: number; screenshot?: string };
 };
 
+// One id that should match across two records of the same purchase. Evidence only.
+export type TraceLink = {
+  key: "store_to_paypal_order" | "paypal_order_to_store" | "capture_to_paypal_order" | "store_to_capture";
+  label: string;
+  expected: string | null;
+  actual: string | null;
+  kind: "ok" | "broken" | "unknown" | "n/a";
+  reason: string | null;
+};
+
 export type TraceMismatch = {
   stage: TraceStage["key"];
-  field: keyof TraceStage["cells"];
+  field: keyof TraceStage["cells"] | TraceLink["key"]; // a link key when an id link is broken
   expected: string | number | null;
   actual: string | number | null;
   explanation: string;
@@ -102,6 +112,7 @@ export type TraceMismatch = {
 export type Trace = {
   stages: TraceStage[];
   mismatches: TraceMismatch[];
+  links?: TraceLink[];
   first_mismatch: TraceMismatch | null;
   counts: { mismatch: number; unknown: number };
 };
