@@ -1,18 +1,29 @@
-import { memo, useMemo, type ReactNode } from "react";
+import { memo, useId, useMemo, type ReactNode } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Health, Run, Scorecard } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-// The ghost: its hem is a torn receipt edge.
+const GHOST = "M22 54A40 40 0 0 1 102 54V86C102 96 98 102 92 104L82 97L72 106L61 98L50 107L38 99L16 110C22 100 22 92 22 82Z M57 47A4.5 4.5 0 0 1 66 47V55A4.5 4.5 0 0 1 57 55Z M76 47A4.5 4.5 0 0 1 85 47V55A4.5 4.5 0 0 1 76 55Z";
+const HANDLE = "M103 78V71A11 11 0 0 1 125 71V78";
+const BAG = "M94 72H134L136 116H92Z";
+const HOLES = "M99.6 80a3.4 3.4 0 1 0 6.8 0a3.4 3.4 0 1 0 -6.8 0Z M121.6 80a3.4 3.4 0 1 0 6.8 0a3.4 3.4 0 1 0 -6.8 0Z";
+
+// The ghost shopper: its hem is a torn receipt edge trailing back as it moves, and it carries a shopping bag. A mask
+// cuts a gap around the bag and its handle, so the mark works on any background. The wide handle and the two handle
+// holes keep the bag from reading as a padlock at small sizes. Square viewBox, so callers size it with size-*.
 export function Logo({ className }: { className?: string }) {
+  const mask = `ghost-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
-    <svg viewBox="0 0 120 120" className={cn("size-6 shrink-0", className)} aria-hidden="true">
-      <path
-        fill="currentColor"
-        fillRule="evenodd"
-        d="M20 58A40 40 0 0 1 100 58V108L90 98L80 108L70 98L60 108L50 98L40 108L30 98L20 108Z M45 52.5A4.5 4.5 0 0 1 54 52.5V60.5A4.5 4.5 0 0 1 45 60.5Z M66 52.5A4.5 4.5 0 0 1 75 52.5V60.5A4.5 4.5 0 0 1 66 60.5Z"
-      />
+    <svg viewBox="13 4 125 125" className={cn("size-6 shrink-0", className)} aria-hidden="true">
+      <mask id={mask} maskUnits="userSpaceOnUse" x="0" y="0" width="150" height="130">
+        <rect width="150" height="130" fill="#fff" />
+        <path d={BAG} fill="#000" stroke="#000" strokeWidth="7" strokeLinejoin="round" />
+        <path d={HANDLE} fill="none" stroke="#000" strokeWidth="11" strokeLinecap="round" />
+      </mask>
+      <path fill="currentColor" fillRule="evenodd" d={GHOST} mask={`url(#${mask})`} />
+      <path d={HANDLE} fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+      <path fill="currentColor" fillRule="evenodd" d={`${BAG} ${HOLES}`} />
     </svg>
   );
 }
