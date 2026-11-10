@@ -1,7 +1,8 @@
-"""The purchase trace: five records of one purchase, compared field by field.
+"""The purchase trace: five records of one purchase, compared field by field, and linked by identifiers.
 
 Stages, in the order a purchase travels: what the agent wanted, the store's own order, PayPal's order, PayPal's
-capture, and what the store shows the buyer afterwards. The trace is evidence only. A value the source does not
+capture, and what the store shows the buyer afterwards. Four link checks prove the records are the same purchase
+by identifiers in both directions, never by matching amounts. The trace is evidence only. A value the source does not
 expose is "unknown" with a reason, never a guess, and no LLM is involved. It never changes the readiness score.
 
 build_trace is a pure function over plain dicts (see its docstring); runs.py gathers them from the database.
@@ -29,6 +30,14 @@ SUCCESS = ("paid", "confirmed")  # what a store means by "your order went throug
 CAPTURED = "COMPLETED"
 
 KNOWN, UNKNOWN, NOT_APPLICABLE, NOT_REACHED = "known", "unknown", "n/a", "not_reached"
+OK, BROKEN = "ok", "broken"  # link kinds; a link can also be UNKNOWN or NOT_APPLICABLE
+# The four links: (key, label, the stage a broken link is reported at).
+LINKS = (
+    ("store_to_paypal_order", "Store order points to PayPal's order", "paypal_order"),
+    ("paypal_order_to_store", "PayPal's order points back to the store order", "paypal_order"),
+    ("capture_to_paypal_order", "The capture belongs to PayPal's order", "paypal_capture"),
+    ("store_to_capture", "Store order points to PayPal's capture", "paypal_capture"),
+)
 
 # Why a mismatch costs the merchant, and the fix. {expected} and {actual} are filled from the mismatch.
 EXPLANATIONS: dict[str, tuple[str, str]] = {
@@ -59,6 +68,11 @@ EXPLANATIONS: dict[str, tuple[str, str]] = {
         "The store created {actual} for one intended purchase. Unpaid duplicates confuse fulfilment and the buyer.",
         "When the buyer retries a payment, reuse the pending order instead of creating a new one: keep the order "
         "number in the checkout page and send it with every attempt."),
+    "records_not_linked": (
+        "{what} (expected {expected}, found {actual}). The store's order and PayPal's records cannot be shown to be "
+        "the same purchase, so you could not reconcile the payment with the order.",
+        "Create your own order first and send its number to PayPal as the purchase unit custom_id. Save PayPal's "
+        "order id and capture id on your order when they come back, and check both match before marking it paid."),
 }
 
 
@@ -184,10 +198,90 @@ def _same(field: str, a: Any, b: Any) -> bool:
     return str(a) == str(b)
 
 
-def _mismatch(code: str, stage: str, field: str, expected: Any, actual: Any) -> dict[str, Any]:
+def _mismatch(code: str, stage: str, field: str, expected: Any, actual: Any, what: str = "") -> dict[str, Any]:
     explanation, fix = EXPLANATIONS[code]
     return {"stage": stage, "field": field, "expected": expected, "actual": actual,
-            "explanation": explanation.format(expected=expected, actual=actual), "fix": fix, "first": False}
+            "explanation": explanation.format(expected=expected, actual=actual, what=what), "fix": fix, "first": False}
+
+
+def _link(key: str, expected: Any, actual: Any, kind: str, reason: str | None = None) -> dict[str, Any]:
+    label = next(label for k, label, _ in LINKS if k == key)
+    return {"key": key, "label": label, "expected": expected, "actual": actual, "kind": kind, "reason": reason}
+
+
+def _compare(key: str, expected: Any, actual: Any) -> dict[str, Any]:
+    return _link(key, expected, actual, OK if str(expected) == str(actual) else BROKEN)
+
+
+def _captured_id(response: dict[str, Any] | None) -> str | None:
+    """The id of the capture in a capture response or a GET order response, None when there is none."""
+    unit = ((response or {}).get("purchase_units") or [{}])[0]
+    captures = (unit.get("payments") or {}).get("captures") or []
+    return captures[0].get("id") if captures else None
+
+
+def _links(store_orders: list[dict[str, Any]], paypal: dict[str, Any] | None, live: bool) -> list[dict[str, Any]]:
+    """The four identifier checks. Each is ok, broken (the ids disagree), unknown (an id is missing, with the reason:
+    never guessed) or n/a (nothing to link yet). Amounts play no part."""
+    keys = [k for k, _, _ in LINKS]
+    if live or not store_orders:
+        reason = "live stores are browse-only" if live else "the run stopped before payment"
+        return [_link(k, None, None, NOT_APPLICABLE, reason) for k in keys]
+    latest = store_orders[-1]
+    number, store_paypal_id = str(latest["number"]), latest.get("paypal_order_id")
+    order = (paypal or {}).get("order")
+    pp_id = (order or {}).get("id")
+
+    if not store_paypal_id:
+        l1 = _link(keys[0], None, pp_id, UNKNOWN, "the store order has no PayPal order id")
+    elif order is None:
+        l1 = _link(keys[0], store_paypal_id, None, UNKNOWN, "PayPal's order was not read after payment")
+    elif not pp_id:
+        l1 = _link(keys[0], store_paypal_id, None, UNKNOWN, "PayPal's order has no id")
+    else:
+        l1 = _compare(keys[0], store_paypal_id, pp_id)
+
+    unit = ((order or {}).get("purchase_units") or [{}])[0]
+    if order is None:
+        l2 = _link(keys[1], number, None, UNKNOWN, "PayPal's order was not read after payment")
+    elif not unit.get("custom_id"):
+        l2 = _link(keys[1], number, None, UNKNOWN,
+                   "PayPal's order carries no custom_id (the store did not send its order number, or this purchase "
+                   "predates the link)")
+    else:
+        l2 = _compare(keys[1], number, unit["custom_id"])
+
+    response = (paypal or {}).get("capture")
+    order_id = pp_id or store_paypal_id
+    if response is None:
+        why = "PayPal made no capture" if (paypal or {}).get("capture_error") else "the buyer was never charged"
+        l3 = _link(keys[2], order_id, None, NOT_APPLICABLE, why)
+        if latest.get("paypal_capture_id"):
+            l4 = _link(keys[3], latest["paypal_capture_id"], None, UNKNOWN, "PayPal's capture was not read")
+        else:
+            l4 = _link(keys[3], None, None, NOT_APPLICABLE, why)
+        return [l1, l2, l3, l4]
+
+    capture_id = _captured_id(response)
+    listed = _captured_id(order)
+    if not response.get("id") or not capture_id:
+        l3 = _link(keys[2], order_id, response.get("id"), UNKNOWN, "PayPal's capture response has no order or capture id")
+    elif not order_id:
+        l3 = _link(keys[2], None, response["id"], UNKNOWN, "the PayPal order id is not known")
+    elif str(response["id"]) != str(order_id):
+        l3 = _link(keys[2], order_id, response["id"], BROKEN)
+    elif listed and listed != capture_id:
+        l3 = _link(keys[2], f"capture {listed} (listed on the order)", f"capture {capture_id}", BROKEN)
+    else:
+        l3 = _link(keys[2], order_id, response["id"], OK)
+
+    if not capture_id:
+        l4 = _link(keys[3], latest.get("paypal_capture_id"), None, UNKNOWN, "PayPal's capture has no id")
+    elif not latest.get("paypal_capture_id"):
+        l4 = _link(keys[3], None, capture_id, UNKNOWN, "the store did not save PayPal's capture id")
+    else:
+        l4 = _compare(keys[3], latest["paypal_capture_id"], capture_id)
+    return [l1, l2, l3, l4]
 
 
 def _capture_state(stage: dict[str, Any]) -> bool | None:
@@ -202,8 +296,14 @@ def _label(status: str) -> str:
     return STATUS_LABELS.get(status, status)
 
 
-def _mismatches(stages: dict[str, dict[str, Any]], orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _mismatches(stages: dict[str, dict[str, Any]], orders: list[dict[str, Any]],
+                links: list[dict[str, Any]]) -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
+    where = {k: stage for k, _, stage in LINKS}
+    for link in links:
+        if link["kind"] == BROKEN:
+            found.append(_mismatch("records_not_linked", where[link["key"]], link["key"], link["expected"],
+                                   link["actual"], what=link["label"]))
     wanted = stages["agent_wanted"]["cells"]
     for key in ("store_order", "paypal_order", "paypal_capture"):
         for field in COMPARED_FIELDS:
@@ -223,19 +323,25 @@ def _mismatches(stages: dict[str, dict[str, Any]], orders: list[dict[str, Any]])
         elif captured and status["value"] != "paid":
             found.append(_mismatch("paid_not_recorded", key, "status", _label("paid"), _label(status["value"])))
     order = {k: i for i, (k, _) in enumerate(STAGES)}
-    found.sort(key=lambda m: (order[m["stage"]], FIELDS.index(m["field"])))
+    # Broken links come first, in link order: if the records are not provably the same purchase, the field-by-field
+    # comparison compares records that may belong to different purchases. Field mismatches follow, by stage.
+    link_keys = list(where)
+    found.sort(key=lambda m: (0, link_keys.index(m["field"]), 0) if m["field"] in where
+               else (1, order[m["stage"]], FIELDS.index(m["field"])))
     return found
 
 
 def build_trace(run: dict[str, Any], sku: str | None, store_orders: list[dict[str, Any]],
                 paypal: dict[str, Any] | None) -> dict[str, Any]:
-    """The trace for one run.
+    """The trace for one run: the five stages, the four link checks and the mismatches.
 
     run: the run payload (live, catalog_price, steps with idx, tool, args, screenshot_path).
     sku: the SKU of the run's target product, None when it is not in the demo catalog.
     store_orders: the demo store's own orders for this run, oldest first (empty if the run never started a payment).
+        Each has number, sku, quantity, amount, currency, status, paypal_order_id and, once saved, paypal_capture_id.
     paypal: {"id", "order", "capture", "capture_error"} for the PayPal order the latest store order points to
-        (order = PayPal's GET order response, capture = the stored capture response), or None.
+        (order = PayPal's GET order response, capture = the stored capture response), or None. The order's first
+        purchase unit carries custom_id (the store order number); the capture response's top-level id is the order id.
     """
     steps = run.get("steps") or []
     pay_step = next((s for s in steps if s["tool"] in PAY_TOOLS), None)
@@ -249,9 +355,12 @@ def build_trace(run: dict[str, Any], sku: str | None, store_orders: list[dict[st
     else:
         stages += [_store_order(store_orders), _paypal_order(paypal), _paypal_capture(paypal), _store_says(read_step)]
     by_key = {s["key"]: s for s in stages}
-    mismatches = _mismatches(by_key, store_orders) if store_orders and not run.get("live") else []
+    live = bool(run.get("live"))
+    links = _links(store_orders, paypal, live)
+    mismatches = _mismatches(by_key, store_orders, links) if store_orders and not live else []
     if mismatches:
         mismatches[0]["first"] = True
     unknown = sum(c["kind"] == UNKNOWN for s in stages for c in s["cells"].values())
-    return {"stages": stages, "mismatches": mismatches, "first_mismatch": mismatches[0] if mismatches else None,
+    unknown += sum(link["kind"] == UNKNOWN for link in links)
+    return {"stages": stages, "links": links, "mismatches": mismatches, "first_mismatch": mismatches[0] if mismatches else None,
             "counts": {"mismatch": len(mismatches), "unknown": unknown}}

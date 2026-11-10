@@ -56,6 +56,11 @@ async def test_a_healthy_purchase_agrees_at_every_stage(server):  # noqa: F811
     assert stage(trace, "store_says")["source"] == f"order page, step {read['idx']}"
     assert stage(trace, "store_order")["source"] == "#1042"
     assert stage(trace, "paypal_order")["source"] == run["order"]["order_id"]
+    assert [(link["key"], link["kind"]) for link in trace["links"]] == [
+        ("store_to_paypal_order", "ok"), ("paypal_order_to_store", "ok"),
+        ("capture_to_paypal_order", "ok"), ("store_to_capture", "ok")]
+    back = next(link for link in trace["links"] if link["key"] == "paypal_order_to_store")
+    assert back["expected"] == back["actual"] == "1042"
 
 
 @requires_browser
@@ -153,3 +158,4 @@ async def test_the_saved_paypal_payment_makes_the_same_trace(server):  # noqa: F
     assert stage(trace, "store_order")["source"] == "#1042"
     assert says(trace) == "awaiting_payment" and stages_of(trace, "status")["paypal_capture"] == "COMPLETED"
     assert trace["first_mismatch"]["stage"] == "store_order"
+    assert {link["kind"] for link in trace["links"]} == {"ok"}  # the saved-PayPal path links the records too

@@ -18,18 +18,20 @@ def read_step(status, idx=7):
 
 def store_order(number=1042, status="paid", **over):
     return {"number": number, "sku": SKU, "quantity": 1, "amount": "24.00", "currency": "USD", "status": status,
-            "paypal_order_id": "MOCKORDER1", **over}
+            "paypal_order_id": "MOCKORDER1", "paypal_capture_id": "MOCKCAP1", **over}
 
 
-def paypal_order(status="COMPLETED", items=True, value="24.00", currency="USD"):
+def paypal_order(status="COMPLETED", items=True, value="24.00", currency="USD", custom_id="1042"):
     unit = {"amount": {"currency_code": currency, "value": value}}
+    if custom_id is not None:
+        unit["custom_id"] = custom_id
     if items:
         unit["items"] = [{"name": "Mug", "sku": SKU, "quantity": "1"}]
     return {"id": "MOCKORDER1", "status": status, "purchase_units": [unit]}
 
 
-def capture(status="COMPLETED", value="24.00"):
-    return {"id": "MOCKORDER1", "status": "COMPLETED", "purchase_units": [{"payments": {"captures": [
+def capture(status="COMPLETED", value="24.00", order_id="MOCKORDER1"):
+    return {"id": order_id, "status": "COMPLETED", "purchase_units": [{"payments": {"captures": [
         {"id": "MOCKCAP1", "status": status, "amount": {"currency_code": "USD", "value": value}}]}}]}
 
 
@@ -98,7 +100,7 @@ def test_cancel_handled_correctly_has_no_mismatch():
 
 def test_duplicate_orders_for_one_purchase():
     orders = [store_order(1042, "awaiting_payment"), store_order(1043, "paid")]
-    t = trace([read_step("paid")], orders=orders, pp=paypal(cap=capture()))
+    t = trace([read_step("paid")], orders=orders, pp=paypal(order=paypal_order(custom_id="1043"), cap=capture()))
     first = t["first_mismatch"]
     assert (first["stage"], first["field"]) == ("store_order", "status")
     assert (first["expected"], first["actual"]) == ("1 order", "2 orders")
@@ -185,3 +187,115 @@ def test_unknown_catalog_price_skips_the_comparison():
 def test_capture_completed_but_store_says_confirmed_is_flagged():
     t = trace([read_step("confirmed")], orders=[store_order(status="paid")], pp=paypal(cap=capture()))
     assert [(m["stage"], m["actual"]) for m in t["mismatches"]] == [("store_says", "Confirmed")]
+
+
+# Link checks: identifiers in both directions, never amounts.
+
+def links_of(t):
+    return {link["key"]: link for link in t["links"]}
+
+
+def kinds(t):
+    return [link["kind"] for link in t["links"]]
+
+
+def test_all_four_links_are_ok_for_a_clean_purchase():
+    t = trace([read_step("paid")], pp=paypal(cap=capture()))
+    assert [link["key"] for link in t["links"]] == [
+        "store_to_paypal_order", "paypal_order_to_store", "capture_to_paypal_order", "store_to_capture"]
+    assert kinds(t) == ["ok"] * 4 and t["mismatches"] == []
+    back = links_of(t)["paypal_order_to_store"]
+    assert back["expected"] == "1042" and back["actual"] == "1042"
+    assert all(set(link) == {"key", "label", "expected", "actual", "kind", "reason"} for link in t["links"])
+
+
+def test_missing_custom_id_is_unknown_not_broken():
+    t = trace([read_step("paid")], pp=paypal(order=paypal_order(custom_id=None), cap=capture()))
+    link = links_of(t)["paypal_order_to_store"]
+    assert link["kind"] == "unknown" and "custom_id" in link["reason"]
+    assert t["mismatches"] == [] and t["counts"] == {"mismatch": 0, "unknown": 1}
+
+
+def test_wrong_custom_id_is_broken_and_is_the_first_mismatch():
+    t = trace([read_step("paid")], pp=paypal(order=paypal_order(custom_id="1099"), cap=capture()))
+    assert links_of(t)["paypal_order_to_store"]["kind"] == "broken"
+    first = t["first_mismatch"]
+    assert (first["stage"], first["field"], first["expected"], first["actual"]) == (
+        "paypal_order", "paypal_order_to_store", "1042", "1099")
+    assert "same purchase" in first["explanation"] and "custom_id" in first["fix"]
+    assert t["counts"]["mismatch"] == 1
+
+
+def test_store_pointing_at_another_paypal_order_is_broken():
+    t = trace([read_step("paid")], orders=[store_order(paypal_order_id="OTHERORDER9")],
+              pp=paypal(order=paypal_order(), cap=capture()))
+    link = links_of(t)["store_to_paypal_order"]
+    assert (link["kind"], link["expected"], link["actual"]) == ("broken", "OTHERORDER9", "MOCKORDER1")
+    assert t["first_mismatch"]["field"] == "store_to_paypal_order"
+
+
+def test_capture_of_another_order_is_broken():
+    t = trace([read_step("paid")], pp=paypal(cap=capture(order_id="SOMEONEELSE")))
+    link = links_of(t)["capture_to_paypal_order"]
+    assert (link["kind"], link["expected"], link["actual"]) == ("broken", "MOCKORDER1", "SOMEONEELSE")
+    assert t["first_mismatch"]["field"] == "capture_to_paypal_order"
+
+
+def test_capture_missing_from_the_orders_capture_list_is_broken():
+    order = paypal_order()
+    order["purchase_units"][0]["payments"] = {"captures": [{"id": "MOCKCAP_OTHER"}]}
+    t = trace([read_step("paid")], pp=paypal(order=order, cap=capture()))
+    assert links_of(t)["capture_to_paypal_order"]["kind"] == "broken"
+    listed = paypal_order()
+    listed["purchase_units"][0]["payments"] = {"captures": [{"id": "MOCKCAP1"}]}
+    assert kinds(trace([read_step("paid")], pp=paypal(order=listed, cap=capture()))) == ["ok"] * 4
+
+
+def test_store_capture_id_missing_is_unknown_and_differing_is_broken():
+    t = trace([read_step("paid")], orders=[store_order(paypal_capture_id=None)], pp=paypal(cap=capture()))
+    link = links_of(t)["store_to_capture"]
+    assert link["kind"] == "unknown" and "did not save" in link["reason"] and t["mismatches"] == []
+    t = trace([read_step("paid")], orders=[store_order(paypal_capture_id="MOCKCAP_OLD")], pp=paypal(cap=capture()))
+    link = links_of(t)["store_to_capture"]
+    assert (link["kind"], link["expected"], link["actual"]) == ("broken", "MOCKCAP_OLD", "MOCKCAP1")
+    assert [m["field"] for m in t["mismatches"]] == ["store_to_capture"]
+
+
+def test_no_capture_yet_is_not_applicable_and_not_a_mismatch():
+    t = trace([read_step("awaiting_payment")], orders=[store_order(status="awaiting_payment", paypal_capture_id=None)],
+              pp=paypal(order_status="CREATED"))
+    assert kinds(t) == ["ok", "ok", "n/a", "n/a"] and t["mismatches"] == []
+    assert links_of(t)["capture_to_paypal_order"]["reason"]
+
+
+def test_a_run_from_before_the_links_existed_is_unknown_and_does_not_crash():
+    old_store = {k: v for k, v in store_order().items() if k != "paypal_capture_id"}  # old rows have no such column
+    t = trace([read_step("paid")], orders=[old_store], pp=paypal(order=paypal_order(custom_id=None), cap=capture()))
+    assert kinds(t) == ["ok", "unknown", "ok", "unknown"] and t["mismatches"] == []
+    assert t["counts"]["unknown"] == 2
+    bare = trace([read_step("paid")], orders=[old_store],
+                 pp={"id": "MOCKORDER1", "order": None, "capture": None, "capture_error": None})
+    assert set(kinds(bare)) <= {"unknown", "n/a"}
+    assert not [m for m in bare["mismatches"] if m["field"] in links_of(bare)]
+
+
+def test_links_are_not_applicable_for_live_runs_and_runs_that_never_paid():
+    live = build_trace(run(live=True, price=None, steps=[]), None, [], None)
+    assert kinds(live) == ["n/a"] * 4 and live["mismatches"] == []
+    stopped = build_trace(run(steps=[]), SKU, [], None)
+    assert kinds(stopped) == ["n/a"] * 4 and stopped["counts"]["unknown"] == 0
+
+
+def test_matching_amounts_never_stand_in_for_ids():
+    # Product, quantity, amount, currency and status all agree, but PayPal's order points at another store order.
+    t = trace([read_step("paid")], pp=paypal(order=paypal_order(custom_id="2000"), cap=capture()))
+    assert [m for m in t["mismatches"] if m["field"] in ("product", "quantity", "amount", "currency", "status")] == []
+    assert [m["field"] for m in t["mismatches"]] == ["paypal_order_to_store"]
+    assert t["first_mismatch"]["field"] == "paypal_order_to_store"
+
+
+def test_a_broken_link_sorts_before_field_mismatches():
+    t = trace([read_step("paid")], orders=[store_order(amount="27.00")],
+              pp=paypal(order=paypal_order(value="27.00", custom_id="2000"), cap=capture(value="27.00")))
+    assert [m["field"] for m in t["mismatches"]] == ["paypal_order_to_store", "amount", "amount", "amount"]
+    assert t["first_mismatch"]["field"] == "paypal_order_to_store"
