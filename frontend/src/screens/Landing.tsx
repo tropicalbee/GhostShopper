@@ -62,39 +62,64 @@ const TRACE_STEPS = [
 // The lit dot is the stage of the first mismatch.
 const LIT_STEP = Math.max(0, TRACE_STEPS.findIndex(([key]) => key === SAMPLE.first_mismatch?.stage));
 
-// A small ghost that travels the stepper once, from the first dot to the lit one, when it scrolls into view.
+// The ghost shopper: the logo's ghost with its tail trailing back, eyes forward, carrying a shopping bag. The bag's
+// black outline separates it from the body; the wide handle and the two handle holes keep it from reading as a lock.
+function ShopperGhost({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 146 122" className={className} aria-hidden="true">
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M22 54A40 40 0 0 1 102 54V86C102 96 98 102 92 104L82 97L72 106L61 98L50 107L38 99L16 110C22 100 22 92 22 82Z M57 47A4.5 4.5 0 0 1 66 47V55A4.5 4.5 0 0 1 57 55Z M76 47A4.5 4.5 0 0 1 85 47V55A4.5 4.5 0 0 1 76 55Z"
+      />
+      <path d="M103 78V71A11 11 0 0 1 125 71V78" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+      <path d="M94 72H134L136 116H92Z" fill="currentColor" stroke="#000" strokeWidth="7" strokeLinejoin="round" paintOrder="stroke" />
+      <circle cx="103" cy="80" r="3.4" fill="#000" />
+      <circle cx="125" cy="80" r="3.4" fill="#000" />
+    </svg>
+  );
+}
+
+// A small ghost shopper that runs the stepper once, from the first dot to the lit one, when it scrolls into view.
 // Desktop only: below md the stepper is a vertical list with no line.
 function TraceGhost({ count, target }: { count: number; target: number }) {
   const ref = useRef<HTMLDivElement>(null);
-  // Column i starts at i * (100% / count); the dot centre is 11px in, the ghost is 16px wide.
-  const leftAt = (i: number) => `calc(${(i * 100) / count}% + 3px)`;
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const linesRef = useRef<HTMLDivElement>(null);
+  // Column i starts at i * (100% / count) with its 22px dot; the ghost's body centre is 15px into the 38px mark, so
+  // shifting by -4px puts the body over the dot centre (11px).
+  const leftAt = (i: number) => `calc(${(i * 100) / count}% - 4px)`;
 
   useEffect(() => {
     const el = ref.current;
+    const body = bodyRef.current;
+    const lines = linesRef.current;
     const host = el?.parentElement;
-    if (!el || !host) return;
+    if (!el || !body || !lines || !host) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || typeof IntersectionObserver === "undefined") {
       el.style.left = leftAt(target);
       return;
     }
-    const travel = 380;
-    const hold = 120;
-    const total = target * travel + Math.max(0, target - 1) * hold;
-    const frames: Keyframe[] = [{ left: leftAt(0), offset: 0, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }];
-    let t = 0;
-    for (let i = 1; i <= target; i++) {
-      t += travel;
-      frames.push({ left: leftAt(i), offset: t / total, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
-      if (i < target) {
-        t += hold;
-        frames.push({ left: leftAt(i), offset: t / total, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
-      }
-    }
+    const total = Math.max(900, target * 450);
+    const settle = 200 / total;
     const io = new IntersectionObserver(
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return;
         io.disconnect();
-        if (target > 0) el.animate(frames, { duration: total, fill: "forwards" }).addEventListener("finish", () => (el.style.left = leftAt(target)));
+        if (target === 0) return;
+        const run = el.animate([{ left: leftAt(0) }, { left: leftAt(target) }], { duration: total, easing: "ease-in-out", fill: "forwards" });
+        run.addEventListener("finish", () => (el.style.left = leftAt(target)));
+        // Lean toward the direction of travel (clockwise = to the right), upright again over the last 200ms.
+        body.animate(
+          [
+            { transform: "rotate(0deg)", offset: 0 },
+            { transform: "rotate(9deg)", offset: 0.1 },
+            { transform: "rotate(9deg)", offset: 1 - settle },
+            { transform: "rotate(0deg)", offset: 1 },
+          ],
+          { duration: total, easing: "ease-out", fill: "forwards" },
+        );
+        lines.animate([{ opacity: 0 }, { opacity: 0.35, offset: 0.12 }, { opacity: 0.35, offset: 0.85 }, { opacity: 0 }], { duration: total, fill: "forwards" });
       },
       { threshold: 0.5 },
     );
@@ -104,8 +129,14 @@ function TraceGhost({ count, target }: { count: number; target: number }) {
   }, [count, target]);
 
   return (
-    <div ref={ref} className="pointer-events-none absolute top-5 left-[3px] hidden size-4 text-muted-foreground md:block" aria-hidden>
-      <Logo className="size-4" />
+    <div ref={ref} className="pointer-events-none absolute top-[4px] left-0 hidden h-[32px] w-[38px] text-[#a1a1a1] md:block" aria-hidden>
+      <div ref={linesRef} className="absolute top-0 right-[calc(100%-4px)] h-full w-4 opacity-0">
+        <span className="absolute top-[13px] right-0.5 h-px w-3.5 rounded-full bg-current" />
+        <span className="absolute top-[20px] right-1.5 h-px w-2.5 rounded-full bg-current" />
+      </div>
+      <div ref={bodyRef} className="size-full" style={{ transformOrigin: "45% 90%" }}>
+        <ShopperGhost className="size-full" />
+      </div>
     </div>
   );
 }
