@@ -11,10 +11,11 @@
 
 ### Not verified
 - The new screens still have not been opened in a browser.
-- The full test suite. The user runs it.
+
+Full suite (user run): 361 passed, 1 warning.
 
 ### Next
-1. User: full `pytest`, then commit (leave `design/` out).
+1. User: commit (leave `design/` out).
 2. User: enable "Save payment methods" and "Transaction search" on the sandbox app.
 3. Live Nemotron run with `--payment vault`, then the video.
 

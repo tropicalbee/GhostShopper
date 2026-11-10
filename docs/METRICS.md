@@ -244,5 +244,5 @@ Mock LLM, mock PayPal, scratch database, local Chromium.
 | `test_ledger.py` + `test_compare.py` | 26 passed |
 | `seed --with-runs` pair | 24 to 100 (+76), 7 failures fixed, $24.00 captured, net $22.67 |
 | Ledger row after a fresh server process | `matched` (was `pending` before the fix) |
-| Full suite | not run this session (user runs it) |
+| Full suite (user run) | 361 passed, 1 warning, 412 s |
 
