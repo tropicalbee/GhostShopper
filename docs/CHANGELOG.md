@@ -110,3 +110,9 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - Tests never use Kernel or paid API keys from `.env`.
 - Frontend: a "Linked by ID" section under the trace, a ghost with a shopping bag as logo and favicon, and the ghost walks the landing page stepper to the first mismatch.
 - Security pass before the deploy: rate limits read X-Forwarded-For from the right, shared daily caps with a presenter bypass, a locked mock PayPal switch, capped and DNS-pinned store fetches, a throttled admin unlock with a hashed cookie, and a non-root pinned Docker image.
+- Pitch pass on the README, PRD and video script, plus a Devpost description (docs/DEVPOST.md).
+- Market check drops duplicate listings (same title on the same domain) and multi-packs or sets from the comparison and the median, and the report says how many were removed.
+- The detailed architecture diagram now has one number per step, no crossing lines, and lettered side requests for the market check (A) and fix wording (B).
+
+- README rewritten for judges and developers: demo screenshots, technical depth, benchmarks split into mock and real Sandbox, setup for Windows and macOS/Linux, limits and FAQ, plus a banner at docs/assets/banner.svg.
+- README rewritten around the PayPal pitch, with a new banner, today's run screenshots, results split into live and mock, setup per OS and credits.

@@ -293,3 +293,12 @@ Run 33 issues: no Product JSON-LD, no stock status, alt text "Product Image", no
 | After the trace matrix | 470 | passed | 620 s |
 | After paid without PayPal reference | 472 | passed | 788 s |
 | After the Kernel fix and env guard | 488 | passed | 616 s |
+
+## 2026-11-11 (session 5, mock only)
+
+| What | Value |
+|---|---|
+| `test_market.py` after the duplicate and multi-pack filter | 24 passed |
+| Full suite (click-through agent run) | 523 passed |
+| `npm run build` | ok |
+| Click-through smoke test, mock PayPal | store and dashboard pages at 1440 and 390 px, 0 bugs, no horizontal overflow |

@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-11-11, session 5 (pitch, diagram, README, click-through)
+
+### Done
+- Final pitch applied to the README, PRD and video script, plus a new Devpost description in `docs/DEVPOST.md`.
+- Detailed architecture diagram redrawn: one number per step, no crossing lines, A and B for the market check and fix wording. Step 10 now points at the browser tools, and the Runs API box names `main.py, /api/market`, both to match the code.
+- README rewritten: banner with the PayPal pitch, today's live runs only, three cropped screenshots from runs 30 and 34 in `docs/screenshots/2026-11-11/`, simple architecture diagram, results split into live and mock, setup per OS, credits.
+- Market filter (duplicates and multi-packs out of the median) finished, 24 market tests pass.
+- Click-through smoke test of the store and every dashboard page in mock mode: no bugs, 523 tests passed, frontend build ok.
+
+### Not verified
+- Nothing live this session. The README's numbers come from METRICS.md (runs 31 to 37).
+
+### Next
+1. Render deploy with Kernel, sandbox purchase on the hosted URL, URL and video link into the README markers.
+2. Fresh-clone test.
+3. Video and Devpost submit.
+4. Optional, on a branch after the deploy: MCP checkout tools for the demo store. Merge only if green by Nov 12, 08:00 PT.
+
+### Blockers
+- None. Deploy needs the user's Render account.
+
 ## 2026-11-11, session 4 (live runs, ID links, Kernel fix, new logo)
 
 ### Done

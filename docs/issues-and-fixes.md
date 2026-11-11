@@ -2,6 +2,17 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-11 (session 5)
+
+### Diagram redraw stalled twice
+Two subagent attempts ran about 20 minutes each without editing the file. Cause: the brief asked for a layout problem (no crossings) to be solved inside a large skill workflow. Fix: redrew it directly. The crossings came from the column order, so Pay flows moved next to the shopper loop and PayPal moved above the browser, with the Checkout to PayPal arrow routed round the right edge.
+
+### README showed the old UI
+The README screenshots were from Nov 7, before the Nov 10 redesign. Fix: cropped panels from today's full page captures of runs 30 and 34 into `docs/screenshots/2026-11-11/`, downscaled to 900 px.
+
+### Banner arrow turned into mojibake
+Rewriting the SVG with PowerShell 5 `Get-Content` read it as ANSI and broke the arrow character. Fix: the arrow is now the `&#8594;` entity.
+
 ## 2026-11-11 (security audit before the public deploy)
 
 ### Rate limits could be dodged with a forged X-Forwarded-For
