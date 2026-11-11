@@ -37,3 +37,7 @@ Thumbs.db
 
 # rough design folder
 design/
+demo-video/
+
+# Remotion video project (kept local, not committed)
+/video/
