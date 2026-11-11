@@ -1,12 +1,14 @@
 <div align="center">
 
-<img src="docs/assets/banner.svg" alt="GhostShopper. With agent tools, an AI buys in 3 calls. On your store's page, it takes 30+ steps." width="100%">
+<img src="docs/assets/banner.svg" alt="GhostShopper. In PayPal's test store, agent tools bought in 3 calls. Through the page, it took 30+ steps." width="100%">
 
 <br>
 
 **A mystery shopper for the AI agent era.** It shops your store like an AI agent, shows exactly where the purchase breaks, and proves the fixed checkout with a real PayPal Sandbox payment.
 
 [Repository](https://github.com/tropicalbee/GhostShopper) · [Architecture](#how-it-works) · [Results](#results) · [Run it locally](#run-it-locally)
+Hosted demo: [ghostshopper.onrender.com](https://ghostshopper.onrender.com). The free tier sleeps when idle, so the first load may take about a minute.
+
 <!-- HOSTED_URL -->
 <!-- VIDEO_URL -->
 
@@ -33,7 +35,7 @@
 
 ## Why this exists
 
-PayPal measured it: an agent buys in **3 tool calls** when a store exposes checkout as agent tools (WebMCP). Most small stores don't, so the agent has to use the page, and that takes **30+ steps**. GhostShopper tests that page path, step by step.
+PayPal showed that structured WebMCP tools cut an agent's shopping journey from **30+ interface steps to three tool calls** in its test storefront. Where those structured capabilities aren't available, agents have to navigate the ordinary storefront themselves. GhostShopper tests that ordinary storefront with a browser-driven agent, the PayPal JS SDK v6 button and Orders v2.
 
 It sends an AI shopper through the storefront, shows where the purchase breaks with evidence for each failure, then reruns the purchase through PayPal Sandbox and checks that the intended purchase, the PayPal order, the capture and the store's order all agree.
 
@@ -53,17 +55,19 @@ And when the agent does pay, nobody checks that the store recorded the same purc
 
 | Step | What happens |
 |---|---|
-| **1. Shop** | An LLM driven agent browses the store, finds the product, reads the details and tries to check out. It picks every step itself. |
+| **1. Shop** | An LLM-driven agent browses the store, finds the product, reads the details and tries to check out. It picks every step itself. |
 | **2. Diagnose** | Code checks every page the agent saw against 19 checks. Each failure comes with a screenshot and a fix in plain words. |
 | **3. Pay** | The agent pays through the real PayPal Sandbox: JS SDK v6 button, buyer approval, Orders v2 capture. |
-| **4. Verify** | The purchase trace compares five records of the same purchase and checks that they're linked by ID. |
+| **4. Verify** | The purchase trace compares five records of the same purchase wherever each record exposes them, and checks that they're linked by ID. |
 | **5. Score** | A deterministic readiness score out of 100, fixes ranked by points, and a before/after comparison after the fixes. |
 
-**What sets it apart is the purchase trace.** A payment can succeed while the store's order is wrong: captured but still pending, marked paid after a decline, duplicated on a retry. GhostShopper links the records by ID and flags each broken link. It caught all 33 trace scenarios in the benchmark. The score comes second, as a summary of the checks along the way.
+**What sets it apart is the purchase trace.** A payment can succeed while the store's order is wrong: captured but still pending, marked paid after a decline, duplicated on a retry. GhostShopper links the records by ID and flags each broken link. It got all 33 deterministic trace scenarios right (mock PayPal, demo store). The score comes second, as a summary of the checks along the way.
 
-On the demo store, the shopper hit five failures and scored 49. After the fixes, it completed the purchase through PayPal Sandbox: $24.00 captured, $22.67 net, matched to the store's order.
+On the demo store, the shopper hit five agent-facing failures and scored 49/100 (live run 31). After the fixes it scored 100/100, the AI shopper completed a $24.00 PayPal Sandbox purchase, and GhostShopper verified the payment against the store's order (live run 34, $22.67 net).
 
-> **Positioning.** PayPal is building the infrastructure for agentic commerce through [Agent Ready](https://developer.paypal.com/agent-ready/overview) and [Store Sync](https://developer.paypal.com/store-sync/overview), two separate services under [Agentic Commerce Services](https://developer.paypal.com/agentic-commerce-services/about). GhostShopper helps a merchant diagnose their existing storefront and purchase flow before they pursue those integrations. The readiness score comes from GhostShopper's own checks. It is not a PayPal certification or an eligibility check, and it doesn't test WebMCP.
+> **Positioning.** PayPal is building the infrastructure for agentic commerce through [Agent Ready](https://developer.paypal.com/agent-ready/overview) and [Store Sync](https://developer.paypal.com/store-sync/overview), two separate services under [Agentic Commerce Services](https://developer.paypal.com/agentic-commerce-services/about). GhostShopper helps a merchant diagnose their existing storefront and purchase flow before they pursue those integrations. The readiness score comes from GhostShopper's own checks. It is not an Agent Ready, ACP, UCP or WebMCP conformance test, and not a PayPal certification or eligibility check. GhostShopper drives the ordinary storefront with a browser agent, PayPal JS SDK v6 and Orders v2.
+>
+> There is also a Vault agent payment path (`POST /api/paypal/agent-orders`: saved vault id, idempotent request id, spending limit, server-side capture). It is implemented and mock-tested, not live-validated, and it is not the same as Agent Ready delegated payment tokens.
 
 ## See it
 
@@ -73,11 +77,11 @@ All three screenshots are from the live runs on 2026-11-11, on the demo store Fe
 
 <img src="docs/screenshots/2026-11-11/bad-store-score-49.png" alt="Readiness score 49 out of 100 with the failed checks and their fixes, next to the PayPal money panel" width="720">
 
-**After the fixes: 49 → 100, every fix accounted for.** Runs 31 and 34, both paid through the PayPal Sandbox.
+**After the fixes: live 49 → 100, every fix accounted for.** Runs 31 and 34, both paid through the PayPal Sandbox.
 
 <img src="docs/screenshots/2026-11-11/run31-to-34-before-after.png" alt="Before and after table from check 31 to check 34: total score 49 to 100, with each fixed check and the points it gained" width="720">
 
-**The proof: five records, one purchase, four ID links.** Run 34 on real Sandbox data. $24.00 captured, $1.33 fee, $22.67 net.
+**The proof: one live Sandbox purchase with all four ID links verified (run 34).** $24.00 captured, $1.33 fee, $22.67 net.
 
 <img src="docs/screenshots/2026-11-11/run34-trace-linked.png" alt="Check 34: purchase trace with the agent's intent, store order 1047, PayPal order and capture all matching, and all four ID links marked Linked" width="720">
 
@@ -94,7 +98,7 @@ The detailed version, with every file and twelve numbered steps, is in [docs/dia
 3. The tool acts in the browser: local Playwright, or a Kernel cloud browser when hosted.
 4. After every step, the check engine judges what the browser saw. No model is involved.
 5. At checkout, the store creates its own order and a PayPal order. The buyer approves in PayPal's popup and the store captures.
-6. The agent reads the store's order page back, and the trace compares all five records.
+6. The agent reads the store's order page back, and the trace compares the five records.
 
 **The purchase trace**
 
@@ -106,12 +110,12 @@ The detailed version, with every file and twelve numbered steps, is in [docs/dia
 | PayPal's capture | Orders v2 capture, fees from `seller_receivable_breakdown` |
 | What the store says afterwards | the order page, read back by code |
 
-- Each record is compared on product, quantity, amount, currency and status.
-- A value a source doesn't expose is marked **unknown**, with the reason, and is never guessed.
+- Each field is compared wherever a record exposes it.
+- A field a record doesn't expose is marked **unavailable** with the reason, and is never guessed.
 - Broken ID links sort before field mismatches. If the records belong to different purchases, comparing their fields means nothing.
 - The trace is built by code in `backend/app/trace.py` and never changes the score.
 
-<img src="docs/diagrams/trace.png" alt="The purchase trace: five records compared field by field, with the first mismatch flagged" width="720">
+<img src="docs/diagrams/trace.png" alt="The purchase trace: records compared field by field where available, with the first mismatch flagged" width="720">
 
 ## Engineering
 
@@ -146,8 +150,8 @@ The agent reads third-party pages and touches a payment flow, so every limit is 
 |---|---|
 | **PayPal** | JS SDK v6 button on the store, Orders v2 create and capture, fees from the capture |
 | **NVIDIA Nemotron** | The shopper's tool-calling model. Groq and others work through the same interface. |
-| **Kernel** | Hosted cloud browser over CDP. Its live view lets a person finish PayPal's own checks. |
-| **Channel3** | Market price context for the product, shown in the Advanced view. Never part of the score. |
+| **Kernel** | Hosted cloud browser over CDP. Its live view lets a person finish PayPal's own checks. A browse-only Shopify run in Kernel matched the local run (62/100, same 5 issues). A hosted Kernel purchase with the real sandbox is not yet recorded. |
+| **Channel3** | Market context for the product (similar listings and a median price), shown in the Advanced view. Not reliable price intelligence, and never part of the score. |
 | **AG Grid Community** | Before/after and check grids in the dashboard |
 
 ## Results
@@ -164,18 +168,18 @@ Every number links back to [docs/METRICS.md](docs/METRICS.md). Live evidence and
 | 33 | public Shopify demo store, browse only | 62/100 | same 5 issues found locally |
 | 37 | same Shopify store, in Kernel | 62/100 | same 5 issues in the cloud browser |
 
-Runs 33 and 37 are a portability check on a store GhostShopper didn't build. They don't validate it on real stores.
+Run 36 hung about 8 minutes on service-worker requests before a fix. Runs 33 and 37 are a portability check on a store GhostShopper didn't build. They don't validate it on real stores.
 
-### Benchmarks: mock PayPal, scripted navigator
+### Benchmarks: mock PayPal, scripted navigator, demo store
 
 These check the detectors and the trace against hand-written labels on the demo store. A perfect score here is a consistency check.
 
 | Benchmark | Measures | Result |
 |---|---|---|
-| Purchase trace, 33 scenarios | first mismatch found, no false alarms, no guessing | **33/33** correct, 0 false mismatches on healthy runs, 5/5 broken links found |
+| Purchase trace, 33 deterministic scenarios | first mismatch found, no false alarms, no guessing | **33/33 deterministic trace scenarios passed** (mock PayPal, demo store), 0 false mismatches on healthy runs, 5/5 broken links found |
 | Flaw detection, 16 classic combinations | each check fires only when its flaw is on | precision 1.0, recall 1.0 (40 TP, 0 FP, 0 FN) |
 | Flaw detection, 30 random combinations of 10 flaws | the same on a wider mix | precision 1.0, recall 1.0 (105 TP, 0 FP, 0 FN) |
-| Full test suite | unit, API and browser e2e | **488 passed** |
+| Full test suite | unit, API and browser e2e | over 500 tests |
 
 ### Reproduce them
 
@@ -192,8 +196,8 @@ Run them with the virtualenv's Python: `.venv\Scripts\python` on Windows, `.venv
 
 - **For small merchants.** A list of fixes in plain words, each with a screenshot of what the shopper saw, and a rerun that shows whether the fixes worked. No knowledge of structured data needed.
 - **Catches two kinds of problems.** A store an agent can't use (prices in images, unclear buttons, blocked checkout), and a purchase whose records disagree (captured but pending, paid after a decline, duplicated on retry).
-- **Why now.** As more purchases go through agents, a merchant needs to know whether an agent can buy from them before one tries. GhostShopper tests the page path that most small stores still depend on.
-- **No revenue claims.** The 49 → 100 result is from the demo store, on the Sandbox.
+- **Why now.** As more purchases go through agents, a merchant needs to know whether an agent can buy from them before one tries. GhostShopper tests the ordinary storefront path agents fall back on.
+- **No revenue claims.** The live 49 → 100 result is from the demo store, on the Sandbox. The mock seed pair (24 → 100) is a separate, offline demo.
 
 ## Run it locally
 
@@ -237,7 +241,7 @@ The setup script creates `.venv`, installs the dependencies and Chromium inside 
 
 ```bash
 python -m backend.app.seed --with-runs          # records a flawed run and a fixed run
-python -m backend.app.agent.compare --last      # prints the score change
+python -m backend.app.agent.compare --last      # prints the mock score change (24 → 100)
 ```
 
 **Live run (needs the keys below):**
@@ -261,14 +265,14 @@ On Windows, avoid `--reload` when starting runs from the dashboard. For frontend
 | `SANDBOX_BUYER_EMAIL`, `SANDBOX_BUYER_PASSWORD` | sandbox runs | The sandbox buyer the agent logs in as. Never logged or stored. |
 | `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY` | live model runs | For Nemotron: `nvidia`, a tool-calling Nemotron model id, a key from build.nvidia.com |
 | `LLM_BASE_URL` | optional | Overrides the provider URL. Required for `openai-compatible`. |
-| `GROQ_API_KEY`, `GROQ_MODEL` | optional | Older Groq settings |
 | `BROWSER_PROVIDER`, `KERNEL_API_KEY` | hosted browser | `local` (default) or `kernel`. Kernel needs the store on a public URL. |
 | `CHANNEL3_API_KEY` | optional | Live market check. Without it, recorded fixtures are used and labelled. |
 | `DATABASE_PATH` | optional | SQLite file, default `data/ghostshopper.db` |
 | `APP_BASE_URL` | optional | Public base URL, default `http://localhost:8000` |
 | `PLAYWRIGHT_CHANNEL` | optional | Browser channel, such as `chromium` or `msedge` |
-| `DEV_OPTIONS`, `DEMO_ADMIN_TOKEN` | optional | Developer options and the admin lock for deployed servers |
+| `DEV_OPTIONS`, `DEMO_ADMIN_TOKEN` | optional | Developer options and the flaw toggle lock for deployed servers |
 | `RETENTION_DAYS`, `TRUSTED_PROXY_HOPS` | optional | Data retention (default 30 days) and proxy hops (default 1) |
+| `EXAMPLE_RUNS` | optional | `1` loads the bundled example checks at startup (on for the hosted demo) |
 | `RUN_DAILY_CAP`, `MARKET_DAILY_CAP`, `ORDER_DAILY_CAP` | optional | Daily caps, defaults 40, 100 and 100 |
 
 </details>
@@ -286,12 +290,13 @@ Each browser sees only its own checks, plus the shared examples from the CLI and
 
 | Question | Answer |
 |---|---|
-| **Does it test WebMCP?** | No. Most small stores expose no agent tools yet, so agents use the page. GhostShopper tests that page path. See [PayPal's WebMCP post](https://developer.paypal.com/community/blog/WebMCP_PayPal_Agent_Ready). |
+| **Does it test WebMCP, Agent Ready, ACP or UCP?** | No. It is not a conformance test or certification. Where structured tools aren't available, agents navigate the ordinary storefront, and GhostShopper tests that. See [PayPal's WebMCP post](https://developer.paypal.com/community/blog/WebMCP_PayPal_Agent_Ready). |
 | **Is 100/100 a PayPal certification?** | No. It means GhostShopper's checks found nothing wrong. It is not an Agent Ready eligibility check. |
 | **Does the full trace work on any store?** | Only on the demo store. Real stores don't expose their order records, so on a live store the store order shows as unknown. |
 | **Is this real money?** | No. PayPal Sandbox only, and Sandbox behaviour is not production behaviour. |
-| **Where does market data come from?** | Channel3. Without a key, recorded fixtures are used and labelled as sample data. |
-| **Does the hosted version always have a browser?** | Hosted runs depend on the Kernel configuration and quota. |
+| **Where does market data come from?** | Channel3, as market context (similar listings, a median price), not reliable price intelligence. Without a key, recorded fixtures are used and labelled as sample data. |
+| **Can I run a real Sandbox purchase on the hosted demo?** | Yes, any visitor can, bounded by daily caps. New check picks the real sandbox by default. The presenter token only unlocks the store's flaw toggles. |
+| **Does the hosted version always have a browser?** | Hosted runs depend on the Kernel configuration and quota. A hosted Kernel plus real sandbox purchase is not yet recorded. |
 | **Do the benchmarks prove it works on other stores?** | No. They compare the detectors with labels written for the demo store. The Shopify runs are the only check on a third-party store. |
 
 ## Credits

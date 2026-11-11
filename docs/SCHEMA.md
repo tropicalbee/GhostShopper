@@ -111,7 +111,7 @@ The store order number is sent to PayPal as the purchase unit `custom_id`, and P
 | flaws_snapshot | TEXT | JSON of store_flaws when the run started |
 | budget | TEXT | the shopper's spending limit in USD, like "30.00"; null = no limit. Enforced in code, not by the LLM |
 | product_snapshot | TEXT | JSON of what the shopper read on the product page (Product JSON-LD, price text, image, stock). The product feed is built from it |
-| llm, model | TEXT | mock, groq or scripted; the model id or cassette name |
+| llm, model | TEXT | mock, live or scripted (runs before Nov 11 say groq for live); the model id or cassette name |
 | outcome | TEXT | purchased, reached_checkout, blocked, gave_up, error (decided from checks) |
 | end_reason | TEXT | finished, agent_gave_up, agent_loop, step_limit, step_timeouts, error |
 | agent_summary, agent_report | TEXT | what the LLM said, including its claimed outcome. Never scored. |

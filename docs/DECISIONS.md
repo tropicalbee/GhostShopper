@@ -264,3 +264,9 @@ Rules `2026-11-05.3`, 100 points in total.
 - The unlock cookie carries an HMAC of the token, so a leaked cookie jar or log never holds the token. We turned down a random session id in a server table: it would need storage that survives restarts.
 - The mock scenario switch is open only with developer options or the unlock cookie. We turned down mounting the mock router only in development: the mock PayPal is a real mode on the deployed demo.
 
+## 2026-11-11: open sandbox, one LLM config
+
+- Real sandbox purchases are open to every visitor on the hosted site, and New check picks the real sandbox by default when the keys are set. It's test money, and the daily caps (40 runs, 100 orders) and per-address limits already bound Kernel and PayPal use, the same way they bound Kernel and Channel3. This replaces the Nov 8 rule that real payment needs the presenter unlock. The unlock now only guards the flaw toggles.
+- One LLM config for every provider: `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`. We removed the `GROQ_API_KEY` / `GROQ_MODEL` fallback, the `GroqLLM` class and the `--llm groq` alias. Groq is still a provider (`LLM_PROVIDER=groq`). `/api/health` reports `llm_configured` and `presenter_unlocked`.
+- LLM timeouts and dropped connections are retried like a 429. One slow Nemotron reply ended hosted run 1 with a bare `ReadTimeout`.
+- Judging runs Dec 1 to 15 on the free tier, whose disk is wiped on every restart, and visitors only see their own checks plus shared examples. So real runs 31 (bad store, 49) and 34 (fixed store, 100, all ID links ok) ship in `backend/app/examples/` and load as shared examples at startup (`EXAMPLE_RUNS=1`). The export blanks sandbox account emails and local paths. We picked 34 over 32 because it has the store order links. We turned down a persistent disk (paid) and re-running checks by hand after each restart.

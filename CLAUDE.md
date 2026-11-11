@@ -104,8 +104,9 @@ Use installed skills only when the phase needs them:
 
 - Backend + store: `.venv\Scripts\python -m uvicorn backend.app.main:app --port 8000` from the repo root (avoid `--reload` when using `/api/runs` on Windows). Store at `http://localhost:8000/store/`, flaw toggles at `/store/admin`. `PAYPAL_MODE=mock` for the fake PayPal (no PayPal calls).
 - Browsers: `$env:PLAYWRIGHT_BROWSERS_PATH="0"; .venv\Scripts\python -m playwright install chromium` (installs inside `.venv`).
-- Agent: `.venv\Scripts\python -m backend.app.agent --llm mock --cassette day2_flaws_on --flaws on` (add `--checkout --paypal mock` against a mock server; `--llm groq --record <name>` for live).
+- Agent: `.venv\Scripts\python -m backend.app.agent --llm mock --cassette day2_flaws_on --flaws on` (add `--checkout --paypal mock` against a mock server; `--llm live --record <name>` for live).
 - Demo state: `.venv\Scripts\python -m backend.app.seed` (`--with-runs` against a mock server records a before/after pair).
+- Hosted examples: `.venv\Scripts\python -m backend.app.examples export 31 34` bundles real runs into `backend/app/examples/`; `EXAMPLE_RUNS=1` loads them at startup.
 - Compare runs: `.venv\Scripts\python -m backend.app.agent.compare --last`. Reword fixes: `python -m backend.app.agent.explain <run>`.
 - Evaluation: `python -m backend.app.eval benchmark --matrix classic|random`, `... propose`, `... judge <run>`. Market check: `python -m backend.app.market <sku>`.
 - Setup on a fresh clone: `scripts\setup.ps1` or `scripts/setup.sh`.

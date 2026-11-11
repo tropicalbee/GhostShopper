@@ -1,4 +1,4 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="GhostShopper. With agent tools, an AI buys in 3 calls. On your store's page, it takes 30+ steps.">
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="GhostShopper. In PayPal's test store, agent tools bought in 3 calls. Through the page, it took 30+ steps.">
   <defs>
     <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
       <circle cx="2" cy="2" r="1.2" fill="#ffffff" fill-opacity="0.07"/>
@@ -25,8 +25,8 @@
 
   <g font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
     <text x="340" y="112" fill="#a1a1a1" font-size="20" letter-spacing="3">GHOSTSHOPPER</text>
-    <text x="338" y="170" fill="#ededed" font-size="41" font-weight="700">With agent tools, an AI buys in 3 calls.</text>
-    <text x="338" y="222" fill="#ededed" font-size="41" font-weight="700">On your store's page, it takes 30+ steps.</text>
+    <text x="338" y="170" fill="#ededed" font-size="41" font-weight="700">PayPal's test: 3 tool calls to buy.</text>
+    <text x="338" y="222" fill="#ededed" font-size="41" font-weight="700">Through the page, it took 30+ steps.</text>
     <text x="340" y="262" fill="#a1a1a1" font-size="20">GhostShopper tests that page path, step by step, and proves the purchase with PayPal.</text>
   </g>
 
@@ -39,6 +39,6 @@
     <rect x="722" y="288" width="196" height="34" rx="17" fill="#111" stroke="#ffffff" stroke-opacity="0.18"/>
     <text x="820" y="310" fill="#ededed" text-anchor="middle">4 of 4 IDs linked</text>
     <rect x="932" y="288" width="216" height="34" rx="17" fill="#111" stroke="#ffffff" stroke-opacity="0.18"/>
-    <text x="1040" y="310" fill="#ededed" text-anchor="middle">33/33 trace benchmark</text>
+    <text x="1040" y="310" fill="#ededed" text-anchor="middle">33/33 trace scenarios</text>
   </g>
 </svg>
