@@ -8,6 +8,7 @@ so (source = "recorded"). The market check is informational: it never changes th
 import copy
 import json
 import os
+import re
 import time
 from dataclasses import asdict, dataclass
 from decimal import ROUND_HALF_UP, Decimal
@@ -24,6 +25,12 @@ CHANNEL3_BASE_URL = "https://api.trychannel3.com"
 RECORDINGS_DIR = Path(__file__).with_name("market_recordings")
 FINDABLE_MIN = 3  # similar products with a comparable price needed to call the market "findable"
 COMPETITIVE_MARGIN = Decimal("0.10")  # up to 10% above the market median still counts as competitive
+_COUNT = r"(?:[1-9]\d+|[2-9])(?!\d)"  # 2 or more; a lone 1 never matches
+# Titles that sell several items at once ("pack/4", "4-pack", "set of 4", "4pc", "pair", "x4"). A single item
+# whose title merely has a number ("12 oz mug") does not match.
+MULTI_PACK_RE = re.compile(
+    rf"\bpack\s*(?:/|of\s)\s*{_COUNT}|\b{_COUNT}[\s-]*(?:pack|pcs?|pieces?)\b|\bset\s+of\s+{_COUNT}"
+    rf"|\bset\s*\(\s*{_COUNT}\s*\)|\bx{_COUNT}\b|\bpair\b", re.IGNORECASE)
 
 
 class MarketError(RuntimeError):
@@ -102,6 +109,7 @@ class MarketReport:
     competitive: bool | None
     verdict: str
     comparables: list[Comparable]
+    removed: int = 0  # duplicates and multi-packs left out of the comparison
 
 
 def _money(d: Decimal) -> str:
@@ -121,15 +129,32 @@ def comparables_from(response: dict[str, Any], currency: str) -> list[Comparable
     return out
 
 
+def filter_comparables(comps: list[Comparable], keep_multipacks: bool = False) -> list[Comparable]:
+    """Drop repeats (same title on the same domain, first kept) and multi-packs, which would skew the median."""
+    seen: set[tuple[str, str | None]] = set()
+    out = []
+    for c in comps:
+        key = (" ".join(c.title.lower().split()), c.domain)
+        if key in seen or (not keep_multipacks and MULTI_PACK_RE.search(c.title)):
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
+
+
 def analyze(product: Product, response: dict[str, Any], source: str, query: str) -> MarketReport:
-    comps = comparables_from(response, product.currency)
+    found = comparables_from(response, product.currency)
+    # a store product that is itself a set is compared with other sets
+    comps = filter_comparables(found, keep_multipacks=bool(MULTI_PACK_RE.search(product.name)))
+    removed = len(found) - len(comps)
+    dropped = f" ({removed} removed: duplicates or multi-packs)" if removed else ""
     prices = sorted(Decimal(c.price) for c in comps)
     note = ("Live Channel3 search results." if source == "channel3" else
             "Recorded fixture in Channel3's response shape, not live market data. Set CHANNEL3_API_KEY for live results.")
     if not prices:
         return MarketReport(product.sku, product.name, source, note, query, product.price_str, product.currency,
                             0, False, None, None, None, None, None,
-                            "No similar products with a comparable price were found.", comps)
+                            "No similar products with a comparable price were found." + dropped, comps, removed)
     med = Decimal(str(median(prices)))
     pct = float(((product.price - med) / med * 100).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
     competitive = product.price <= med * (1 + COMPETITIVE_MARGIN)
@@ -137,12 +162,12 @@ def analyze(product: Product, response: dict[str, Any], source: str, query: str)
     where = "below" if pct < 0 else "above" if pct > 0 else "at"
     verdict = (f"{len(prices)} similar products found; your price ${product.price_str} is "
                f"{abs(pct):.1f}% {where} the market median ${_money(med)} "
-               f"({'competitive' if competitive else 'not competitive'}).")
+               f"({'competitive' if competitive else 'not competitive'}).{dropped}")
     if not findable:
         verdict += f" Fewer than {FINDABLE_MIN} comparables, so treat this as a weak signal."
     return MarketReport(product.sku, product.name, source, note, query, product.price_str, product.currency,
                         len(prices), findable, _money(prices[0]), _money(med), _money(prices[-1]), pct,
-                        competitive, verdict, comps)
+                        competitive, verdict, comps, removed)
 
 
 MARKET_CACHE_TTL_S = 600  # a Channel3 search costs quota; the answer barely changes in ten minutes

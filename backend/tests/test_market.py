@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from backend.app.market import Channel3Search, RecordedSearch, analyze, make_search, market_check
+from backend.app.market import MULTI_PACK_RE, Channel3Search, RecordedSearch, analyze, make_search, market_check
 from store import catalog
 
 pytestmark = pytest.mark.anyio
@@ -44,6 +44,61 @@ async def test_every_store_product_has_a_recording():
 def test_no_comparables_is_reported_not_invented():
     r = analyze(catalog.get_by_sku("FH-MUG-01"), {"products": []}, "channel3", "q")
     assert (r.similar_found, r.findable, r.competitive, r.market_median) == (0, False, None, None)
+
+
+def offers(*items: tuple[str, str, float]) -> dict:
+    return {"products": [{"id": str(i), "title": t, "offers": [
+        {"domain": d, "url": "u", "price": {"price": price, "currency": "USD"}}]} for i, (t, d, price) in enumerate(items)]}
+
+
+def titles(report) -> list[str]:
+    return [c.title for c in report.comparables]
+
+
+def test_duplicate_title_on_the_same_domain_counts_once():
+    r = analyze(catalog.get_by_sku("FH-MUG-01"), offers(
+        ("Vince Stoneware Mug", "stonelain.com", 38.99), ("  vince  STONEWARE mug", "stonelain.com", 38.99),
+        ("Vince Stoneware Mug", "other.example", 40)), "channel3", "q")
+    assert titles(r) == ["Vince Stoneware Mug", "Vince Stoneware Mug"]
+    assert [c.domain for c in r.comparables] == ["stonelain.com", "other.example"]
+    assert r.similar_found == 2 and r.removed == 1
+    assert "(1 removed: duplicates or multi-packs)" in r.verdict
+
+
+@pytest.mark.parametrize("title", [
+    "Tessa, Gray Speckle, Mug, Stoneware, Pack/4", "Mug 4-Pack", "Mug pack of 4", "Mugs, Set of 4", "Mug 4 pack",
+    "Mug 4pc", "Mug 6-piece", "Mug (Set of 2)", "Mug Pair", "Mug x4", "12-pack mugs"])
+def test_multi_pack_titles_are_recognised(title):
+    assert MULTI_PACK_RE.search(title)
+
+
+def test_multi_packs_are_left_out_of_the_comparison_and_the_median():
+    r = analyze(catalog.get_by_sku("FH-MUG-01"), offers(
+        ("Tessa Mug, Stoneware, Pack/4", "a.example", 88), ("Plain Mug", "b.example", 20), ("Blue Mug", "c.example", 30),
+        ("Green Mug", "d.example", 40)), "channel3", "q")
+    assert titles(r) == ["Plain Mug", "Blue Mug", "Green Mug"]
+    assert r.removed == 1 and r.market_median == "30.00" and r.market_max == "40.00"  # 88 would have made it 35.00
+
+
+def test_single_item_with_a_number_in_the_title_is_kept():
+    r = analyze(catalog.get_by_sku("FH-MUG-01"), offers(
+        ("Stoneware Mug 12 oz", "a.example", 20), ("Mug, 1 Pack", "b.example", 22), ("Mug 350ml", "c.example", 24)),
+        "channel3", "q")
+    assert len(r.comparables) == 3 and r.removed == 0 and "removed" not in r.verdict
+
+
+def test_a_product_that_is_itself_a_set_is_compared_with_other_sets():
+    sets = offers(("Plates Set of 4", "a.example", 80), ("plates  set of 4", "a.example", 80), ("Plates 4 Pack", "b.example", 90))
+    r = analyze(catalog.get_by_sku("FH-PLT-10"), sets, "channel3", "q")
+    assert titles(r) == ["Plates Set of 4", "Plates 4 Pack"] and r.removed == 1
+
+
+async def test_recorded_fixtures_are_filtered_like_live_results(tmp_path):
+    (tmp_path / "FH-MUG-01.json").write_text(json.dumps(offers(
+        ("Mug", "a.example", 20), ("Mug", "a.example", 20), ("Mug Pack/4", "b.example", 80), ("Cup", "c.example", 30))))
+    r = await market_check(catalog.get_by_sku("FH-MUG-01"), RecordedSearch(tmp_path))
+    assert r["source"] == "recorded" and r["similar_found"] == 2 and r["removed"] == 2
+    assert [c["title"] for c in r["comparables"]] == ["Mug", "Cup"] and r["market_median"] == "25.00"
 
 
 async def test_live_client_calls_channel3_search_with_the_api_key():
