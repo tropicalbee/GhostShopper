@@ -1,22 +1,43 @@
-# Video script (under 3:00, voiceover, no face on camera)
+# Video script (2:35, AI voiceover, screen only)
 
-Setup before recording: `python -m backend.app.seed` (bad store), server running in sandbox mode with real credentials, browser windows sized for capture. On the hosted server, open `/store/admin` once in the recording browser and type the `DEMO_ADMIN_TOKEN` into the unlock form, and start both runs from the same browser so the before and after pairs them. Record the screen and add the voiceover afterwards.
+Style: a YC product demo. Problem in one breath, then the real product on screen, then the result. No face, no music, no third-party store or brand other than the sponsors. Every number below comes from a recorded run (31 and 34 in METRICS.md).
 
-The video shows four things: the bad store's failures, the fixes, the rerun with the PayPal verified purchase and its trace, and about 10 seconds on a real third party store (browse only). The AG Grid failures table shows up on its own while we scroll the results. Channel3 gets about 3 seconds, Kernel one line.
+Voice: an AI voice reading at a calm pace, about 150 words a minute. The voiceover is about 360 words.
+
+Speed: agent footage runs at 4x to 8x with a small "4x" label in a corner. Cut every loading screen.
+
+## Script
 
 | Time | On screen | Voiceover |
 |---|---|---|
-| 0:00-0:20 Problem | Fernhill Ceramics home page, then the product page. | "PayPal showed that structured tools cut an agent's shopping journey from 30 or more interface steps to three tool calls. Where those tools aren't available, agents have to navigate the ordinary storefront themselves. This store looks fine to a person. GhostShopper sends an AI shopper through it." |
-| 0:20-1:10 The bad store scores 49 | Live check feed next to the browser. The agent can't read the price, tries "Continue", then "Go", hits the details form. Results: the failures table (AG Grid) with evidence screenshots and the top fixes. | "The shopper decides every click itself. The price is an image. Only one of four buttons buys, and a form blocks the way. Every failure is logged with a screenshot, the element and the reason. The fixes are ordered by how many points they're worth." |
-| 1:10-1:40 The fixes | `/store/admin`: untick the flaws. | "The merchant applies the fixes: price as text, product data, a real Buy button, no extra step." |
-| 1:40-2:30 Rerun and the verified purchase | The agent goes straight to checkout, PayPal popup, sandbox login, approve. Then the purchase trace: the records lined up where each exposes them, all four ID links verified, $24.00 captured, $22.67 net. A few seconds on the market check, with a line that Kernel can run the browser (a browse-only run matched local). | "Same shopper, same rules. This time it completes the purchase through PayPal Sandbox. GhostShopper compares the intended purchase, the PayPal order, the capture and the store's order wherever each exposes them, and they agree: $24.00 captured, $22.67 net. The store went from 49 to 100. A payment can succeed while the store's order is wrong, so the trace flags the first record that disagrees. Channel3 adds market context, and Kernel can run the browser." |
-| 2:30-2:45 A real store | About 10 seconds of the Shopify demo store run, browse only: score and issues. | "We also pointed it at a public Shopify store. It browses only, no purchase, and still finds issues. That checks it isn't tied to our demo." |
-| 2:45-2:58 Close | Dashboard score, then the tagline. | "The score comes from deterministic checks. It is not an Agent Ready or WebMCP test, and not a PayPal certification. GhostShopper: see your store through an AI shopper's eyes." |
+| 0:00-0:08 | Black, then the Fernhill Ceramics product page fills the screen. | "This mug costs twenty-four dollars. A person can buy it in about twenty seconds." |
+| 0:08-0:18 | The GhostShopper live view starts: the agent's browser on the left, the step feed on the right. | "Now an AI shopping agent tries the same store. It reads the page the way an agent does, and it decides every click itself." |
+| 0:18-0:30 | Agent at 4x: it searches for the price, clicks "Continue", then "Go", then hits the details form. | "The price is a picture, so it can't read it. Three buttons say Continue, Proceed and Go. A form it didn't expect stands in front of checkout." |
+| 0:30-0:42 | Title card, white text on black: "GhostShopper. A mystery shopper for the AI agent era." Then the landing page. | "AI agents are starting to shop for people. In PayPal's own test, an agent with structured tools bought in three calls. Without them, it took more than thirty steps through the page. GhostShopper shows small merchants on PayPal what that page looks like to an agent." |
+| 0:42-1:05 | Results page of the bad store: score 49, the AG Grid failures table, one row expanded with its screenshot and fix. | "Twenty steps later, the store scores forty-nine out of a hundred. Every failure has the screenshot the agent saw, the element it got stuck on, and a fix written for the merchant. The score comes from code that checks each page. The AI never grades itself." |
+| 1:05-1:15 | The fix list, ordered by points. | "Fixes are ranked by how much they're worth. Put the price in text. Add product data. Use one clear Buy button. Drop the extra form." |
+| 1:15-1:25 | `/store/admin`: untick the four flaws. Save. | "The merchant applies the fixes." |
+| 1:25-1:50 | Rerun at 4x: product page, Buy now, checkout, the PayPal button, the PayPal Sandbox popup, approve, the order page. | "Same agent, same rules. Eleven steps. It finds the mug, reads the price, and pays through PayPal: the real JavaScript SDK and the Orders API, in the Sandbox." |
+| 1:50-2:15 | The purchase trace printing line by line: agent wanted, store order, PayPal order, PayPal capture, store says. Then "4 of 4 IDs linked". Hold on it. | "Here's the part payments teams care about. A payment can go through while the store's own order is wrong. Captured but still pending, or charged twice on a retry. GhostShopper links the store order, the PayPal order and the capture by their IDs and checks that they agree. All four links match. Twenty-four dollars captured, twenty-two sixty-seven net." |
+| 2:15-2:25 | Before/after view: 49 to 100. Then a two-second pass over the market check panel. | "Forty-nine to a hundred, with the sale verified. Channel3 adds similar listings for context." |
+| 2:25-2:35 | The hosted URL in the address bar, then the GitHub page. | "Nemotron drives the agent, Kernel runs the browser in the cloud, and it's live on Render. It's open source. GhostShopper: see your store through an AI shopper's eyes." |
 
-## Shot checklist
-- [ ] Seeded bad store (`python -m backend.app.seed`), `/api/health` shows `paypal_mode: sandbox`, `paypal_configured: true`
-- [ ] Before run recorded live (`--llm live --flaws keep --checkout --paypal sandbox --headed`)
-- [ ] After run recorded live (`--flaws off`)
-- [ ] Trace view on the after run, and `python -m backend.app.agent.compare --last` or the dashboard view
-- [ ] Shopify browse-only run (run 37) on screen for about 10 seconds
-- [ ] Backup: `python -m backend.app.seed --with-runs` against a mock server gives a mock before/after (24 to 100) if live fails on the day; say it is mock if used
+## What each section earns
+
+- 0:00 to 0:30 shows the problem working on screen before any explanation (Presentation, Potential Impact).
+- 0:42 to 1:15 shows the AI and the deterministic checks (Technological Implementation, Design).
+- 1:50 to 2:15 is the payments idea no other auditor has (Innovation, Best Use of PayPal + AI).
+- The AG Grid table, Channel3, Kernel and Render each appear once, so the sponsor prizes can see them.
+
+## Recording checklist
+
+- [ ] Fresh state: `python -m backend.app.seed`, so the classic flaws are on.
+- [ ] Record the bad-store run and the fixed-store run, both with the real PayPal Sandbox. Use the hosted site if a test run there works end to end. Otherwise record locally with `--headed` and show the hosted URL only in the closing shot.
+- [ ] Browser at 1920x1080, zoom 110%, bookmarks bar hidden, no other tabs.
+- [ ] Sandbox login typed by the agent only. Never show the buyer password or the `.env` file.
+- [ ] Generate the voiceover from the text column, one clip per row, so a timing fix means one clip.
+- [ ] Upload to YouTube as Public at least 2 hours before the deadline (12:00 PT, Nov 12). Paste the link into the README `<!-- VIDEO_URL -->` marker and the Devpost form.
+
+## Backup
+
+If the live sandbox fails on the day, `python -m backend.app.seed --with-runs` against a mock server records a before/after pair (24 to 100). Say in the voiceover that the payment is the practice PayPal, and keep the real trace numbers out of it.

@@ -87,8 +87,8 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [ ] Real sandbox vault payment: enable "Save payment methods", `vault setup`, one paid run (user)
 - [x] One live Nemotron run, bad store then fixed store, and record the cassette (user)
 - [x] Record a before/after pair against the real sandbox
-- [ ] Render free tier deploy, env vars set, sandbox purchase on the hosted URL
-- [ ] Hosted URL in the README
+- [x] Render free tier deploy, env vars set (Nov 11). Sandbox purchase on the hosted URL still open
+- [x] Hosted URL in the README
 - [ ] Fresh-clone test
 
 ## Nov 10, part 3: trace, safety and redesign
@@ -102,10 +102,10 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] Live Nemotron run on the bad store and the fixed store, with the trace and safety report
 - [x] Live sandbox purchase that shows the trace end to end
 - [x] Live test against the Shopify demo store
-- [ ] Render deploy (see D6)
+- [x] Render deploy (see D6)
 - [ ] Fresh-clone test (see D6)
 - [ ] Demo video (see D7)
-- [ ] Devpost description (see D7)
+- [x] Devpost description (see D7)
 
 ## D7 (Nov 11): video and submit
 - [x] docs/VIDEO_SCRIPT.md (3 minutes) and seed command for the demo state

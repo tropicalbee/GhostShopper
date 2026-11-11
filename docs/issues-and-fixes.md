@@ -2,6 +2,17 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-11 to 11-12 (session 6)
+
+### Hosted run 1 died with a bare ReadTimeout
+After 469 s and 16 steps the first hosted check stopped with `ReadTimeout:`. Cause: one Nemotron reply took longer than the 60 s httpx read timeout, and the LLM client retried only 429 and 5xx responses. Fix: `_post_with_retry` in `backend/app/agent/llm.py` now retries timeouts and dropped connections with backoff, and a final failure names the provider.
+
+### Opening the sandbox to everyone exposed the sandbox buyer's browser
+The security audit found that a visitor who starts a real-payment run would receive the Kernel live-view link whenever PayPal shows a captcha, and that browser has just logged in as the sandbox buyer. Fix: only the presenter gets the link, and other visitors' runs fail the human step at once instead of holding the run lock.
+
+### Smaller audit fixes
+Failing requests no longer spend the shared daily caps, a wrong `X-Admin-Token` header shares the unlock throttle, a fresh owner cookie always comes with `Cache-Control: private, no-store`, the SSRF check refuses 100.64.0.0/10, orders of deleted runs are hidden from other visitors, and the example bundle no longer carries sandbox payer ids or the shipping address.
+
 ## 2026-11-11 (session 5)
 
 ### Diagram redraw stalled twice

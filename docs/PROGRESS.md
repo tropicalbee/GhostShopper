@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-11-12, session 6 (deploy, open sandbox, audit, video prep)
+
+### Done
+- Render deploy is live at https://ghostshopper.onrender.com. Health shows PayPal sandbox configured and the LLM configured, with `EXAMPLE_RUNS=1`.
+- Real PayPal Sandbox purchases are open to every visitor under the daily caps, and New check picks the real sandbox by default. The presenter token now only unlocks the flaw toggles and the Kernel live view.
+- One LLM config for every provider (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`). The Groq-only code and variables are gone.
+- LLM timeouts are retried, which fixed hosted run 1 (`ReadTimeout` after 469 s).
+- Real runs 31 (bad store, 49) and 34 (fixed store, 100) ship in `backend/app/examples/` and load as shared examples on every start, so judges see them after a restart. The bundle is redacted.
+- Security audit (quick profile, source only), report at `C:/Users/shiba/security-audit-skill/GhostShopper/run-1/REPORT.md`: no confirmed findings, 8 leads that need validation, 6 of them fixed in code. The git history holds no secrets.
+- Docs follow the outside review: the 49 to 100 story instead of a lost sale, mock and live numbers labelled, trace wording, PayPal positioning (not Agent Ready or WebMCP), hosted URL, new banner wording, footer GitHub link, LICENSE names tropicalbee, GitHub About filled in.
+- New `docs/VIDEO_SCRIPT.md`: a 2:35 YC-style demo with an AI voiceover, no face and no third-party brands.
+- Full suite: 540 passed.
+
+### In progress
+- Video pipeline: `scripts/video/record_demo.py` (Playwright records the dashboard) and `scripts/video/build_video.py` (ffmpeg cuts, speeds up, adds cards and voice), output in `demo-video/` (gitignored). A Sonnet agent was building it and dry-running it on mock data when the session ended; check whether both files exist and work.
+
+### Next
+1. Video in a new session: check the dry run, record the two live runs locally, add the voice clips (row01 to row11 from Google AI Studio, Windows Zira as backup), the user renders, upload to YouTube as Public.
+2. Paste the YouTube link into the README `<!-- VIDEO_URL -->` marker and the Devpost form.
+3. Optional: one real-sandbox check on the hosted URL, which is the missing Kernel purchase proof.
+4. Submit before Nov 12, 12:00 PT (1:30 AM IST).
+
+### Blockers
+- None. The deadline is today.
+
 ## 2026-11-11, session 5 (pitch, diagram, README, click-through)
 
 ### Done
