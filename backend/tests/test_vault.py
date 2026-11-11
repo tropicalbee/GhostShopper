@@ -14,7 +14,7 @@ from backend.app.agent.vault_flow import make_vault_handler
 from backend.app.config import Settings
 from backend.app.main import create_app
 from backend.app.paypal_mock import FakePayPalClient
-from store.app import ADMIN_COOKIE
+from store.app import ADMIN_COOKIE, admin_cookie_value
 
 from .test_agent_e2e import requires_browser
 from .test_checkout_e2e import check, results, server  # noqa: F401  (server is a fixture)
@@ -180,7 +180,7 @@ def test_deployed_sandbox_agent_order_needs_the_presenter_unlock(tmp_path):
     with TestClient(create_app(settings, paypal=FakePayPalClient())) as c:
         r = c.post("/api/paypal/agent-orders", json=BODY)
         assert r.status_code == 403 and r.json()["detail"]["error"] == "REAL_PAYMENT_LOCKED"
-        c.cookies.set(ADMIN_COOKIE, "open-sesame")
+        c.cookies.set(ADMIN_COOKIE, admin_cookie_value("open-sesame"))
         assert c.post("/api/paypal/agent-orders", json=BODY).status_code == 201
 
 

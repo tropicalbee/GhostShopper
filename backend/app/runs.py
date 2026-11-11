@@ -6,7 +6,6 @@ run id answers 404, exactly like a run that doesn't exist.
 """
 
 import asyncio
-import hmac
 import json
 import logging
 import re
@@ -29,7 +28,7 @@ from .feed import feed_csv
 from .ratelimit import rate_limit
 from .trace import build_trace
 from store import catalog
-from store.app import ADMIN_COOKIE
+from store.app import has_admin_cookie
 from store.orders import StoreOrders
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -67,9 +66,7 @@ def real_payment_allowed(request: Request) -> bool:
     settings = request.app.state.settings
     if settings.dev_options:
         return True
-    token = settings.demo_admin_token
-    supplied = request.cookies.get(ADMIN_COOKIE) or ""
-    return bool(token) and hmac.compare_digest(supplied.encode(), token.encode())
+    return has_admin_cookie(request, settings.demo_admin_token)
 
 
 NOT_FOUND = "We couldn't find that check."
@@ -111,7 +108,7 @@ def _public(run: dict[str, Any], viewer: str) -> dict[str, Any]:
 async def start_run(body: StartRun, request: Request):
     state = request.app.state
     settings = state.settings
-    rate_limit(request, "run_limiter")
+    rate_limit(request, "run_limiter", "runs")
     chosen = body.model_fields_set - {"store_url", "budget", "real_payment"}
     if chosen and not settings.dev_options:
         raise _error(400, "RUN_CONFIG", f"Only store_url can be set on this server (not {', '.join(sorted(chosen))}).")

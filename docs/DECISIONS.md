@@ -255,3 +255,12 @@ Rules `2026-11-05.3`, 100 points in total.
 - Kernel runs only on the hosted server (`BROWSER_PROVIDER=kernel` on Render). Locally the variable is unset or `local`.
 - The logo is a ghost carrying a shopping bag, used everywhere including the favicon. We turned down keeping the plain ghost.
 - No personal name on the site. Devpost carries the author name.
+
+## 2026-11-11: abuse limits for the public deploy
+
+- The client address for rate limits is the X-Forwarded-For entry `TRUSTED_PROXY_HOPS` from the right (1 on Render). The left entries belong to the caller. We turned down keeping uvicorn's rewritten address, and turned down dropping `--forwarded-allow-ips`, because uvicorn still needs the proxy headers for the https scheme and the limiter no longer depends on what it rewrites.
+- Daily caps are process-wide and in memory: 40 runs, 100 market checks and 100 PayPal orders a day, set by env. Per-address limits alone can't stop many addresses from spending the Groq, Kernel and Channel3 quota. We turned down a database counter: one worker, and a restart resetting it is acceptable on the free tier.
+- The presenter's unlock cookie skips every limit and cap. We turned down a reserved run slot: the cap and the bypass cover the lockout with less code.
+- The unlock cookie carries an HMAC of the token, so a leaked cookie jar or log never holds the token. We turned down a random session id in a server table: it would need storage that survives restarts.
+- The mock scenario switch is open only with developer options or the unlock cookie. We turned down mounting the mock router only in development: the mock PayPal is a real mode on the deployed demo.
+

@@ -109,3 +109,4 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - `LLM_PROVIDER=nvidia`, and "not tested" reasons that say what actually happened.
 - Tests never use Kernel or paid API keys from `.env`.
 - Frontend: a "Linked by ID" section under the trace, a ghost with a shopping bag as logo and favicon, and the ghost walks the landing page stepper to the first mismatch.
+- Security pass before the deploy: rate limits read X-Forwarded-For from the right, shared daily caps with a presenter bypass, a locked mock PayPal switch, capped and DNS-pinned store fetches, a throttled admin unlock with a hashed cookie, and a non-root pinned Docker image.

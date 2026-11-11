@@ -2,6 +2,23 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-11 (security audit before the public deploy)
+
+### Rate limits could be dodged with a forged X-Forwarded-For
+The Dockerfile trusts every proxy (`--forwarded-allow-ips='*'`), and uvicorn then reports the leftmost X-Forwarded-For entry as the client address. That entry is whatever the caller wrote, so a fresh fake address and a fresh owner cookie on each request got past every limit (runs, market check, PayPal orders). Fix: the limiter reads the entry `TRUSTED_PROXY_HOPS` from the right (default 1, the one Render appended) and falls back to the socket address when the header is missing. Process-wide daily caps now sit behind the per-address limits (`RUN_DAILY_CAP` 40, `MARKET_DAILY_CAP` 100, `ORDER_DAILY_CAP` 100). A request with the presenter's unlock cookie skips both, so the single run slot can't lock the presenter out.
+
+### Anyone could switch the mock PayPal scenario
+`PUT /mock-paypal/scenario` had no check, so a visitor could make the shared fake PayPal fail for everyone. It now needs developer options or the unlock cookie, and answers 403 otherwise. The seed script, the trace benchmark and the e2e tests only call it with developer options on.
+
+### Store fetches buffered whole responses and could be rebound
+The preflight and robots.txt fetches read the entire body, so a huge page could use up the 512 MB instance. They now stream: robots.txt stops at 512 KB and the preflight reads no body. The SSRF check also resolved a name once and let httpx resolve it again, so a rebinding name could reach a private address. A pinned transport now resolves once, refuses the name if any address is private, and connects to that address with the original Host header and TLS name. The error for a store that answers with an error no longer includes the status code.
+
+### Admin unlock had no throttle and a raw cookie
+`POST /store/admin/unlock` allowed unlimited guesses and stored the token itself in the cookie. It is now limited to 10 attempts per 15 minutes per address, and the cookie holds an HMAC of the token (checked with a constant-time compare).
+
+### Smaller items
+A bad `max_amount` on the agent order endpoint raised an unhandled error (500); it is now a 422 `BAD_MAX_AMOUNT`. The Docker image runs as a non-root user, sets `DEV_OPTIONS=0`, skips the Chromium install unless built with `INSTALL_CHROMIUM=1`, and `backend/requirements.txt` is pinned to the versions in `.venv`.
+
 ## 2026-11-11 (session 4: live runs, Kernel)
 
 ### Live run stopped at config

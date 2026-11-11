@@ -37,6 +37,13 @@ class Settings:
     retention_days: int = 30  # owned checks older than this are deleted at startup; examples are kept
     run_rate_limit: tuple[int, int] = (6, 600)  # starts per (client IP, browser) per window in seconds
     api_rate_limit: tuple[int, int] = (30, 600)  # explain, market and PayPal order calls, which cost quota
+    unlock_rate_limit: tuple[int, int] = (10, 900)  # admin unlock attempts per client IP per window in seconds
+    # Process-wide caps per day (all callers together) on the calls that spend real quota; the admin cookie skips them.
+    run_daily_cap: int = 40
+    market_daily_cap: int = 100
+    order_daily_cap: int = 100
+    # How many proxies in front of us append to X-Forwarded-For (Render: 1). The client IP is that many entries from the right.
+    trusted_proxy_hops: int = 1
 
     @property
     def paypal_configured(self) -> bool:
@@ -61,6 +68,15 @@ def _flag(name: str) -> bool | None:
     return None
 
 
+def _count(name: str, default: int, minimum: int = 1) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    if not raw.isdigit() or int(raw) < minimum:
+        raise ValueError(f"{name} must be a whole number of {minimum} or more, got {raw!r}")
+    return int(raw)
+
+
 def get_settings() -> Settings:
     db_path = Path(os.getenv("DATABASE_PATH", "data/ghostshopper.db"))
     if not db_path.is_absolute():
@@ -73,6 +89,7 @@ def get_settings() -> Settings:
     retention = os.getenv("RETENTION_DAYS", "30").strip()
     if not retention.isdigit() or int(retention) < 1:
         raise ValueError(f"RETENTION_DAYS must be a whole number of days (1 or more), got {retention!r}")
+    caps = {name: _count(name, default) for name, default in (("RUN_DAILY_CAP", 40), ("MARKET_DAILY_CAP", 100), ("ORDER_DAILY_CAP", 100))}
     return Settings(
         paypal_client_id=os.getenv("PAYPAL_CLIENT_ID", "").strip(),
         paypal_client_secret=os.getenv("PAYPAL_CLIENT_SECRET", "").strip(),
@@ -82,6 +99,10 @@ def get_settings() -> Settings:
         dev_options=dev if dev is not None else (urlparse(base).hostname or "") in LOCAL_HOSTS,
         demo_admin_token=os.getenv("DEMO_ADMIN_TOKEN", "").strip(),
         retention_days=int(retention),
+        run_daily_cap=caps["RUN_DAILY_CAP"],
+        market_daily_cap=caps["MARKET_DAILY_CAP"],
+        order_daily_cap=caps["ORDER_DAILY_CAP"],
+        trusted_proxy_hops=_count("TRUSTED_PROXY_HOPS", 1, minimum=0),
     )
 
 

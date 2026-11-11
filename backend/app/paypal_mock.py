@@ -16,6 +16,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
+from store.app import has_admin_cookie
+
 from .paypal import PayPalError, check_search_window
 
 MOCK_CLIENT_ID = "mock-client-id"
@@ -404,7 +406,10 @@ def mock_router(fake: FakePayPalClient) -> APIRouter:
         return {"scenario": fake.scenario, "available": SCENARIOS}
 
     @router.put("/scenario")
-    def set_scenario(body: ScenarioBody):
+    def set_scenario(body: ScenarioBody, request: Request):
+        settings = request.app.state.settings
+        if not (settings.dev_options or has_admin_cookie(request, settings.demo_admin_token)):
+            raise HTTPException(status_code=403, detail="The mock PayPal scenario can only be changed by the presenter.")
         fake.scenario = body.scenario
         fake.transient_failure_sent = False
         return {"scenario": fake.scenario}

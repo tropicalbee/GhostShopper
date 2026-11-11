@@ -17,7 +17,7 @@ import httpx
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeout
 
-from store.app import ADMIN_COOKIE
+from store.app import ADMIN_COOKIE, admin_cookie_value
 from store.orders import StoreOrders
 
 from .. import db
@@ -113,7 +113,7 @@ class VaultPayment:
             body["max_amount"] = f"{engine.budget:.2f}"
         try:
             token = os.getenv("DEMO_ADMIN_TOKEN", "").strip()  # presenter unlock on a deployed server
-            cookies = {ADMIN_COOKIE: token} if token else {}
+            cookies = {ADMIN_COOKIE: admin_cookie_value(token)} if token else {}
             async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_S, cookies=cookies) as http:
                 resp = await http.post(f"{self.api_base}/api/paypal/agent-orders", json=body)
         except httpx.HTTPError as exc:

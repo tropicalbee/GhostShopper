@@ -16,6 +16,7 @@ from backend.app.main import create_app
 from backend.app.owner import COOKIE
 from backend.tests.test_access import ALICE, BOB, client_for, make_run
 from backend.tests.test_access import settings as access_settings
+from store.app import admin_cookie_value
 from store.flaws import FlawStore
 
 
@@ -340,7 +341,7 @@ PRESENTER = "t0ken-for-the-presenter"
 
 
 def unlock(c):
-    c.cookies.set("fh_admin", PRESENTER)
+    c.cookies.set("fh_admin", admin_cookie_value(PRESENTER))
     return c
 
 

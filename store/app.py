@@ -7,7 +7,7 @@ import hashlib
 import hmac
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -25,7 +25,18 @@ STORE_NAME = "Fernhill Ceramics"
 DETAILS_COOKIE = "fh_details"
 COOKIE_CONSENT = "fh_cookies"
 ADMIN_COOKIE = "fh_admin"
+ADMIN_COOKIE_CONTEXT = b"ghostshopper-admin-cookie-v1"
 REFERRAL_OPTIONS = ("Instagram", "A friend", "Craft fair", "Search engine", "Other")
+
+
+def admin_cookie_value(token: str) -> str:
+    """What the unlock cookie carries: an HMAC of the token, so the cookie never holds the token itself."""
+    return hmac.new(token.encode(), ADMIN_COOKIE_CONTEXT, hashlib.sha256).hexdigest()
+
+
+def has_admin_cookie(request: Request, token: str) -> bool:
+    supplied = request.cookies.get(ADMIN_COOKIE) or ""
+    return bool(token) and hmac.compare_digest(supplied.encode(), admin_cookie_value(token).encode())
 
 
 class FlawUpdate(BaseModel):
@@ -33,10 +44,11 @@ class FlawUpdate(BaseModel):
 
 
 def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: str, admin_open: bool = True,
-                     admin_token: str = "") -> FastAPI:
+                     admin_token: str = "", unlock_allowed: Callable[[Request], bool] | None = None) -> FastAPI:
     """admin_open: the settings page is open to anyone (local development). Otherwise it needs admin_token,
     entered once in the unlock form (which sets an httpOnly cookie) or sent as an X-Admin-Token header. A token in
-    the URL is not accepted: it would end up in access logs and browser history."""
+    the URL is not accepted: it would end up in access logs and browser history. unlock_allowed (optional) is asked
+    before each unlock attempt and returns False once the caller has tried too often."""
     app = FastAPI(title=STORE_NAME, docs_url=None, redoc_url=None, openapi_url=None)
     flaw_store = FlawStore(db_path)
     store_orders = StoreOrders(db_path)
@@ -242,8 +254,7 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
     def admin_allowed(request: Request) -> bool:
         if admin_open:
             return True
-        supplied = request.headers.get("x-admin-token") or request.cookies.get(ADMIN_COOKIE) or ""
-        return token_matches(supplied)
+        return token_matches(request.headers.get("x-admin-token") or "") or has_admin_cookie(request, admin_token)
 
     def token_matches(supplied: str) -> bool:
         return bool(admin_token) and hmac.compare_digest(supplied.encode(), admin_token.encode())
@@ -268,10 +279,12 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
         base = request.scope.get("root_path", "")
         if admin_open:
             return RedirectResponse(f"{base}/admin", status_code=303)
+        if unlock_allowed is not None and not unlock_allowed(request):
+            raise HTTPException(status_code=429, detail="Too many unlock attempts. Please wait a few minutes and try again.")
         if not token_matches(token):
             return unlock_page(request, wrong=True)
         resp = RedirectResponse(f"{base}/admin", status_code=303)
-        resp.set_cookie(ADMIN_COOKIE, admin_token, httponly=True, samesite="strict",
+        resp.set_cookie(ADMIN_COOKIE, admin_cookie_value(admin_token), httponly=True, samesite="strict",
                         secure=request.url.scheme == "https", path="/", max_age=12 * 3600)
         return resp
 

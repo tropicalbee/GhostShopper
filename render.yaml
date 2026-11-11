@@ -40,3 +40,11 @@ services:
         value: "0"
       - key: RETENTION_DAYS
         value: "30"
+      - key: TRUSTED_PROXY_HOPS   # proxies in front of the app that append to X-Forwarded-For (Render: 1)
+        value: "1"
+      - key: RUN_DAILY_CAP        # shared per-day caps on the calls that spend quota; the presenter unlock skips them
+        value: "40"
+      - key: MARKET_DAILY_CAP
+        value: "100"
+      - key: ORDER_DAILY_CAP
+        value: "100"

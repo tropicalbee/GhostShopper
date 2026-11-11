@@ -22,7 +22,7 @@ from .orders import router as orders_router
 from .owner import COOKIE, MAX_AGE_S, hash_token, new_token, valid_token
 from .paypal import PayPalClient
 from .paypal_mock import MOCK_CLIENT_ID, MOCK_SDK_PATH, FakePayPalClient, mock_router
-from .ratelimit import RateLimiter, rate_limit
+from .ratelimit import RateLimiter, client_ip, rate_limit
 from .runs import real_payment_allowed
 from .runs import router as runs_router
 from .scoring import CHECKS, RULES_VERSION, STAGES
@@ -81,6 +81,9 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
     app.state.run_tasks = set()
     app.state.run_limiter = RateLimiter(*settings.run_rate_limit)
     app.state.api_limiter = RateLimiter(*settings.api_rate_limit)
+    app.state.daily_caps = {name: RateLimiter(cap, 86400) for name, cap in (
+        ("runs", settings.run_daily_cap), ("market", settings.market_daily_cap), ("orders", settings.order_daily_cap))}
+    unlock_limiter = RateLimiter(*settings.unlock_rate_limit)
 
     @app.middleware("http")
     async def owner_and_headers(request: Request, call_next):
@@ -142,7 +145,7 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
         product = catalog.get_by_sku(sku)
         if product is None:
             raise HTTPException(status_code=404, detail={"error": "UNKNOWN_SKU", "message": "No such product."})
-        rate_limit(request, "api_limiter")
+        rate_limit(request, "api_limiter", "market")
         try:
             return await market_check(product)
         except MarketError as exc:
@@ -171,6 +174,7 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
             paypal_sdk_url=MOCK_SDK_PATH if mode == "mock" else PAYPAL_SDK_URL,
             admin_open=settings.dev_options,
             admin_token=settings.demo_admin_token,
+            unlock_allowed=lambda request: unlock_limiter.hit(client_ip(request, settings.trusted_proxy_hops)),
         )
         for mode in PAYPAL_MODES
     }

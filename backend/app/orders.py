@@ -3,7 +3,7 @@
 import json
 import logging
 import re
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import httpx
@@ -108,7 +108,7 @@ async def _read_back_order(paypal: PayPalClient, db_path, order_id: str) -> None
 
 @router.post("/orders", status_code=201)
 async def create_order(body: BrowserOrderRequest, request: Request, paypal: PayPalClient = Depends(get_paypal)):
-    rate_limit(request, "api_limiter")  # each call creates a PayPal sandbox order
+    rate_limit(request, "api_limiter", "orders")  # each call creates a PayPal sandbox order
     product, unit, flaws = _purchase_unit_for(body, request)
     db_path = request.app.state.settings.database_path
     # The store's order exists before PayPal's, and its number travels in custom_id: PayPal echoes it back, so the
@@ -158,14 +158,23 @@ async def create_agent_order(body: AgentOrderRequest, request: Request, paypal: 
         # Same gate as real sandbox runs: a deployed server needs the presenter unlock (/store/admin cookie).
         raise HTTPException(status_code=403, detail={
             "error": "REAL_PAYMENT_LOCKED", "message": "Real PayPal sandbox payments need the presenter unlock."})
-    rate_limit(request, "api_limiter")  # each call can move sandbox money
+    rate_limit(request, "api_limiter", "orders")  # each call can move sandbox money
     if FlawStore(state.settings.database_path).get_all().get("no_guest_checkout"):
         # The store's checkout is behind an account wall; an agent payment must not skip it.
         raise HTTPException(status_code=403, detail={
             "error": "ACCOUNT_REQUIRED", "message": "Checkout requires creating an account; nothing was charged."})
     product, unit, flaws = _purchase_unit_for(body, request)
     amount = unit["amount"]["value"]
-    if body.max_amount is not None and Decimal(amount) > Decimal(body.max_amount):
+    limit = None
+    if body.max_amount is not None:
+        try:
+            limit = Decimal(body.max_amount)
+            if not limit.is_finite() or limit < 0:
+                raise InvalidOperation
+        except InvalidOperation:
+            raise HTTPException(status_code=422, detail={
+                "error": "BAD_MAX_AMOUNT", "message": "max_amount must be a plain amount such as 25.00; nothing was charged."}) from None
+    if limit is not None and Decimal(amount) > limit:
         raise HTTPException(status_code=409, detail={
             "error": "OVER_BUDGET", "amount": amount,
             "message": f"The order total {amount} is over the spending limit {body.max_amount}; nothing was charged"})

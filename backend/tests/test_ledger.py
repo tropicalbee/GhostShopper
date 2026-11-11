@@ -11,7 +11,7 @@ from backend.app.owner import COOKIE, hash_token
 from backend.app.paypal import SEARCH_PERMISSION_HINT, PayPalError
 from backend.app.paypal_mock import FakePayPalClient
 from backend.app.config import Settings
-from store.app import ADMIN_COOKIE
+from store.app import ADMIN_COOKIE, admin_cookie_value
 
 
 @pytest.fixture
@@ -190,13 +190,13 @@ def test_deployed_sandbox_rows_need_the_presenter_unlock(tmp_path):
     assert not settings.dev_options
     fake = FakePayPalClient()
     with TestClient(create_app(settings, paypal=fake), base_url="https://shop.example.com") as c:
-        c.cookies.set(ADMIN_COOKIE, "open-sesame")
+        c.cookies.set(ADMIN_COOKIE, admin_cookie_value("open-sesame"))
         order = buy(c, add_run(c))
         c.cookies.delete(ADMIN_COOKIE)
         body = ledger(c)
         assert by_order(body, order)["paypal_reported"] == "not_checked"
         assert "presenter unlock" in body["paypal_error"] and fake.searches == []
-        c.cookies.set(ADMIN_COOKIE, "open-sesame")
+        c.cookies.set(ADMIN_COOKIE, admin_cookie_value("open-sesame"))
         assert by_order(ledger(c), order)["paypal_reported"] == "matched"
 
 
