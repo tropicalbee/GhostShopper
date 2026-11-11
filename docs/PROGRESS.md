@@ -13,13 +13,17 @@
 - Nothing live this session. The README's numbers come from METRICS.md (runs 31 to 37).
 
 ### Next
-1. Render deploy with Kernel, sandbox purchase on the hosted URL, URL and video link into the README markers.
-2. Fresh-clone test.
-3. Video and Devpost submit.
-4. Optional, on a branch after the deploy: MCP checkout tools for the demo store. Merge only if green by Nov 12, 08:00 PT.
+1. Render deploy: New, Blueprint, `tropicalbee/GhostShopper`, fill secrets (`LLM_MODEL`, `LLM_API_KEY`, PayPal, sandbox buyer, `KERNEL_API_KEY`, `DEMO_ADMIN_TOKEN`), then set `APP_BASE_URL` and Manual Deploy.
+2. Ping `<url>/api/health` every 10 min from cron-job.org so the free tier never sleeps.
+3. After the final deploy, run 2 checks on the hosted URL (bad store, then fixed, mock PayPal) so the dashboard isn't empty. The SQLite disk starts empty on every deploy (seen in the local Docker test: `/api/runs` returned `[]`).
+4. Hosted URL and video link into the README markers (`<!-- HOSTED_URL -->`, `<!-- VIDEO_URL -->`), fresh-clone test, video, Devpost.
+5. Optional MCP branch only if time allows. Cutoff Nov 12, 08:00 PT (9:30 PM IST).
+
+Deadline: Nov 12, 12:00 PT = Nov 13, 1:30 AM IST. Aim to submit by Nov 12, 10:00 PM IST.
 
 ### Blockers
-- None. Deploy needs the user's Render account.
+- The Render dashboard keeps loading on the user's network (Render status is operational). Try incognito, another browser, `ipconfig /flushdns` or a phone hotspot.
+- Local Docker image builds and runs fine (health ok, dashboard and store load).
 
 ## 2026-11-11, session 4 (live runs, ID links, Kernel fix, new logo)
 
