@@ -298,7 +298,7 @@ Each browser sees only its own checks, plus the shared examples from the CLI and
 
 **Made by [tropicalbee](https://github.com/tropicalbee).** Product idea, system design, architecture decisions and validation: every live run, metric and claim in this README was checked by hand.
 
-The code was written with [Claude](https://www.anthropic.com/claude) (Anthropic) as an AI pair programmer, working to that design and reviewed at every step.
+Coding buddy: [Claude](https://www.anthropic.com/claude) by Anthropic, who wrote the code to that design. Every change went through review before it landed.
 
 Built for the PayPal AI Hackathon 2026, Nov 5 to 12. MIT licensed, see [LICENSE](LICENSE).
 
