@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from backend.app import db
-from backend.app.agent.llm import CassetteExhausted, GroqLLM, LLMConfigError, ReplayLLM, make_llm
+from backend.app.agent.llm import CassetteExhausted, LLMConfigError, OpenAICompatibleChat, ReplayLLM, make_llm
 from backend.app.agent.recorder import Redactor, RunRecorder, load_run
 from backend.app.scoring import CHECKS, compute_score
 
@@ -159,7 +159,7 @@ async def test_replay_llm_rejects_tools_not_offered(tmp_path):
 
 
 @pytest.mark.anyio
-async def test_groq_llm_parses_tool_calls_and_retries_429():
+async def test_live_llm_parses_tool_calls_and_retries_429():
     calls = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -170,18 +170,18 @@ async def test_groq_llm_parses_tool_calls_and_retries_429():
                                             "function": {"name": "click", "arguments": '{"element_id": "e3"}'}}]}
         return httpx.Response(200, json={"choices": [{"message": msg}]})
 
-    http = httpx.AsyncClient(base_url="https://groq.test", transport=httpx.MockTransport(handler))
-    reply = await GroqLLM("key", "some-model", http=http).complete([{"role": "user", "content": "hi"}], TOOLS)
+    http = httpx.AsyncClient(base_url="https://llm.test/v1", transport=httpx.MockTransport(handler))
+    model = OpenAICompatibleChat("https://llm.test/v1", "key", "some-model", http=http)
+    reply = await model.complete([{"role": "user", "content": "hi"}], TOOLS)
     assert len(calls) == 2
     assert calls[1]["model"] == "some-model" and calls[1]["tools"] == TOOLS
     assert reply.tool_calls[0].arguments == {"element_id": "e3"}
 
 
 def test_make_llm_requires_explicit_config(monkeypatch):
-    monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.delenv("LLM_PROVIDER", raising=False)
-    with pytest.raises(LLMConfigError, match="GROQ_API_KEY"):
-        make_llm("groq")
+    with pytest.raises(LLMConfigError, match="LLM_PROVIDER"):
+        make_llm("live")
     with pytest.raises(LLMConfigError, match="cassette"):
         make_llm("mock")
     with pytest.raises(LLMConfigError, match="Invalid cassette"):

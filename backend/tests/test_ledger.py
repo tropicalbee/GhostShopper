@@ -11,7 +11,7 @@ from backend.app.owner import COOKIE, hash_token
 from backend.app.paypal import SEARCH_PERMISSION_HINT, PayPalError
 from backend.app.paypal_mock import FakePayPalClient
 from backend.app.config import Settings
-from store.app import ADMIN_COOKIE, admin_cookie_value
+from store.app import admin_cookie_value
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def fake():
 @pytest.fixture
 def client(tmp_path, fake):
     settings = Settings(paypal_client_id="", paypal_client_secret="", database_path=tmp_path / "test.db",
-                        app_base_url="http://testserver", paypal_mode="mock")
+                        app_base_url="http://testserver", paypal_mode="mock", demo_admin_token="open-sesame")
     with TestClient(create_app(settings, paypal=fake)) as c:
         yield c
 
@@ -69,6 +69,7 @@ def by_order(body, order_id):
 
 
 def test_row_kinds_and_totals(client):
+    client.cookies.set("fh_admin", admin_cookie_value("open-sesame"))  # an order with no run is the presenter's to see
     human = buy(client)
     agent = buy(client, add_run(client))
     risky = buy(client, add_run(client, failed_stage="checkout"))
@@ -184,19 +185,27 @@ def test_other_browsers_runs_are_not_listed(client):
     assert ledger(client)["rows"] == []
 
 
-def test_deployed_sandbox_rows_need_the_presenter_unlock(tmp_path):
+def test_an_order_whose_run_was_deleted_is_not_shown_to_other_visitors(tmp_path):
+    settings = Settings(paypal_client_id="id", paypal_client_secret="secret", database_path=tmp_path / "d.db",
+                        app_base_url="https://shop.example.com", paypal_mode="sandbox", demo_admin_token="open-sesame")
+    app = create_app(settings, paypal=FakePayPalClient())
+    with TestClient(app, base_url="https://shop.example.com") as c:
+        order = buy(c, add_run(c))
+        assert by_order(ledger(c), order)
+        c.delete(f"/api/runs/{c.get('/api/runs').json()[0]['id']}")
+        assert ledger(c)["rows"] == []  # the run is gone, so the order is nobody's
+        with TestClient(app, base_url="https://shop.example.com") as other:
+            assert ledger(other)["rows"] == []
+        c.cookies.set("fh_admin", admin_cookie_value("open-sesame"))
+        assert by_order(ledger(c), order)  # the presenter still sees it
+
+
+def test_deployed_sandbox_rows_are_checked_without_the_presenter_unlock(tmp_path):
     settings = Settings(paypal_client_id="id", paypal_client_secret="secret", database_path=tmp_path / "d.db",
                         app_base_url="https://shop.example.com", paypal_mode="sandbox", demo_admin_token="open-sesame")
     assert not settings.dev_options
-    fake = FakePayPalClient()
-    with TestClient(create_app(settings, paypal=fake), base_url="https://shop.example.com") as c:
-        c.cookies.set(ADMIN_COOKIE, admin_cookie_value("open-sesame"))
+    with TestClient(create_app(settings, paypal=FakePayPalClient()), base_url="https://shop.example.com") as c:
         order = buy(c, add_run(c))
-        c.cookies.delete(ADMIN_COOKIE)
-        body = ledger(c)
-        assert by_order(body, order)["paypal_reported"] == "not_checked"
-        assert "presenter unlock" in body["paypal_error"] and fake.searches == []
-        c.cookies.set(ADMIN_COOKIE, admin_cookie_value("open-sesame"))
         assert by_order(ledger(c), order)["paypal_reported"] == "matched"
 
 

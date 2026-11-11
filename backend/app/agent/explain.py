@@ -74,8 +74,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p = argparse.ArgumentParser(prog="python -m backend.app.agent.explain", description="Rephrase a run's fixes")
     p.add_argument("run_id", type=int)
-    p.add_argument("--llm", choices=["live", "groq", "mock"], default="live",
-                   help="live = the provider set by LLM_PROVIDER/LLM_MODEL/LLM_API_KEY (groq is an alias)")
+    p.add_argument("--llm", choices=["live", "mock"], default="live",
+                   help="live = the provider set by LLM_PROVIDER/LLM_MODEL/LLM_API_KEY")
     p.add_argument("--cassette")
     a = p.parse_args(argv)
     try:

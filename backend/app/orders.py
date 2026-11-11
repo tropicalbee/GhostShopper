@@ -18,7 +18,7 @@ from . import db
 from .agent.recorder import invalidate_run
 from .failures import BUYER_SIDE_CAPTURE_ISSUES
 from .paypal import PayPalClient, PayPalError, summarize_capture
-from .ratelimit import rate_limit
+from .ratelimit import charge_daily_cap, rate_limit
 from .verification import verify_payment
 
 log = logging.getLogger(__name__)
@@ -108,8 +108,9 @@ async def _read_back_order(paypal: PayPalClient, db_path, order_id: str) -> None
 
 @router.post("/orders", status_code=201)
 async def create_order(body: BrowserOrderRequest, request: Request, paypal: PayPalClient = Depends(get_paypal)):
-    rate_limit(request, "api_limiter", "orders")  # each call creates a PayPal sandbox order
+    rate_limit(request, "api_limiter", "orders", charge_cap=False)  # each call creates a PayPal sandbox order
     product, unit, flaws = _purchase_unit_for(body, request)
+    charge_daily_cap(request, "orders")  # after validation: a bad sku must not spend the shared daily budget
     db_path = request.app.state.settings.database_path
     # The store's order exists before PayPal's, and its number travels in custom_id: PayPal echoes it back, so the
     # purchase trace can prove both records are the same purchase without comparing amounts.
@@ -151,14 +152,8 @@ async def create_agent_order(body: AgentOrderRequest, request: Request, paypal: 
     """The store accepts an agent payment: create the order paid with a saved PayPal token, capture it if PayPal did
     not already, and record it like a popup purchase. Orders v2 with payment_source.paypal.vault_id; see
     https://developer.paypal.com/docs/api/orders/v2/ (PayPalWalletRequest.vault_id)."""
-    from .runs import real_payment_allowed  # local import: runs imports this module's siblings
-
     state = request.app.state
-    if state.paypal_active == "sandbox" and not real_payment_allowed(request):
-        # Same gate as real sandbox runs: a deployed server needs the presenter unlock (/store/admin cookie).
-        raise HTTPException(status_code=403, detail={
-            "error": "REAL_PAYMENT_LOCKED", "message": "Real PayPal sandbox payments need the presenter unlock."})
-    rate_limit(request, "api_limiter", "orders")  # each call can move sandbox money
+    rate_limit(request, "api_limiter", "orders", charge_cap=False)  # each call can move sandbox money
     if FlawStore(state.settings.database_path).get_all().get("no_guest_checkout"):
         # The store's checkout is behind an account wall; an agent payment must not skip it.
         raise HTTPException(status_code=403, detail={
@@ -178,6 +173,7 @@ async def create_agent_order(body: AgentOrderRequest, request: Request, paypal: 
         raise HTTPException(status_code=409, detail={
             "error": "OVER_BUDGET", "amount": amount,
             "message": f"The order total {amount} is over the spending limit {body.max_amount}; nothing was charged"})
+    charge_daily_cap(request, "orders")  # only a request that passed every local check can spend the shared budget
     db_path = request.app.state.settings.database_path
     store = StoreOrders(db_path)
     # One store order per request id: a repeated PayPal-Request-Id answers with the same PayPal order (and the

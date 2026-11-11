@@ -71,8 +71,9 @@ def allow_private_hosts(app_base_url: str) -> bool:
 
 def _is_public(ip: str) -> bool:
     a = ipaddress.ip_address(ip)
-    return not (a.is_private or a.is_loopback or a.is_link_local or a.is_multicast or a.is_reserved
-                or a.is_unspecified)
+    # is_global also refuses ranges the deny-list misses, like carrier-grade NAT (100.64.0.0/10, cloud metadata on some hosts).
+    return a.is_global and not (a.is_private or a.is_loopback or a.is_link_local or a.is_multicast or a.is_reserved
+                                or a.is_unspecified)
 
 
 async def resolve_checked(host: str, allow_private: bool) -> str:

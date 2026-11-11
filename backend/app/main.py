@@ -13,9 +13,10 @@ from store import catalog
 from store.app import create_store_app
 
 from . import db
-from .agent.llm import groq_configured
+from .agent.llm import live_llm_configured
 from .agent.service import real_checkout_missing
 from .config import PAYPAL_MODES, PAYPAL_SDK_URL, Settings, get_settings
+from .examples import load_examples
 from .ledger import router as ledger_router
 from .market import MarketError, market_check
 from .orders import router as orders_router
@@ -23,7 +24,7 @@ from .owner import COOKIE, MAX_AGE_S, hash_token, new_token, valid_token
 from .paypal import PayPalClient
 from .paypal_mock import MOCK_CLIENT_ID, MOCK_SDK_PATH, FakePayPalClient, mock_router
 from .ratelimit import RateLimiter, client_ip, rate_limit
-from .runs import real_payment_allowed
+from .runs import presenter_unlocked
 from .runs import router as runs_router
 from .scoring import CHECKS, RULES_VERSION, STAGES
 
@@ -64,6 +65,10 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
         purged = db.purge_old_runs(settings.database_path, settings.runs_dir, settings.retention_days)
         if purged:
             log.info("Retention: deleted %d check(s) older than %d days", len(purged), settings.retention_days)
+        if settings.example_runs:
+            added = load_examples(settings.database_path, settings.runs_dir)
+            if added:
+                log.info("Examples: loaded %d bundled check(s) as runs %s", len(added), added)
         owns_client = "sandbox" not in clients and settings.paypal_configured
         if owns_client:
             clients["sandbox"] = PayPalClient(settings.paypal_client_id, settings.paypal_client_secret)
@@ -98,9 +103,12 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
                                 secure=settings.https, path="/")
         h = response.headers
         cache = _cache_policy(request.url.path, response.status_code)
-        if cache and "cache-control" not in h:
-            # A response that hands out a fresh owner cookie must never be stored by a shared cache.
-            h["Cache-Control"] = cache.replace("public", "private") if fresh else cache
+        if "cache-control" not in h:
+            # A response that hands out a fresh owner cookie must never be stored by a shared cache, whatever its path.
+            if fresh:
+                h["Cache-Control"] = cache.replace("public", "private") if cache else "private, no-store"
+            elif cache:
+                h["Cache-Control"] = cache
         h.setdefault("X-Content-Type-Options", "nosniff")
         h.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         h.setdefault("X-Frame-Options", "DENY")
@@ -126,8 +134,8 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
             # Whether a run may ask for a real PayPal sandbox purchase, and what is missing if not.
             "real_checkout_available": not real_missing,
             "real_checkout_missing": real_missing,
-            "real_payment_allowed": real_payment_allowed(request),  # this browser has the presenter unlock
-            "groq_configured": groq_configured(),
+            "presenter_unlocked": presenter_unlocked(request),  # this browser may change the store's flaws
+            "llm_configured": live_llm_configured(),
             "demo_admin_open": settings.dev_options,
             "retention_days": settings.retention_days,
         }

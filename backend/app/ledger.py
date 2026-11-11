@@ -18,7 +18,7 @@ from fastapi import APIRouter, Request
 from . import db
 from .paypal import SEARCH_MAX_DAYS, PayPalError
 from .ratelimit import rate_limit
-from .runs import real_payment_allowed
+from .runs import presenter_unlocked
 from .scoring import STAGES
 
 log = logging.getLogger(__name__)
@@ -63,10 +63,12 @@ def _flaws_on(snapshot: str | None) -> list[str] | None:
     return sorted(k for k, v in data.items() if v) if isinstance(data, dict) else None
 
 
-def build_rows(db_path, viewer: str) -> list[dict[str, Any]]:
+def build_rows(db_path, viewer: str, presenter: bool = False) -> list[dict[str, Any]]:
     from .agent.recorder import catalog_price_of
 
-    visible = "(r.id IS NULL OR r.owner_hash IS NULL OR r.owner_hash = ?)"
+    # An order with no run (its run was deleted or purged) belongs to nobody, so only the presenter sees it.
+    visible = ("(r.id IS NULL OR r.owner_hash IS NULL OR r.owner_hash = ?)" if presenter
+               else "(r.id IS NOT NULL AND (r.owner_hash IS NULL OR r.owner_hash = ?))")
     with db.connect(db_path) as conn:
         orders = conn.execute(
             "SELECT o.*, r.flaws_snapshot AS flaws_snapshot, r.paypal_mode AS run_mode FROM orders o"
@@ -150,9 +152,6 @@ async def check_against_paypal(request: Request, rows: list[dict[str, Any]]) -> 
     window = {"start": start.isoformat(), "end": now.isoformat()}
     errors: list[str] = []
     for mode in sorted({r["paypal_mode"] for r in captured}):
-        if mode == "sandbox" and not real_payment_allowed(request):
-            errors.append("Sandbox rows are not checked against PayPal until the presenter unlock is on (open /store/admin).")
-            continue
         client = state.paypal_clients.get(mode)
         if client is None:
             errors.append(f"No {mode} PayPal client is configured, so {mode} rows were not checked.")
@@ -196,8 +195,8 @@ def totals(rows: list[dict[str, Any]]) -> dict[str, str]:
 @router.get("/ledger")
 async def get_ledger(request: Request):
     """One row per captured order and per checkout run that captured nothing, newest first, checked against
-    PayPal Transaction Search. Sandbox rows need the presenter unlock on a deployed server, like real payments."""
+    PayPal Transaction Search. Orders whose run is gone are shown to the presenter only."""
     rate_limit(request, "api_limiter")  # a call can cost PayPal requests
-    rows = build_rows(request.app.state.settings.database_path, request.state.owner)
+    rows = build_rows(request.app.state.settings.database_path, request.state.owner, presenter_unlocked(request))
     paypal_error, window = await check_against_paypal(request, rows)
     return {"rows": rows, "totals": totals(rows), "paypal_error": paypal_error, "paypal_window": window}

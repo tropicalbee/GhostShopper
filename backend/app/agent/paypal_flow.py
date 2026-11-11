@@ -16,7 +16,7 @@ import base64
 import inspect
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Awaitable, Callable
@@ -448,6 +448,9 @@ class PayPalCheckout:
                 return "agent"  # the buyer cancelled and the window closed while waiting
 
     async def _await_human(self, popup: Page, rec: RunRecorder, tools: PageTools, stage: str, reason: str) -> str:
+        if self.timeouts.human_s <= 0:  # no human can be reached: fail the step now (a 0 timeout would mean wait forever)
+            await self._close(popup)
+            return "human_timeout"
         session = tools.s
         info = {
             "stage": stage, "reason": reason, "since": _now(), "timeout_s": self.timeouts.human_s,
@@ -538,6 +541,7 @@ def make_payment_handler(
     server_mode: str | None = None,
     server_configured: bool | None = None,
     on_awaiting_human: HumanHook | None = None,
+    human_wait: bool = True,
 ) -> PayPalCheckout:
     """Live sandbox only when every credential is present and the server agrees; never a silent fallback."""
     api_base = _origin(store_url)
@@ -566,4 +570,6 @@ def make_payment_handler(
         raise PaymentConfigError(
             "Live sandbox checkout disabled; missing " + " and ".join(missing)
             + ". Use a PAYPAL_MODE=mock server with --paypal mock to test the checkout path.")
-    return PayPalCheckout(buyer, api_base, LIVE_TIMEOUTS, mode, on_awaiting_human)
+    # human_wait off: nobody can reach this run's browser, so a human check fails the run at once.
+    timeouts = LIVE_TIMEOUTS if human_wait else replace(LIVE_TIMEOUTS, human_s=0)
+    return PayPalCheckout(buyer, api_base, timeouts, mode, on_awaiting_human)

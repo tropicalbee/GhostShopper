@@ -7,6 +7,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from backend.app import runs
 from backend.app.agent import site
 from backend.app.agent.site import PinnedTransport, Politeness, SiteError, preflight, resolve_checked
 from backend.app.config import Settings
@@ -51,12 +52,39 @@ def test_no_forwarded_header_falls_back_to_the_socket_peer(tmp_path):
     assert [start(app).status_code for _ in range(2)] == [400, 429]
 
 
-def test_daily_caps_are_global_and_the_presenter_skips_them(tmp_path):
+def valid_start(app, monkeypatch, forwarded: str, admin: bool = False):
+    """A start that passes validation (the run itself is replaced), from a brand new browser."""
+    async def fake_execute(req, url, db_path, on_start=None, **kw):
+        on_start(1)
+
+    monkeypatch.setattr(runs, "execute", fake_execute)
+    monkeypatch.setattr(runs, "prepare", lambda *a, **k: (None, None))
+    c = TestClient(app, base_url="https://testserver")
+    if admin:
+        c.cookies.set(ADMIN_COOKIE, admin_cookie_value(TOKEN))
+    return c.post("/api/runs", json={}, headers={"X-Forwarded-For": forwarded})
+
+
+def test_daily_caps_are_global_and_the_presenter_skips_them(tmp_path, monkeypatch):
     app = create_app(settings(tmp_path, run_daily_cap=2, run_rate_limit=(50, 600), demo_admin_token=TOKEN))
-    assert [start(app, f"198.51.100.{i}").status_code for i in range(2)] == [400, 400]
-    r = start(app, "198.51.100.99")  # a different caller, but the shared budget is spent
+    assert [valid_start(app, monkeypatch, f"198.51.100.{i}").status_code for i in range(2)] == [202, 202]
+    r = valid_start(app, monkeypatch, "198.51.100.99")  # a different caller, but the shared budget is spent
     assert r.status_code == 429 and r.json()["detail"]["error"] == "RATE_LIMITED" and "daily limit" in r.json()["detail"]["message"]
-    assert start(app, "198.51.100.99", admin=True).status_code == 400  # the presenter is never locked out
+    assert valid_start(app, monkeypatch, "198.51.100.99", admin=True).status_code == 202  # the presenter is never locked out
+
+
+def test_requests_that_fail_validation_do_not_spend_the_daily_caps(tmp_path, monkeypatch):
+    app = create_app(settings(tmp_path, run_daily_cap=1, order_daily_cap=1, run_rate_limit=(50, 600),
+                              api_rate_limit=(50, 600), paypal_mode="mock", demo_admin_token=TOKEN))
+    assert [start(app, f"198.51.100.{i}").status_code for i in range(3)] == [400] * 3  # bad store address
+    with TestClient(app, base_url="https://testserver") as c:
+        bad = {"sku": "NO-SUCH-SKU", "quantity": 1}
+        assert [c.post("/api/paypal/orders", json=bad).status_code for _ in range(3)] == [404] * 3
+        agent = {"sku": "FH-MUG-01", "quantity": 1, "vault_id": "MOCKVAULTABC123", "request_id": "req-0001-abcd"}
+        assert c.post("/api/paypal/agent-orders", json={**agent, "max_amount": "0.01"}).status_code == 409  # over budget
+        assert c.post("/api/paypal/orders", json={"sku": "FH-MUG-01", "quantity": 1}).status_code == 201  # cap still whole
+        assert c.post("/api/paypal/orders", json={"sku": "FH-MUG-01", "quantity": 1}).status_code == 429  # now spent
+    assert valid_start(app, monkeypatch, "198.51.100.50").status_code == 202  # the runs cap was never touched
 
 
 def test_the_presenter_skips_the_per_address_limit(tmp_path):
@@ -147,6 +175,12 @@ def fake_dns(monkeypatch, *addresses: str):
     monkeypatch.setattr(site.asyncio, "get_running_loop", lambda: SimpleNamespace(getaddrinfo=getaddrinfo))
 
 
+@pytest.mark.parametrize("ip,allowed", [("100.64.0.1", False), ("100.100.100.200", False), ("10.0.0.5", False),
+                                        ("169.254.169.254", False), ("8.8.8.8", True)])
+def test_carrier_grade_nat_and_other_non_global_addresses_are_not_public(ip, allowed):
+    assert site._is_public(ip) is allowed
+
+
 @pytest.mark.anyio
 async def test_a_name_with_any_private_address_is_refused(monkeypatch):
     fake_dns(monkeypatch, "93.184.216.34", "10.0.0.5")
@@ -193,6 +227,19 @@ def test_unlock_attempts_are_throttled_per_address(tmp_path):
         assert [guess("203.0.113.7").status_code for _ in range(10)] == [403] * 10
         assert guess("203.0.113.7", TOKEN).status_code == 429  # even the right token waits out the window
         assert guess("198.51.100.9", TOKEN).status_code == 303  # another address is not affected
+
+
+def test_a_wrong_admin_token_header_shares_the_unlock_throttle(tmp_path):
+    app = create_app(settings(tmp_path, demo_admin_token=TOKEN))
+    with TestClient(app, base_url="https://testserver") as c:
+        def guess(ip, token="wrong"):
+            return c.get("/store/admin", headers={"X-Admin-Token": token, "X-Forwarded-For": ip})
+
+        assert [guess("203.0.113.7").status_code for _ in range(10)] == [403] * 10
+        assert guess("203.0.113.7").status_code == 429
+        assert c.post("/store/admin/unlock", data={"token": "wrong"}, headers={"X-Forwarded-For": "203.0.113.7"}).status_code == 429
+        assert guess("198.51.100.9", TOKEN).status_code == 200  # the right header still works from another address
+        assert guess("198.51.100.9").status_code == 403
 
 
 # --- Spending limit ---

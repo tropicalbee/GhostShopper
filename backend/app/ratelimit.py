@@ -42,18 +42,31 @@ def client_ip(request: Request, hops: int) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def rate_limit(request: Request, limiter_name: str, daily_cap: str | None = None) -> None:
+def _limits_apply(request: Request) -> bool:
+    settings = request.app.state.settings
+    return not (settings.dev_options or has_admin_cookie(request, settings.demo_admin_token))
+
+
+def rate_limit(request: Request, limiter_name: str, daily_cap: str | None = None, charge_cap: bool = True) -> None:
     """Counts every attempt, failed ones included: a failed start still costs a preflight fetch.
     `daily_cap` names a process-wide per-day cap (runs, market, orders) for calls that cost real quota.
+    `charge_cap=False` checks only the per-caller window; the route then calls charge_daily_cap once the request
+    has passed local validation, so malformed requests can't burn the shared daily budget.
     Off in local development (dev_options), where tests and the benchmark start many runs. The presenter's
     admin cookie skips both limits, so a flood from anonymous callers can't lock them out."""
     state = request.app.state
     settings = state.settings
-    if settings.dev_options or has_admin_cookie(request, settings.demo_admin_token):
+    if not _limits_apply(request):
         return
     limiter = getattr(state, limiter_name)
     ip = client_ip(request, settings.trusted_proxy_hops)
     if not (limiter.hit(f"ip:{ip}") & limiter.hit(f"owner:{request.state.owner}")):
         raise HTTPException(status_code=429, detail={"error": "RATE_LIMITED", "message": "That's a lot of requests in a short time. Please wait a few minutes and try again."})
-    if daily_cap and not state.daily_caps[daily_cap].hit("all"):
+    if daily_cap and charge_cap:
+        charge_daily_cap(request, daily_cap)
+
+
+def charge_daily_cap(request: Request, daily_cap: str) -> None:
+    """Spend one call of the process-wide daily cap. Same exemptions as rate_limit."""
+    if _limits_apply(request) and not request.app.state.daily_caps[daily_cap].hit("all"):
         raise HTTPException(status_code=429, detail={"error": "RATE_LIMITED", "message": "GhostShopper has reached its daily limit for this action on the shared demo. Please try again tomorrow."})

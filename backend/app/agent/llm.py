@@ -146,11 +146,6 @@ class OpenAICompatibleChat(ChatModel):
         await self._http.aclose()
 
 
-class GroqLLM(OpenAICompatibleChat):
-    def __init__(self, api_key: str, model: str, http: httpx.AsyncClient | None = None, max_retries: int = 3):
-        super().__init__(GROQ_BASE_URL, api_key, model, http=http, max_retries=max_retries, provider="groq")
-
-
 def _text_of(content: Any) -> str:
     if content is None:
         return ""
@@ -294,18 +289,15 @@ def load_llm_settings() -> LLMSettings:
     """Read the live LLM configuration from the environment now. Raises LLMConfigError naming what is missing."""
     provider = _env("LLM_PROVIDER").lower()
     if not provider:
-        if _env("GROQ_API_KEY") and _env("GROQ_MODEL"):
-            return LLMSettings("groq", _env("GROQ_MODEL"), _env("GROQ_API_KEY"), _env("LLM_BASE_URL") or GROQ_BASE_URL)
-        raise LLMConfigError("Live LLM is not configured. Set LLM_PROVIDER, LLM_MODEL and LLM_API_KEY in .env "
-                             "(or GROQ_API_KEY and GROQ_MODEL), or use --llm mock")
+        raise LLMConfigError("Live LLM is not configured. Set LLM_PROVIDER, LLM_MODEL and LLM_API_KEY in .env, "
+                             "or use --llm mock")
     spec = PROVIDERS.get(provider)
     if spec is None:
         raise LLMConfigError(f"Unknown LLM_PROVIDER {provider!r}; use one of: {', '.join(sorted(PROVIDERS))}")
-    legacy = provider == "groq"  # GROQ_* keep working for the groq provider
-    model = _env("LLM_MODEL") or (_env("GROQ_MODEL") if legacy else "")
+    model = _env("LLM_MODEL")
     if not model:
         raise LLMConfigError(f"LLM_PROVIDER={provider} needs LLM_MODEL (the model id) in .env")
-    api_key = _env("LLM_API_KEY") or (_env("GROQ_API_KEY") if legacy else "")
+    api_key = _env("LLM_API_KEY")
     if spec.key_required and not api_key:
         raise LLMConfigError(f"LLM_PROVIDER={provider} needs LLM_API_KEY in .env")
     base_url = _env("LLM_BASE_URL") or spec.base_url
@@ -333,9 +325,6 @@ def live_llm_label() -> str | None:
     except LLMConfigError:
         return None
     return f"{s.provider}:{s.model}"
-
-
-groq_configured = live_llm_configured  # old name, still imported by callers
 
 
 class ReplayLLM(ChatModel):
@@ -398,12 +387,12 @@ def resolve_cassette(name: str) -> Path:
 
 
 def make_llm(kind: str, cassette: str | None = None, record_to: Path | None = None) -> ChatModel:
-    """kind is 'live' (the configured provider; 'groq' is an alias) or 'mock' (replay a cassette)."""
+    """kind is 'live' (the provider set by LLM_PROVIDER) or 'mock' (replay a cassette)."""
     if kind == "mock":
         if not cassette:
             raise LLMConfigError("Mock LLM needs a cassette name")
         return ReplayLLM(resolve_cassette(cassette))
-    if kind in ("live", "groq"):
+    if kind == "live":
         llm = build_live_llm()
         return RecordingLLM(llm, record_to) if record_to else llm
-    raise LLMConfigError(f"Unknown LLM kind {kind!r}; use 'live' (or 'groq') or 'mock'")
+    raise LLMConfigError(f"Unknown LLM kind {kind!r}; use 'live' or 'mock'")

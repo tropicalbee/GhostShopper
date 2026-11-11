@@ -93,7 +93,7 @@ export function NewCheck({ yours }: { yours: boolean }) {
   const [urlError, setUrlError] = useState<string | null>(null);
   const [budget, setBudget] = useState("");
   const [budgetError, setBudgetError] = useState<string | null>(null);
-  const [real, setReal] = useState(false);
+  const [realChoice, setReal] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const health = useFetch(api.health, []).data;
@@ -101,7 +101,9 @@ export function NewCheck({ yours }: { yours: boolean }) {
   const [state, setState] = useState<FlawState | null>(null);
   const [flawError, setFlawError] = useState<string | null>(null);
   const current = state ?? flaws.data;
-  const canEdit = !!health?.real_payment_allowed;
+  const canEdit = !!health?.presenter_unlocked;
+  // The real sandbox is the default whenever the server can run it; the visitor can switch to practice.
+  const real = realChoice ?? !!health?.real_checkout_available;
 
   const keys = GROUPS.flatMap(([, ks]) => ks).filter((k) => current && k in current);
   const on = keys.filter((k) => current?.[k]).length;
@@ -216,14 +218,14 @@ export function NewCheck({ yours }: { yours: boolean }) {
                     <FlaskConical className="size-[15px]" aria-hidden />
                     {modeLabel}
                   </button>
-                  {health?.real_payment_allowed && (
+                  {health && (
                     <button type="button" role="radio" aria-checked={real} disabled={!health.real_checkout_available} onClick={() => setReal(true)} className={cn("flex min-h-9 items-center gap-2 rounded-lg px-3.5 text-[13.5px] transition-colors disabled:opacity-50", real ? "bg-gradient-to-b from-[#1f1f1f] to-[#141414] text-foreground shadow-[inset_0_0_0_1px_#2e2e2e]" : "text-faint")}>
                       <CreditCard className="size-[15px]" aria-hidden />
                       Real PayPal sandbox
                     </button>
                   )}
                 </div>
-                {health?.real_payment_allowed && !health.real_checkout_available && <p className="mt-2 text-[12.5px] text-faint">The real sandbox is not set up on this server (missing {health.real_checkout_missing.join(", ")}).</p>}
+                {health && !health.real_checkout_available && <p className="mt-2 text-[12.5px] text-faint">The real sandbox is not set up on this server (missing {health.real_checkout_missing.join(", ")}).</p>}
                 <div className="mt-4 text-[13px]">
                   <label htmlFor="spending-limit" className="font-medium">
                     Spending limit <span className="font-normal text-faint">(optional)</span>

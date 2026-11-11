@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, RECENT_RUNS, type Run, type RunSummary } from "@/lib/api";
 import { go, hashQuery, useFetch, useMediaQuery, useRoute } from "@/lib/hooks";
+import { REPO_URL } from "@/lib/utils";
 import { Compare } from "@/screens/Compare";
 import { Landing } from "@/screens/Landing";
 import { Live } from "@/screens/Live";
@@ -99,7 +100,12 @@ export default function App() {
       <AppBar route={route} health={health.data} advancedId={advancedId} />
       <main className="mx-auto w-[min(1200px,100%-32px)] flex-1 pt-[30px] pb-20 sm:w-[min(1200px,100%-56px)]">{screen}</main>
       <footer className="border-t">
-        <p className="mx-auto w-[min(1200px,100%-32px)] py-5 text-[13px] text-muted-foreground sm:w-[min(1200px,100%-56px)]">Scores come from checks on what the browser saw, never from the AI.</p>
+        <div className="mx-auto flex w-[min(1200px,100%-32px)] flex-wrap justify-between gap-x-6 gap-y-2 py-5 text-[13px] text-muted-foreground sm:w-[min(1200px,100%-56px)]">
+          <p>Scores come from checks on what the browser saw, never from the AI.</p>
+          <a href={REPO_URL} target="_blank" rel="noreferrer" className="text-muted-foreground no-underline transition-colors hover:text-foreground">
+            Source on GitHub
+          </a>
+        </div>
       </footer>
     </div>
   );

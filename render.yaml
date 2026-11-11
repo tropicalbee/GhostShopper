@@ -1,4 +1,4 @@
-# Render blueprint (free tier). Not deployed yet: Day 6. Secrets are set in the Render dashboard (sync: false).
+# Render blueprint (free tier). Deployed at https://ghostshopper.onrender.com. Secrets are set in the Render dashboard (sync: false).
 # Notes:
 # - Free tier: 512 MB RAM, sleeps when idle (first request is slow), disk is ephemeral (SQLite resets on deploy).
 # - Chromium inside 512 MB is tight; BROWSER_PROVIDER=kernel runs the shopper's browser on Kernel instead.
@@ -12,7 +12,7 @@ services:
     healthCheckPath: /api/health
     autoDeploy: false
     envVars:
-      - key: PAYPAL_MODE   # the default for a check; a visitor can choose the real sandbox per check (needs the keys below)
+      - key: PAYPAL_MODE   # the store's own checkout; New check picks the real sandbox by default when the keys below are set
         value: mock
       - key: APP_BASE_URL
         value: https://ghostshopper.onrender.com   # replace with the service URL Render assigns
@@ -32,20 +32,18 @@ services:
         sync: false
       - key: LLM_API_KEY
         sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: GROQ_MODEL
-        sync: false
       - key: KERNEL_API_KEY
         sync: false
       - key: CHANNEL3_API_KEY
         sync: false
-      - key: DEMO_ADMIN_TOKEN   # presenter only: unlocks /store/admin (password form)
+      - key: DEMO_ADMIN_TOKEN   # presenter only: unlocks the flaw toggles at /store/admin (password form)
         sync: false
       - key: DEV_OPTIONS
         value: "0"
       - key: RETENTION_DAYS
         value: "30"
+      - key: EXAMPLE_RUNS   # load the bundled real runs (bad store 49, fixed store 100) as examples after every restart
+        value: "1"
       - key: TRUSTED_PROXY_HOPS   # proxies in front of the app that append to X-Forwarded-For (Render: 1)
         value: "1"
       - key: RUN_DAILY_CAP        # shared per-day caps on the calls that spend quota; the presenter unlock skips them

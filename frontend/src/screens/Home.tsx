@@ -21,8 +21,9 @@ export function Home() {
   const [error, setError] = useState<string | null>(null);
   const [budget, setBudget] = useState("");
   const [budgetError, setBudgetError] = useState<string | null>(null);
-  const [real, setReal] = useState(false);
+  const [realChoice, setReal] = useState<boolean | null>(null);
   const health = useFetch(api.health, []).data;
+  const real = realChoice ?? !!health?.real_checkout_available; // the real sandbox is the default when it is set up
 
   const start = async (storeUrl: string | null) => {
     const limit = budget.trim().replace(/^\$/, "");
@@ -116,7 +117,7 @@ export function Home() {
               {budgetError ?? "The shopper won't pay if the checkout total is above this. The demo mug costs $24.00."}
             </p>
           </div>
-          {health?.real_payment_allowed && (
+          {health && (
             <div className="mt-4">
               <label className="flex items-start gap-2 font-medium">
                 <input

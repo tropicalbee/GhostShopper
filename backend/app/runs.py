@@ -19,13 +19,13 @@ from pydantic import BaseModel, Field
 from . import db
 from .agent.compare import CompareError, compare_runs, previous_run, previous_run_with_other_flaws
 from .agent.explain import explain_run
-from .agent.llm import LLMConfigError, groq_configured, make_llm
+from .agent.llm import LLMConfigError, live_llm_configured, make_llm
 from .agent.recorder import invalidate_run, list_runs, load_run
 from .agent.service import RunConfigError, RunRequest, ServerInfo, execute, prepare, real_checkout_missing, resolve_target
 from .agent.site import allow_private_hosts
 from .devsummary import developer_summary
 from .feed import feed_csv
-from .ratelimit import rate_limit
+from .ratelimit import charge_daily_cap, rate_limit
 from .trace import build_trace
 from store import catalog
 from store.app import has_admin_cookie
@@ -40,7 +40,7 @@ FILE_NAME_RE = re.compile(r"^[\w.-]+\.png$")
 class StartRun(BaseModel):
     store_url: str | None = Field(default=None, max_length=2048)  # None = the demo store; others are browse-only
     # Developer options. A deployed server refuses them (Settings.dev_options) and picks them itself.
-    llm: Literal["mock", "groq", "scripted"] | None = None
+    llm: Literal["mock", "live", "scripted"] | None = None
     cassette: str | None = Field(default=None, max_length=100)
     record: str | None = Field(default=None, max_length=100)
     flaws: str | None = Field(default=None, max_length=500)  # demo store: on | off | all | keep | a,b,c
@@ -52,8 +52,9 @@ class StartRun(BaseModel):
     # Open to everyone (not a developer option): a spending limit in USD, like "30.00". Only matters when the
     # shopper pays, which is on the demo store.
     budget: str | None = Field(default=None, max_length=20)
-    # Pay with the real PayPal sandbox instead of the server's default. Needs the presenter unlock on a deployed
-    # server (else 403 REAL_PAYMENT_LOCKED), plus sandbox keys and a Kernel browser (else 400 RUN_CONFIG). Demo store only.
+    # Pay with the real PayPal sandbox instead of the server's default. Open to everyone under the daily caps; needs
+    # sandbox keys and a Kernel browser (else 400 RUN_CONFIG). A PayPal human check is only waited for when the
+    # presenter is unlocked (nobody else can reach the live view). Demo store only.
     real_payment: bool | None = None
 
 
@@ -61,8 +62,10 @@ def _error(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"error": code, "message": message})
 
 
-def real_payment_allowed(request: Request) -> bool:
-    """Real sandbox purchases need the presenter unlock (the /store/admin cookie); a dev server needs nothing."""
+def presenter_unlocked(request: Request) -> bool:
+    """The presenter unlock (the /store/admin cookie) or a dev server. It guards the store's flaw settings, the
+    Kernel live-view link and the wait for a human PayPal check; real sandbox purchases are open to everyone
+    under the daily caps, like Kernel and Channel3."""
     settings = request.app.state.settings
     if settings.dev_options:
         return True
@@ -108,15 +111,13 @@ def _public(run: dict[str, Any], viewer: str) -> dict[str, Any]:
 async def start_run(body: StartRun, request: Request):
     state = request.app.state
     settings = state.settings
-    rate_limit(request, "run_limiter", "runs")
+    rate_limit(request, "run_limiter", "runs", charge_cap=False)
     chosen = body.model_fields_set - {"store_url", "budget", "real_payment"}
     if chosen and not settings.dev_options:
         raise _error(400, "RUN_CONFIG", f"Only store_url can be set on this server (not {', '.join(sorted(chosen))}).")
     demo = not body.store_url
     real = bool(body.real_payment)
     if real:
-        if not real_payment_allowed(request):
-            raise _error(403, "REAL_PAYMENT_LOCKED", "Real PayPal sandbox purchases need the presenter unlock. Unlock at /store/admin, or run without this option for the practice PayPal.")
         if not demo:
             raise _error(400, "RUN_CONFIG", "Real PayPal purchases only run on the GhostShopper demo store.")
         missing = real_checkout_missing(settings.paypal_configured or "sandbox" in state.paypal_clients)
@@ -124,7 +125,7 @@ async def start_run(body: StartRun, request: Request):
             raise _error(400, "RUN_CONFIG", f"The real PayPal sandbox option isn't set up on this server. Missing: {', '.join(missing)}.")
     req = RunRequest(
         store_url=body.store_url,
-        llm=body.llm or ("groq" if groq_configured() else "scripted"),
+        llm=body.llm or ("live" if live_llm_configured() else "scripted"),
         cassette=body.cassette,
         record=body.record,
         flaws=body.flaws or "keep",
@@ -135,6 +136,7 @@ async def start_run(body: StartRun, request: Request):
         max_steps=body.max_steps or 25,
         budget=body.budget,
         headless=False if real else not body.headed,
+        human_wait=presenter_unlocked(request),
     )
     # Both modes are served; the run is checked against the mode it asked for, not the server's default.
     server = ServerInfo(req.paypal, req.paypal in state.paypal_clients or settings.paypal_configured)
@@ -149,6 +151,7 @@ async def start_run(body: StartRun, request: Request):
     # No await between the check and the acquire, so two near-simultaneous starts can't both pass.
     if state.run_lock.locked():
         raise _error(409, "RUN_IN_PROGRESS", "A check is already running. Try again when it finishes.")
+    charge_daily_cap(request, "runs")  # the request is valid: only now does it spend the shared daily budget
     await state.run_lock.acquire()
     try:
         db.purge_old_runs(settings.database_path, settings.runs_dir, settings.retention_days)  # also on long uptimes
@@ -233,7 +236,7 @@ def compare_with_previous(run_id: int, request: Request, before: int | None = Qu
 
 
 class ExplainBody(BaseModel):
-    llm: Literal["mock", "groq"] = "groq"
+    llm: Literal["mock", "live"] = "live"
     cassette: str | None = Field(default=None, max_length=100)
 
 
@@ -326,4 +329,7 @@ def _purchase_trace(db_path: Path, run: dict[str, Any]) -> dict[str, Any]:
 def get_run(run_id: int, request: Request):
     run = _readable(request, run_id)
     run["trace"] = _purchase_trace(request.app.state.settings.database_path, run)
+    if run.get("awaiting") and not presenter_unlocked(request):
+        # The live view is a browser that has just typed the operator's sandbox buyer login: presenter only.
+        run["awaiting"] = {k: v for k, v in run["awaiting"].items() if k != "live_view_url"}
     return _public(run, request.state.owner)

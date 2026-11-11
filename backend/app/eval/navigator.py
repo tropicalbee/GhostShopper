@@ -2,8 +2,8 @@
 
 It is NOT an LLM and is labelled as such in every run it makes (llm="scripted"). It exists because the
 benchmark runs many random flaw combinations: replayed cassettes can't adapt to a store that changes,
-and the free Groq tier can't afford that many runs. It measures the deterministic detectors (which only
-need the agent to visit the pages); agent behaviour itself is measured with live Groq runs.
+and a free-tier LLM can't afford that many runs. It measures the deterministic detectors (which only
+need the agent to visit the pages); agent behaviour itself is measured with live LLM runs.
 
 Strategy, like a cautious shopper: open the product from the home page, accept a cookie banner if one
 is in the way, try buy-like controls in order (semantic buy buttons first, then unlabeled clickables),

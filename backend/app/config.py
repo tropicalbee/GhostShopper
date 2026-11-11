@@ -35,6 +35,7 @@ class Settings:
     runs_dir: Path = REPO_ROOT / "runs"  # screenshots, one folder per run
     frontend_dist: Path = REPO_ROOT / "frontend" / "dist"
     retention_days: int = 30  # owned checks older than this are deleted at startup; examples are kept
+    example_runs: bool = False  # load the bundled example checks (backend/app/examples/) at startup if missing
     run_rate_limit: tuple[int, int] = (6, 600)  # starts per (client IP, browser) per window in seconds
     api_rate_limit: tuple[int, int] = (30, 600)  # explain, market and PayPal order calls, which cost quota
     unlock_rate_limit: tuple[int, int] = (10, 900)  # admin unlock attempts per client IP per window in seconds
@@ -99,6 +100,7 @@ def get_settings() -> Settings:
         dev_options=dev if dev is not None else (urlparse(base).hostname or "") in LOCAL_HOSTS,
         demo_admin_token=os.getenv("DEMO_ADMIN_TOKEN", "").strip(),
         retention_days=int(retention),
+        example_runs=bool(_flag("EXAMPLE_RUNS")),
         run_daily_cap=caps["RUN_DAILY_CAP"],
         market_daily_cap=caps["MARKET_DAILY_CAP"],
         order_daily_cap=caps["ORDER_DAILY_CAP"],

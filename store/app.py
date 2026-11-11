@@ -254,7 +254,13 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
     def admin_allowed(request: Request) -> bool:
         if admin_open:
             return True
-        return token_matches(request.headers.get("x-admin-token") or "") or has_admin_cookie(request, admin_token)
+        supplied = request.headers.get("x-admin-token")
+        if supplied is not None and not token_matches(supplied):
+            # A wrong header guess shares the unlock form's throttle, so the header is no faster way to test tokens.
+            if unlock_allowed is not None and not unlock_allowed(request):
+                raise HTTPException(status_code=429, detail="Too many unlock attempts. Please wait a few minutes and try again.")
+            return has_admin_cookie(request, admin_token)
+        return token_matches(supplied or "") or has_admin_cookie(request, admin_token)
 
     def token_matches(supplied: str) -> bool:
         return bool(admin_token) and hmac.compare_digest(supplied.encode(), admin_token.encode())

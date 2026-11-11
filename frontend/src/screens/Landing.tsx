@@ -6,7 +6,7 @@ import { ScoreRing, type RingMark } from "@/components/ReadinessPanels";
 import { TraceTable } from "@/components/TraceTable";
 import { startCheck, type Trace, type TraceCell } from "@/lib/api";
 import { go, useCountUp } from "@/lib/hooks";
-import { cn } from "@/lib/utils";
+import { cn, REPO_URL } from "@/lib/utils";
 
 // Everything on this page is an illustration of one made-up practice run. It never comes from the API.
 
@@ -628,7 +628,7 @@ export function Landing() {
           </div>
           <FooterList title="Product" items={[["New check", "#/new"], ["My checks", "#/checks"], ["Sales ledger", "#/ledger"]]} />
           <FooterList title="Built with" items={[["PayPal Orders v2"], ["Kernel"], ["Channel3"], ["NVIDIA Nemotron"], ["AG Grid"]]} />
-          <FooterList title="Project" items={[["Demo store", "/store/"], ["MIT license"]]} />
+          <FooterList title="Project" items={[["Demo store", "/store/"], ["GitHub", REPO_URL], ["MIT license", `${REPO_URL}/blob/main/LICENSE`]]} />
         </div>
         <div className="border-t-[1.5px] border-dashed border-[#2a2a2a]">
           <div className={cn(wrap, "flex flex-wrap justify-between gap-x-6 gap-y-2 pt-5 pb-7 font-mono text-xs tracking-[0.06em] text-faint")}>
@@ -688,7 +688,7 @@ function FooterList({ title, items }: { title: string; items: ([string] | [strin
         {items.map(([label, href]) => (
           <li key={label}>
             {href ? (
-              <a href={href} className="text-muted-foreground no-underline transition-colors hover:text-foreground">
+              <a href={href} {...(href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})} className="text-muted-foreground no-underline transition-colors hover:text-foreground">
                 {label}
               </a>
             ) : (

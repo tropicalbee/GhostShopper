@@ -5,12 +5,12 @@ export type Health = {
   status: string;
   paypal_configured: boolean;
   paypal_mode: "mock" | "sandbox";
-  groq_configured: boolean;
+  llm_configured: boolean;
   demo_admin_open: boolean;
   retention_days: number;
   real_checkout_available: boolean; // a run may pay with the real PayPal sandbox (needs keys and a Kernel browser)
   real_checkout_missing: string[]; // what the server still needs when it isn't
-  real_payment_allowed: boolean; // this browser has the presenter unlock (or the server is a dev server)
+  presenter_unlocked: boolean; // this browser may change the store's flaws (presenter unlock, or a dev server)
 };
 
 export type FeedLine = { step: number; text: string; tone: "good" | "bad" | "info" | "neutral" };
@@ -205,7 +205,7 @@ export type Run = {
   store_url: string;
   live: boolean;
   platform: string | null;
-  llm: "mock" | "groq" | "scripted";
+  llm: "mock" | "live" | "scripted";
   model: string | null;
   paypal_mode: string;
   checkout: number;

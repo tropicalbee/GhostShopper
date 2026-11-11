@@ -8,7 +8,7 @@ import pytest
 # load_dotenv (override=False) on import, so values set here, before any app import, win over .env.
 # An empty string counts as unset for every reader of these variables.
 os.environ["BROWSER_PROVIDER"] = "local"
-for _name in ("KERNEL_API_KEY", "CHANNEL3_API_KEY", "LLM_API_KEY", "GROQ_API_KEY"):
+for _name in ("KERNEL_API_KEY", "CHANNEL3_API_KEY", "LLM_API_KEY"):
     os.environ[_name] = ""
 
 

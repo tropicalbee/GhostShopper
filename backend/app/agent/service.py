@@ -25,10 +25,10 @@ class RunConfigError(ValueError):
 
 @dataclass
 class RunRequest:
-    llm: Literal["mock", "groq", "scripted"] = "groq"  # scripted = rule-based navigator, not an LLM
+    llm: Literal["mock", "live", "scripted"] = "live"  # scripted = rule-based navigator, not an LLM
     cassette: str | None = None  # mock: cassette to replay
     store_url: str | None = None  # None = our demo store; anything else is a live store (browse-only)
-    record: str | None = None  # groq: save the run as this cassette name
+    record: str | None = None  # live: save the run as this cassette name
     flaws: FlawMode = "keep"
     checkout: bool = False
     paypal: Literal["mock", "sandbox"] = "sandbox"
@@ -38,6 +38,7 @@ class RunRequest:
     headless: bool = True
     browser: str | None = None  # local | kernel; None = BROWSER_PROVIDER (default local)
     budget: str | None = None  # spending limit in USD, e.g. "30.00"; None = no limit. See parse_budget.
+    human_wait: bool = True  # False: a PayPal human check fails the run at once (nobody can reach its browser)
 
 
 MAX_BUDGET = Decimal("10000")
@@ -136,7 +137,7 @@ def build_payment(req: RunRequest, store_url: str, server: ServerInfo | None = N
 
     try:
         return make_payment_handler(req.paypal, store_url, server.paypal_mode if server else None,
-                                    server.paypal_configured if server else None, on_awaiting_human)
+                                    server.paypal_configured if server else None, on_awaiting_human, req.human_wait)
     except PaymentConfigError as exc:
         raise RunConfigError(str(exc)) from exc
 
@@ -161,7 +162,7 @@ def prepare(req: RunRequest, store_url: str, db_path: Path, server: ServerInfo |
     if live and req.checkout:
         raise RunConfigError("Purchases only run on the GhostShopper demo store.")
     if live and req.llm == "mock":
-        raise RunConfigError("Replayed runs only fit the demo store. Use the live agent (groq) or the scripted navigator.")
+        raise RunConfigError("Replayed runs only fit the demo store. Use the live agent or the scripted navigator.")
     flaw_selection(req.flaws)  # raises on unknown flaw keys
     parse_budget(req.budget)
     try:

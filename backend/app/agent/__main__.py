@@ -53,8 +53,8 @@ def print_run(run: dict) -> None:
 def main() -> int:
     p = argparse.ArgumentParser(prog="python -m backend.app.agent", description="GhostShopper mystery shopper")
     p.add_argument("--url", help="a store link to check (browse-only, never pays); default: the demo store")
-    p.add_argument("--llm", choices=["live", "groq", "mock", "scripted"], default="live",
-                   help="live = the provider set by LLM_PROVIDER/LLM_MODEL/LLM_API_KEY (groq is an alias); "
+    p.add_argument("--llm", choices=["live", "mock", "scripted"], default="live",
+                   help="live = the provider set by LLM_PROVIDER/LLM_MODEL/LLM_API_KEY; "
                         "mock = replay a cassette; scripted = rule-based navigator (not an LLM), works on any store")
     p.add_argument("--cassette", help="mock: name of the recorded responses to replay")
     p.add_argument("--record", help="live: save this run's LLM replies as a cassette with this name")

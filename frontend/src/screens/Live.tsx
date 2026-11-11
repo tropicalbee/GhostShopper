@@ -158,10 +158,12 @@ export function Live({ run }: { run: Run }) {
                   {run.awaiting.reason} {run.awaiting.instructions}
                 </p>
               </div>
-              {run.awaiting.live_view_url && (
+              {run.awaiting.live_view_url ? (
                 <a href={run.awaiting.live_view_url} target="_blank" rel="noreferrer" className="shine inline-flex h-9 items-center justify-center rounded-lg bg-foreground px-3.5 text-[13.5px] font-medium whitespace-nowrap text-[#0a0a0a] no-underline">
                   Open the shopper&apos;s browser
                 </a>
+              ) : (
+                <p className="text-[13px] text-faint sm:max-w-[220px]">This check needs a person and will stop.</p>
               )}
             </section>
           )}

@@ -29,8 +29,8 @@ def main(argv: list[str] | None = None) -> int:
     j = sub.add_parser("judge", help="LLM-as-judge on a run's fix explanations (secondary metric)")
     j.add_argument("run_id", type=int)
     for sp in (pr, j):
-        sp.add_argument("--llm", choices=["live", "groq", "mock"], default="live",
-                        help="live = the provider set by LLM_PROVIDER/LLM_MODEL/LLM_API_KEY (groq is an alias)")
+        sp.add_argument("--llm", choices=["live", "mock"], default="live",
+                        help="live = the provider set by LLM_PROVIDER/LLM_MODEL/LLM_API_KEY")
         sp.add_argument("--cassette")
     a = p.parse_args(argv)
 

@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS runs (
     checkout        INTEGER NOT NULL,       -- 1 = run includes the PayPal payment
     paypal_mode     TEXT NOT NULL,          -- off | mock | sandbox
     flaws_snapshot  TEXT,                   -- JSON
-    llm             TEXT NOT NULL,          -- mock | groq
+    llm             TEXT NOT NULL,          -- mock | live | scripted
     model           TEXT,
     outcome         TEXT,                   -- reached_checkout | purchased | blocked | gave_up | error (deterministic)
     end_reason      TEXT,                   -- finished | agent_gave_up | agent_loop | step_limit | step_timeouts | error

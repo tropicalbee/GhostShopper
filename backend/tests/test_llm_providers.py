@@ -23,7 +23,7 @@ from backend.app.agent.llm import (
 TOOLS = [{"type": "function", "function": {"name": "click", "description": "Click an element",
                                            "parameters": {"type": "object", "properties": {"element_id": {"type": "string"}},
                                                           "required": ["element_id"]}}}]
-ENV_VARS = ["LLM_PROVIDER", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL", "GROQ_API_KEY", "GROQ_MODEL"]
+ENV_VARS = ["LLM_PROVIDER", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL"]
 
 
 @pytest.fixture
@@ -272,15 +272,6 @@ def test_ollama_needs_no_key(clean_env):
     model = make_llm("live")
     assert str(model._http.base_url).rstrip("/") == "http://localhost:11434/v1"
     assert "authorization" not in model._http.headers
-
-
-def test_groq_env_backward_compatible(clean_env):
-    clean_env.setenv("GROQ_API_KEY", "gk")
-    clean_env.setenv("GROQ_MODEL", "gm")
-    assert live_llm_configured() and live_llm_label() == "groq:gm"
-    model = make_llm("groq")  # alias of live
-    assert model.kind == "groq" and model.model == "gm"
-    assert model._http.headers["authorization"] == "Bearer gk"
 
 
 def test_explicit_config_errors(clean_env):
