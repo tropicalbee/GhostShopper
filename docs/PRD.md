@@ -4,7 +4,11 @@
 
 ## Problem
 
-PayPal wants small merchants to be discoverable and buyable by AI shopping agents (Agent Ready, Store Sync). A merchant has no way to see how an agent experiences their store: whether it can find a product, read the price, tell which button buys, and finish checkout. Failures are invisible because humans don't hit them.
+PayPal measured it: an agent buys in 3 tool calls when a store exposes checkout as agent tools (WebMCP). Most small stores don't, so the agent has to use the page, and that takes 30+ steps. A merchant has no way to see where that path breaks: whether the agent can find a product, read the price, tell which button buys, and finish checkout. Humans don't hit these failures, so they stay invisible.
+
+PayPal is building the infrastructure through Agent Ready and Store Sync, which are separate services. GhostShopper helps merchants diagnose their existing storefront and purchase flow before they pursue those integrations. It is a diagnostic, not a PayPal certification, and it doesn't test WebMCP.
+
+Traditional checkout tests verify known paths. GhostShopper tests what happens when an AI shopper has to find the product, read the page and complete the purchase without human intuition. The purchase trace checks that the intended purchase, the PayPal order, the capture and the store's order agree, and it comes before the score.
 
 ## Audience
 

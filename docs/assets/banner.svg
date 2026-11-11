@@ -1,0 +1,44 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="GhostShopper. With agent tools, an AI buys in 3 calls. On your store's page, it takes 30+ steps.">
+  <defs>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#ffffff" fill-opacity="0.07"/>
+    </pattern>
+    <radialGradient id="glow" cx="0.2" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" rx="20" fill="#000"/>
+  <rect width="1200" height="360" rx="20" fill="url(#dots)"/>
+  <rect width="1200" height="360" rx="20" fill="url(#glow)"/>
+  <rect x="0.5" y="0.5" width="1199" height="359" rx="20" fill="none" stroke="#ffffff" stroke-opacity="0.14"/>
+
+  <!-- ghost with a shopping bag, the app logo -->
+  <g transform="translate(60 70) scale(1.75)">
+    <path fill="#ededed" fill-rule="evenodd" d="M22 54A40 40 0 0 1 102 54V86C102 96 98 102 92 104L82 97L72 106L61 98L50 107L38 99L16 110C22 100 22 92 22 82Z M57 47A4.5 4.5 0 0 1 66 47V55A4.5 4.5 0 0 1 57 55Z M76 47A4.5 4.5 0 0 1 85 47V55A4.5 4.5 0 0 1 76 55Z"/>
+    <path d="M103 78V71A11 11 0 0 1 125 71V78" fill="none" stroke="#000" stroke-width="11" stroke-linecap="round"/>
+    <path d="M103 78V71A11 11 0 0 1 125 71V78" fill="none" stroke="#ededed" stroke-width="5" stroke-linecap="round"/>
+    <path d="M94 72H134L136 116H92Z" fill="#ededed" stroke="#000" stroke-width="7" stroke-linejoin="round" paint-order="stroke"/>
+    <circle cx="103" cy="80" r="3.4" fill="#000"/>
+    <circle cx="125" cy="80" r="3.4" fill="#000"/>
+  </g>
+
+  <g font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="340" y="112" fill="#a1a1a1" font-size="20" letter-spacing="3">GHOSTSHOPPER</text>
+    <text x="338" y="170" fill="#ededed" font-size="41" font-weight="700">With agent tools, an AI buys in 3 calls.</text>
+    <text x="338" y="222" fill="#ededed" font-size="41" font-weight="700">On your store's page, it takes 30+ steps.</text>
+    <text x="340" y="262" fill="#a1a1a1" font-size="20">GhostShopper tests that page path, step by step, and proves the purchase with PayPal.</text>
+  </g>
+
+  <!-- results from the live sandbox runs on 2026-11-11 -->
+  <g font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="15">
+    <rect x="340" y="288" width="158" height="34" rx="17" fill="#111" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="419" y="310" fill="#ededed" text-anchor="middle">score 49 &#8594; 100</text>
+    <rect x="512" y="288" width="196" height="34" rx="17" fill="#111" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="610" y="310" fill="#ededed" text-anchor="middle">$24.00 captured</text>
+    <rect x="722" y="288" width="196" height="34" rx="17" fill="#111" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="820" y="310" fill="#ededed" text-anchor="middle">4 of 4 IDs linked</text>
+    <rect x="932" y="288" width="216" height="34" rx="17" fill="#111" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="1040" y="310" fill="#ededed" text-anchor="middle">33/33 trace benchmark</text>
+  </g>
+</svg>
