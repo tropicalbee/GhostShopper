@@ -1,101 +1,96 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 1400 1060" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="architecture-detailed-title architecture-detailed-desc" id="architecture-detailed-root">
+<svg viewBox="0 0 1400 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="architecture-detailed-title architecture-detailed-desc" id="diagram-root">
         <title id="architecture-detailed-title">GhostShopper, the detailed sketch</title>
-        <desc id="architecture-detailed-desc">A check starts from the dashboard; the runs API prepares the agent; the shopper loop asks the model for each tool, acts through the browser on the store, has every step judged and logged; the pay flow drives PayPal’s popup while the store’s checkout API creates and captures the order and settles the store’s own order; the runtime reads the order page back; on request the runs API builds the score and trace from SQLite and the dashboard shows Live, then Results.</desc>
+        <desc id="architecture-detailed-desc">A check starts from the dashboard. The runs API prepares the agent. The shopper loop asks the model for each tool, acts through the browser tools on the store, and has every step judged and logged. The pay flow drives the PayPal popup while the store's checkout API creates and captures the order and settles the store's own order. The order page is read back through the browser. On request the runs API builds the score and trace from SQLite and the dashboard shows Live, then Results. Side requests: the market check asks Channel3, and the fix wording asks the model.</desc>
         <defs>
-      <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
-      #architecture-detailed-root { --paper: #fbfaf7; --ink: #1e1e1e; --muted: #555555; --font-hand: 'Architects Daughter', 'Comic Sans MS', cursive; }
-      #architecture-detailed-root { font-family: var(--font-hand); color: var(--ink); }
-      #architecture-detailed-root .diagram-container { width: 100%; overflow-x: auto; }
-      @media print {
-#architecture-detailed-root .diagram-container { overflow-x: visible; }
-}</style>
-          <filter id="architecture-detailed-sketchy" x="-2%" y="-2%" width="104%" height="104%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="7"/>
-            <feDisplacementMap in="SourceGraphic" scale="2"/>
+      <style>@import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&amp;family=Geist+Mono:wght@400;500&amp;display=swap');</style>
+          <filter id="sketchy" x="-2%" y="-2%" width="104%" height="104%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="7"></feTurbulence>
+            <feDisplacementMap in="SourceGraphic" scale="2"></feDisplacementMap>
           </filter>
-          <pattern id="architecture-detailed-hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="9" stroke="#1e1e1e" stroke-opacity="0.06" stroke-width="2.5"/>
+          <pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="9" stroke="#1e1e1e" stroke-opacity="0.06" stroke-width="2.5"></line>
           </pattern>
-          <marker id="architecture-detailed-open" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polyline points="0 0, 9 4, 0 8" fill="none" stroke="#1e1e1e" stroke-width="1.4"/></marker>
-          <marker id="architecture-detailed-open-muted" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polyline points="0 0, 9 4, 0 8" fill="none" stroke="#6b6b6b" stroke-width="1.4"/></marker>
+          <marker id="open" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polyline points="0 0, 9 4, 0 8" fill="none" stroke="#1e1e1e" stroke-width="1.4"></polyline></marker>
+          <marker id="open-muted" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polyline points="0 0, 9 4, 0 8" fill="none" stroke="#6b6b6b" stroke-width="1.4"></polyline></marker>
         </defs>
-        <rect width="100%" height="100%" fill="#fbfaf7"/>
+        <rect width="100%" height="100%" fill="#fbfaf7"></rect>
 
         <!-- shapes, drawn by hand -->
-        <g filter="url(#architecture-detailed-sketchy)">
+        <g filter="url(#sketchy)">
           <!-- zones -->
-          <rect x="20" y="280" width="240" height="140" rx="10" fill="url(#architecture-detailed-hatch)" stroke="#1e1e1e" stroke-width="1.4" stroke-dasharray="7,5"/>
-          <rect x="280" y="20" width="780" height="830" rx="12" fill="url(#architecture-detailed-hatch)" stroke="#1e1e1e" stroke-width="1.4" stroke-dasharray="7,5"/>
-          <rect x="500" y="190" width="540" height="370" rx="10" fill="#fbfaf7" stroke="#1e1e1e" stroke-width="1.2" stroke-dasharray="4,4"/>
-          <rect x="500" y="636" width="540" height="120" rx="10" fill="#fbfaf7" stroke="#1e1e1e" stroke-width="1.2" stroke-dasharray="4,4"/>
-          <rect x="1080" y="20" width="300" height="830" rx="12" fill="url(#architecture-detailed-hatch)" stroke="#1e1e1e" stroke-width="1.4" stroke-dasharray="7,5"/>
+          <rect x="20" y="280" width="240" height="140" rx="10" fill="url(#hatch)" stroke="#1e1e1e" stroke-width="1.4" stroke-dasharray="7,5"></rect>
+          <rect x="280" y="20" width="780" height="830" rx="12" fill="url(#hatch)" stroke="#1e1e1e" stroke-width="1.4" stroke-dasharray="7,5"></rect>
+          <rect x="500" y="190" width="540" height="380" rx="10" fill="#fbfaf7" stroke="#1e1e1e" stroke-width="1.2" stroke-dasharray="4,4"></rect>
+          <rect x="500" y="640" width="540" height="124" rx="10" fill="#fbfaf7" stroke="#1e1e1e" stroke-width="1.2" stroke-dasharray="4,4"></rect>
+          <rect x="1080" y="20" width="300" height="830" rx="12" fill="url(#hatch)" stroke="#1e1e1e" stroke-width="1.4" stroke-dasharray="7,5"></rect>
 
-          <!-- connectors -->
-          <g fill="none" stroke="#1e1e1e" stroke-width="1.6">
-            <path d="M140,310 V110 Q140,102 148,102 H300" marker-end="url(#architecture-detailed-open)"/>
-            <path d="M300,122 H200 Q192,122 192,130 V310" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="480" y1="102" x2="520" y2="102" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="600" y1="134" x2="600" y2="240" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="740" y1="272" x2="800" y2="272" marker-end="url(#architecture-detailed-open)"/>
-            <path d="M1020,272 H1052 Q1060,272 1060,280 V384 Q1060,392 1068,392 H1100" marker-end="url(#architecture-detailed-open)"/>
-            <path d="M1100,408 H1078 Q1070,408 1070,416 V612 Q1070,620 1062,620 H638 Q630,620 630,628 V668" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="630" y1="316" x2="630" y2="360" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="630" y1="424" x2="630" y2="480" marker-end="url(#architecture-detailed-open)"/>
-            <path d="M520,512 H418 Q410,512 410,520 V650" marker-end="url(#architecture-detailed-open)"/>
-            <path d="M740,310 H872 Q880,310 880,318 V360" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="740" y1="706" x2="800" y2="706" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="1020" y1="730" x2="1100" y2="730" marker-end="url(#architecture-detailed-open)"/>
-            <path d="M1020,400 H1042 Q1050,400 1050,408 V612 a8,8 0 0,0 0,16 V674 Q1050,682 1058,682 H1100" marker-end="url(#architecture-detailed-open)"/>
-            <path d="M910,744 V812 Q910,820 902,820 H398 Q390,820 390,812 V750" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="910" y1="424" x2="910" y2="480" marker-end="url(#architecture-detailed-open)"/>
-            <path d="M840,544 V592 Q840,600 832,600 H708 Q700,600 700,608 V612 a8,8 0 0,0 0,16 V668" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="390" y1="134" x2="390" y2="300" marker-end="url(#architecture-detailed-open)"/>
-            <line x1="390" y1="650" x2="390" y2="380" marker-end="url(#architecture-detailed-open)"/>
-            <path d="M690,240 V208 Q690,200 698,200 H1222 Q1230,200 1230,208 V240" marker-end="url(#architecture-detailed-open)"/>
+          <!-- numbered steps -->
+          <g fill="none" stroke="#1e1e1e" stroke-width="1.8">
+            <path d="M140,310 V110 Q140,102 148,102 H300" marker-end="url(#open)"></path>
+            <path d="M300,122 H200 Q192,122 192,130 V310" marker-end="url(#open)"></path>
+            <line x1="480" y1="102" x2="520" y2="102" marker-end="url(#open)"></line>
+            <path d="M690,240 V208 Q690,200 698,200 H1100" marker-end="url(#open)"></path>
+            <line x1="1020" y1="512" x2="1100" y2="512" marker-end="url(#open)"></line>
+            <line x1="630" y1="316" x2="630" y2="360" marker-end="url(#open)"></line>
+            <path d="M520,520 H468 Q460,520 460,528 V650" marker-end="url(#open)"></path>
+            <line x1="740" y1="706" x2="800" y2="706" marker-end="url(#open)"></line>
+            <line x1="1020" y1="280" x2="1100" y2="280" marker-end="url(#open)"></line>
+            <path d="M910,744 V804 Q910,812 902,812 H398 Q390,812 390,804 V750" marker-end="url(#open)"></path>
+            <line x1="910" y1="424" x2="910" y2="480" marker-end="url(#open)"></line>
+            <line x1="390" y1="650" x2="390" y2="380" marker-end="url(#open)"></line>
+          </g>
+          <!-- continuations and supporting links, no number -->
+          <g fill="none" stroke="#1e1e1e" stroke-width="1.1">
+            <line x1="600" y1="134" x2="600" y2="240" marker-end="url(#open)"></line>
+            <path d="M1020,730 H1358 Q1366,730 1366,722 V316 Q1366,308 1358,308 H1340" marker-end="url(#open)"></path>
+            <path d="M1140,544 V594 Q1140,602 1132,602 H708 Q700,602 700,610 V668" marker-end="url(#open)"></path>
+            <line x1="740" y1="272" x2="800" y2="272" marker-end="url(#open)"></line>
+            <path d="M740,300 H762 Q770,300 770,308 V504 Q770,512 778,512 H800" marker-end="url(#open)"></path>
+            <line x1="630" y1="424" x2="630" y2="480" marker-end="url(#open)"></line>
+            <line x1="910" y1="304" x2="910" y2="360" marker-end="url(#open)"></line>
+            <line x1="390" y1="134" x2="390" y2="300" marker-end="url(#open)"></line>
           </g>
           <g fill="none" stroke="#6b6b6b" stroke-width="1.4" stroke-dasharray="6,5">
-            <line x1="1230" y1="424" x2="1230" y2="480" marker-end="url(#architecture-detailed-open-muted)"/>
-            <path d="M390,70 V48 Q390,40 398,40 H1222 Q1230,40 1230,48 V70" marker-end="url(#architecture-detailed-open-muted)"/>
-            <path d="M440,70 V64 Q440,56 448,56 H852 Q860,56 860,64 V70" marker-end="url(#architecture-detailed-open-muted)"/>
+            <line x1="1220" y1="544" x2="1220" y2="628" marker-end="url(#open-muted)"></line>
+            <path d="M390,70 V48 Q390,40 398,40 H1212 Q1220,40 1220,48 V70" marker-end="url(#open-muted)"></path>
+            <path d="M440,70 V64 Q440,56 448,56 H852 Q860,56 860,64 V70" marker-end="url(#open-muted)"></path>
+            <path d="M900,134 V167 Q900,175 908,175 H1100" marker-end="url(#open-muted)"></path>
           </g>
 
           <!-- nodes -->
           <g fill="#ffffff" stroke="#1e1e1e" stroke-width="1.6">
-            <rect x="40" y="310" width="200" height="84" rx="10"/>
-            <rect x="300" y="70" width="180" height="64" rx="10"/>
-            <rect x="520" y="70" width="200" height="64" rx="10"/>
-            <rect x="760" y="70" width="200" height="64" rx="10"/>
-            <rect x="520" y="240" width="220" height="76" rx="10" stroke-width="3"/>
-            <rect x="800" y="240" width="220" height="64" rx="10"/>
-            <rect x="520" y="360" width="220" height="64" rx="10"/>
-            <rect x="800" y="360" width="220" height="64" rx="10"/>
-            <rect x="520" y="480" width="220" height="64" rx="10"/>
-            <rect x="800" y="480" width="220" height="64" rx="10"/>
-            <rect x="520" y="668" width="220" height="76" rx="10"/>
-            <rect x="800" y="668" width="220" height="76" rx="10"/>
-            <rect x="300" y="300" width="180" height="80" rx="10" stroke-width="3"/>
-            <rect x="300" y="650" width="180" height="100" rx="10"/>
-            <rect x="1100" y="70" width="260" height="64" rx="10" stroke-dasharray="6,4"/>
-            <rect x="1100" y="240" width="260" height="76" rx="10" stroke-dasharray="6,4"/>
-            <rect x="1100" y="360" width="260" height="64" rx="10" stroke-dasharray="6,4"/>
-            <rect x="1100" y="480" width="260" height="64" rx="10" stroke-dasharray="6,4"/>
-            <rect x="1100" y="650" width="260" height="96" rx="10" stroke-dasharray="6,4"/>
+            <rect x="40" y="310" width="200" height="84" rx="10"></rect>
+            <rect x="300" y="70" width="180" height="64" rx="10"></rect>
+            <rect x="520" y="70" width="200" height="64" rx="10"></rect>
+            <rect x="760" y="70" width="200" height="64" rx="10"></rect>
+            <rect x="520" y="240" width="220" height="76" rx="10" stroke-width="3"></rect>
+            <rect x="800" y="240" width="220" height="64" rx="10"></rect>
+            <rect x="520" y="360" width="220" height="64" rx="10"></rect>
+            <rect x="800" y="360" width="220" height="64" rx="10"></rect>
+            <rect x="520" y="480" width="220" height="64" rx="10"></rect>
+            <rect x="800" y="480" width="220" height="64" rx="10"></rect>
+            <rect x="520" y="668" width="220" height="76" rx="10"></rect>
+            <rect x="800" y="668" width="220" height="76" rx="10"></rect>
+            <rect x="300" y="300" width="180" height="80" rx="10" stroke-width="3"></rect>
+            <rect x="300" y="650" width="180" height="100" rx="10"></rect>
+            <rect x="1100" y="70" width="240" height="64" rx="10" stroke-dasharray="6,4"></rect>
+            <rect x="1100" y="146" width="240" height="80" rx="10" stroke-dasharray="6,4"></rect>
+            <rect x="1100" y="258" width="240" height="98" rx="10" stroke-dasharray="6,4"></rect>
+            <rect x="1100" y="480" width="240" height="64" rx="10" stroke-dasharray="6,4"></rect>
+            <rect x="1100" y="628" width="240" height="64" rx="10" stroke-dasharray="6,4"></rect>
           </g>
 
-          <!-- step badges -->
+          <!-- step badges, one per step -->
           <g fill="#1e1e1e">
-            <circle cx="140" cy="200" r="12"/><circle cx="192" cy="230" r="12"/>
-            <circle cx="500" cy="102" r="12"/><circle cx="600" cy="220" r="12"/>
-            <circle cx="900" cy="200" r="12"/>
-            <circle cx="770" cy="272" r="12"/><circle cx="1060" cy="330" r="12"/><circle cx="1070" cy="520" r="12"/><circle cx="1230" cy="452" r="12"/>
-            <circle cx="630" cy="338" r="12"/>
-            <circle cx="630" cy="452" r="12"/><circle cx="410" cy="590" r="12"/>
-            <circle cx="810" cy="310" r="12"/><circle cx="770" cy="706" r="12"/><circle cx="1060" cy="730" r="12"/>
-            <circle cx="1050" cy="560" r="12"/>
-            <circle cx="650" cy="820" r="12"/>
-            <circle cx="910" cy="452" r="12"/><circle cx="770" cy="600" r="12"/>
-            <circle cx="390" cy="217" r="12"/><circle cx="390" cy="560" r="12"/>
+            <circle cx="140" cy="200" r="12"></circle><circle cx="500" cy="102" r="12"></circle><circle cx="880" cy="200" r="12"></circle>
+            <circle cx="1060" cy="512" r="12"></circle><circle cx="630" cy="338" r="12"></circle><circle cx="460" cy="590" r="12"></circle>
+            <circle cx="770" cy="706" r="12"></circle><circle cx="1060" cy="280" r="12"></circle><circle cx="650" cy="812" r="12"></circle>
+            <circle cx="910" cy="452" r="12"></circle><circle cx="390" cy="515" r="12"></circle><circle cx="192" cy="230" r="12"></circle>
+          </g>
+          <!-- side request badges -->
+          <g fill="#fbfaf7" stroke="#6b6b6b" stroke-width="1.4">
+            <circle cx="1000" cy="40" r="12"></circle><circle cx="650" cy="56" r="12"></circle>
           </g>
         </g>
 
@@ -103,83 +98,83 @@
         <g font-family="'Architects Daughter', 'Comic Sans MS', cursive" fill="#1e1e1e">
           <text x="36" y="412" font-size="15" fill="#555555">Merchant’s browser</text>
           <text x="296" y="842" font-size="15" fill="#555555">GhostShopper server, one FastAPI process</text>
-          <text x="760" y="186" font-size="14" fill="#555555">the shopper agent</text>
-          <text x="516" y="660" font-size="14" fill="#555555">the demo store</text>
+          <text x="1030" y="562" font-size="14" fill="#555555" text-anchor="end">the shopper agent</text>
+          <text x="516" y="662" font-size="14" fill="#555555">the demo store</text>
           <text x="1096" y="842" font-size="15" fill="#555555">outside</text>
 
           <g font-size="17" text-anchor="middle">
             <text x="140" y="340">Dashboard</text>
-            <text x="390" y="98">Runs API</text>
+            <text x="390" y="94">Runs API</text>
             <text x="620" y="98">Agent service</text>
             <text x="860" y="98">Fix wording</text>
             <text x="630" y="266">Shopper loop</text>
-            <text x="910" y="266">Browser tools</text>
+            <text x="910" y="266">Pay flows</text>
             <text x="630" y="386">Check engine</text>
-            <text x="910" y="386">Pay flows</text>
+            <text x="910" y="386">Order read-back</text>
             <text x="630" y="506">Recorder</text>
-            <text x="910" y="506">Order read-back</text>
+            <text x="910" y="506">Browser tools</text>
             <text x="630" y="694">Store pages</text>
             <text x="910" y="694">Checkout API</text>
             <text x="390" y="326">Score and trace</text>
             <text x="390" y="676">SQLite</text>
-            <text x="1230" y="98">Channel3</text>
-            <text x="1230" y="266">Language model</text>
-            <text x="1230" y="386">Browser</text>
-            <text x="1230" y="506">Your store (live)</text>
-            <text x="1230" y="676">PayPal</text>
+            <text x="1220" y="98">Channel3</text>
+            <text x="1220" y="172">Language model</text>
+            <text x="1220" y="284">PayPal</text>
+            <text x="1220" y="506">Browser</text>
+            <text x="1220" y="654">Your store (live)</text>
           </g>
           <g font-family="'Geist Mono', ui-monospace, monospace" font-size="10.5" fill="#555555" text-anchor="middle">
             <text x="140" y="360">react + vite</text><text x="140" y="378">live and results pages</text>
-            <text x="390" y="118">runs.py, /api/runs</text>
+            <text x="390" y="112">runs.py, /api/runs</text><text x="390" y="126">main.py, /api/market</text>
             <text x="620" y="118">agent/service.py</text>
             <text x="860" y="118">explain.py, uses the model</text>
             <text x="630" y="286">agent/loop.py</text><text x="630" y="304">loop, budget, password guards</text>
-            <text x="910" y="286">agent/browser.py</text>
+            <text x="910" y="286">paypal_flow, vault_flow</text>
             <text x="630" y="406">engine.py + checks.py</text>
-            <text x="910" y="406">paypal_flow, vault_flow</text>
+            <text x="910" y="406">agent/order_page.py</text>
             <text x="630" y="526">agent/recorder.py</text>
-            <text x="910" y="526">agent/order_page.py</text>
+            <text x="910" y="526">agent/browser.py</text>
             <text x="630" y="714">store/app.py</text><text x="630" y="732">flaws.py toggles</text>
             <text x="910" y="714">/api/paypal, orders.py</text><text x="910" y="732">store/orders.py</text>
             <text x="390" y="346">scoring.py, trace.py</text><text x="390" y="364">no model involved</text>
             <text x="390" y="696">runs, steps, checks</text><text x="390" y="714">orders, store_orders</text><text x="390" y="732">scores</text>
-            <text x="1230" y="118">market check, not scored</text>
-            <text x="1230" y="286">nemotron or groq</text><text x="1230" y="304">scripted navigator without a key</text>
-            <text x="1230" y="406">playwright here, kernel hosted</text>
-            <text x="1230" y="526">any link, browse only</text>
-            <text x="1230" y="696">orders v2: create, capture</text><text x="1230" y="714">popup: the buyer approves</text><text x="1230" y="732">sandbox, or mock in practice</text>
+            <text x="1220" y="118">market check, not scored</text>
+            <text x="1220" y="192">nemotron or groq</text><text x="1220" y="210">scripted navigator without a key</text>
+            <text x="1220" y="304">orders v2: create, capture</text><text x="1220" y="322">popup: the buyer approves</text><text x="1220" y="340">sandbox, or mock in practice</text>
+            <text x="1220" y="526">playwright here, kernel hosted</text>
+            <text x="1220" y="674">any link, browse only</text>
           </g>
 
           <!-- step numbers -->
           <g font-family="'Geist Mono', ui-monospace, monospace" font-size="11" font-weight="500" fill="#fbfaf7" text-anchor="middle">
-            <text x="140" y="204">1</text><text x="192" y="234">12</text>
-            <text x="500" y="106">2</text><text x="600" y="224">2</text>
-            <text x="900" y="204">3</text>
-            <text x="770" y="276">4</text><text x="1060" y="334">4</text><text x="1070" y="524">4</text><text x="1230" y="456">4</text>
-            <text x="630" y="342">5</text>
-            <text x="630" y="456">6</text><text x="410" y="594">6</text>
-            <text x="810" y="314">7</text><text x="770" y="710">7</text><text x="1060" y="734">7</text>
-            <text x="1050" y="564">8</text>
-            <text x="650" y="824">9</text>
-            <text x="910" y="456">10</text><text x="770" y="604">10</text>
-            <text x="390" y="221">11</text><text x="390" y="564">11</text>
+            <text x="140" y="204">1</text><text x="500" y="106">2</text><text x="880" y="204">3</text>
+            <text x="1060" y="516">4</text><text x="630" y="342">5</text><text x="460" y="594">6</text>
+            <text x="770" y="710">7</text><text x="1060" y="284">8</text><text x="650" y="816">9</text>
+            <text x="910" y="456">10</text><text x="390" y="519">11</text><text x="192" y="234">12</text>
+          </g>
+          <g font-family="'Geist Mono', ui-monospace, monospace" font-size="11" font-weight="500" fill="#555555" text-anchor="middle">
+            <text x="1000" y="44">A</text><text x="650" y="60">B</text>
           </g>
 
           <!-- what happens, in order -->
-          <text x="40" y="896" font-size="18">What happens during one check</text>
+          <text x="40" y="890" font-size="18">What happens during one check</text>
           <g font-size="15" fill="#1e1e1e">
-            <text x="40" y="928">1  You start a check from the dashboard.</text>
-            <text x="40" y="952">2  The runs API prepares a browser and the model, then starts the loop.</text>
-            <text x="40" y="976">3  The model picks the next tool. Page text goes in as data, never as orders.</text>
-            <text x="40" y="1000">4  The tool acts in the browser, on the demo store or a live store.</text>
-            <text x="40" y="1024">5  The check engine judges what the browser saw, with no model.</text>
-            <text x="40" y="1048">6  The step, its screenshot and the checks are written to SQLite.</text>
-            <text x="720" y="928">7  At checkout the store makes its own order and a PayPal order.</text>
-            <text x="720" y="952">8  The buyer approves in PayPal’s popup, and PayPal captures.</text>
-            <text x="720" y="976">9  The store settles its order. The flaws decide what it writes.</text>
-            <text x="720" y="1000">10  Our code, not the model, reads the order page back.</text>
-            <text x="720" y="1024">11  On request, the score and the trace are built from SQLite.</text>
-            <text x="720" y="1048">12  The dashboard polls and shows Live, then Results.</text>
+            <text x="40" y="920">1  You start a check from the dashboard.</text>
+            <text x="40" y="943">2  The runs API prepares a browser and the model, then starts the loop.</text>
+            <text x="40" y="966">3  The model picks the next tool. Page text goes in as data, never as orders.</text>
+            <text x="40" y="989">4  The tool acts in the browser, on the demo store or a live store.</text>
+            <text x="40" y="1012">5  The check engine judges what the browser saw, with no model.</text>
+            <text x="40" y="1035">6  The step, its screenshot and the checks are written to SQLite.</text>
+            <text x="720" y="920">7  At checkout the store makes its own order and a PayPal order.</text>
+            <text x="720" y="943">8  The buyer approves in PayPal’s popup, and PayPal captures.</text>
+            <text x="720" y="966">9  The store settles its order. The flaws decide what it writes.</text>
+            <text x="720" y="989">10  Our code, not the model, reads the order page back in the browser.</text>
+            <text x="720" y="1012">11  On request, the score and the trace are built from SQLite.</text>
+            <text x="720" y="1035">12  The dashboard polls and shows Live, then Results.</text>
+          </g>
+          <g font-size="15" fill="#555555">
+            <text x="40" y="1064">A  The market check asks Channel3 for similar products. It never changes the score.</text>
+            <text x="720" y="1064">B  On request the model rewords a fix. It can’t change which fix it is.</text>
           </g>
         </g>
       </svg>
