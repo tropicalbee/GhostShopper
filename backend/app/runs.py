@@ -46,6 +46,7 @@ class StartRun(BaseModel):
     flaws: str | None = Field(default=None, max_length=500)  # demo store: on | off | all | keep | a,b,c
     checkout: bool | None = None  # demo store only
     paypal: Literal["mock", "sandbox"] | None = None
+    payment: Literal["popup", "vault"] | None = None  # vault: the saved sandbox buyer pays, no popup
     browser: Literal["local", "kernel"] | None = None
     headed: bool | None = None  # show the local browser window (the real sandbox login works headed)
     max_steps: int | None = Field(default=None, ge=1, le=60)
@@ -131,6 +132,7 @@ async def start_run(body: StartRun, request: Request):
         flaws=body.flaws or "keep",
         checkout=True if real else (demo if body.checkout is None else body.checkout),
         paypal="sandbox" if real else (body.paypal or settings.paypal_mode),
+        payment=body.payment or "popup",
         # A real purchase runs in a Kernel browser with headless off: its live view is how a person approves.
         browser="kernel" if real else body.browser,
         max_steps=body.max_steps or 25,

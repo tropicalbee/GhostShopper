@@ -50,6 +50,9 @@ class Timeouts:
     approval_s: float
     capture_s: float
     human_s: float  # how long a human gets to complete a PayPal check
+    # PayPal's review page shows its "Pay with" inputs before its pay button: wait this long for a known control
+    # before calling a form unknown (run 43 handed a still-loading page to a human).
+    unknown_grace_s: float = 12
 
     @property
     def total_s(self) -> float:
@@ -58,7 +61,7 @@ class Timeouts:
         return self.button_s + one_try * 2 + self.human_s + 30
 
 
-MOCK_TIMEOUTS = Timeouts(button_s=10, popup_s=5, approval_s=8, capture_s=8, human_s=20)
+MOCK_TIMEOUTS = Timeouts(button_s=10, popup_s=5, approval_s=8, capture_s=8, human_s=20, unknown_grace_s=1)
 # button_s: the first v6 SDK load once took over 20s (run 14), so 30s.
 LIVE_TIMEOUTS = Timeouts(button_s=30, popup_s=15, approval_s=120, capture_s=45, human_s=600)
 
@@ -406,13 +409,17 @@ class PayPalCheckout:
         deadline = time.monotonic() + self.timeouts.approval_s
         typed: set[str] = set()
         state = "loading"
+        unknown_since: float | None = None
         while True:
             if popup.is_closed():
                 return "agent"
             state = await popup_state(popup)
             if state == "error":
                 raise _ErrorPage(error_page_issue(popup.url) or "UNKNOWN")
-            if state in ("blocker", "unknown_form"):
+            unknown_since = (unknown_since or time.monotonic()) if state == "unknown_form" else None
+            if state == "blocker" or (
+                    state == "unknown_form" and time.monotonic() - unknown_since >= self.timeouts.unknown_grace_s):
+                await self._popup_shot(tools, popup, "paypal-popup-needs-human.png")
                 reason = ("PayPal is asking for a CAPTCHA or extra verification." if state == "blocker"
                           else "PayPal showed a page the agent does not recognize.")
                 return await self._await_human(popup, rec, tools, state, reason)
@@ -503,10 +510,13 @@ class PayPalCheckout:
         except PlaywrightError:
             pass
 
-    async def _popup_shot(self, tools: PageTools, popup: Page) -> str:
+    async def _popup_shot(self, tools: PageTools, popup: Page, name: str = "paypal-popup-before-login.png") -> str:
         tools.shots_dir.mkdir(parents=True, exist_ok=True)
-        path = tools.shots_dir / "paypal-popup-before-login.png"
-        await popup.screenshot(path=str(path))
+        path = tools.shots_dir / name
+        try:
+            await popup.screenshot(path=str(path))
+        except PlaywrightError:
+            pass  # evidence only: a closing window must not fail the payment
         return path.as_posix()
 
     async def _wait_for_result(self, page: Page, timeout_s: float) -> tuple[str, str]:
