@@ -93,6 +93,32 @@ async def test_openai_compatible_retries_429_then_succeeds():
 
 
 @pytest.mark.anyio
+async def test_openai_compatible_retries_read_timeout_then_succeeds():
+    n = {"calls": 0}
+
+    def handler(request):
+        n["calls"] += 1
+        if n["calls"] == 1:
+            raise httpx.ReadTimeout("slow", request=request)
+        return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "ok"}}]})
+
+    model = OpenAICompatibleChat("https://llm.test/v1", None, "m1", http=client(handler, "https://llm.test/v1"))
+    reply = await model.complete([{"role": "user", "content": "hi"}], [])
+    assert n["calls"] == 2 and reply.content == "ok"
+
+
+@pytest.mark.anyio
+async def test_openai_compatible_names_provider_when_timeouts_persist():
+    def handler(request):
+        raise httpx.ReadTimeout("slow", request=request)
+
+    model = OpenAICompatibleChat("https://llm.test/v1", None, "m1", http=client(handler, "https://llm.test/v1"),
+                                 max_retries=2, provider="nvidia")
+    with pytest.raises(RuntimeError, match=r"nvidia API: ReadTimeout after 3 attempts"):
+        await model.complete([{"role": "user", "content": "hi"}], [])
+
+
+@pytest.mark.anyio
 async def test_openai_compatible_sends_no_tools_keys_when_empty():
     bodies = []
 

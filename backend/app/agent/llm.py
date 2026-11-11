@@ -97,9 +97,16 @@ async def _post_with_retry(
     http: httpx.AsyncClient, path: str, payload: dict[str, Any], provider: str,
     retry_statuses: tuple[int, ...], max_retries: int,
 ) -> dict[str, Any]:
-    """POST JSON, backing off on rate limits and transient errors. Errors name the provider, never the key."""
+    """POST JSON, backing off on rate limits, transient errors, timeouts and dropped connections.
+    Errors name the provider, never the key."""
     for attempt in range(max_retries + 1):
-        resp = await http.post(path, json=payload)
+        try:
+            resp = await http.post(path, json=payload)
+        except httpx.TransportError as exc:  # ReadTimeout, ConnectError, ...: a hosted model can stall on one request
+            if attempt < max_retries:
+                await asyncio.sleep(min(2 ** attempt, MAX_BACKOFF_S))
+                continue
+            raise RuntimeError(f"{provider} API: {type(exc).__name__} after {max_retries + 1} attempts") from exc
         if resp.status_code in retry_statuses and attempt < max_retries:
             try:
                 wait = float(resp.headers.get("retry-after", 2 ** attempt))
