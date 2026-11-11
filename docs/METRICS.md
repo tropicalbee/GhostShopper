@@ -302,3 +302,14 @@ Run 33 issues: no Product JSON-LD, no stock status, alt text "Product Image", no
 | Full suite (click-through agent run) | 523 passed |
 | `npm run build` | ok |
 | Click-through smoke test, mock PayPal | store and dashboard pages at 1440 and 390 px, 0 bugs, no horizontal overflow |
+
+## 2026-11-12 (session 7, video take, real Sandbox)
+
+| What | Value |
+|---|---|
+| Run 47, bad store, Nemotron 3.5 Lightning | 18/100, gave up after 25 steps, 201 s |
+| Run 48, fixed store, vault payment | 100/100, purchased in 11 steps, $24.00 captured, $1.33 fee, $22.67 net, 4 of 4 IDs linked |
+| Nemotron 3.5 Super VL 120B reply time | about 40 s per step, one-word probe 43.6 s after two 503s |
+| Nemotron 3.5 Lightning reply time | 2.3 to 2.7 s with a tool call |
+| Recorded take | 364.6 s of footage |
+| Tests after the popup fix and payment option | 76 passed (PayPal/checkout), 79 passed (runs/vault/API) |

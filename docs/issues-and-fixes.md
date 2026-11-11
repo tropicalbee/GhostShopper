@@ -2,6 +2,20 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-12 (session 7)
+
+### Live take stopped at a PayPal page the agent didn't know
+Run 43 reached the Sandbox popup and was handed to a human at `/webapps/hermes`. Likely cause: PayPal's review page shows its "Pay with" inputs before its pay button, and `popup_state` called that unknown on the first poll. Fix: `unknown_grace_s` (12 s live) before asking a human, and a `paypal-popup-needs-human.png` screenshot when it does. The video take then used the vault payment, which has no popup.
+
+### NVIDIA Nemotron 120B slow, then down
+About 40 s per reply, and run 45 failed on `503 content safety screening is temporarily unavailable`. A one-word probe took 43 s after two 503s. Not our code. Fix for the video: `LLM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b` for the recording server only (2.5 s per reply, tool calls fine).
+
+### Playwright video too soft to zoom
+The built-in recorder writes 1 Mbps VP8. `record_demo.py` now saves CDP screencast frames at 1.5x density and encodes them with x264 itself.
+
+### Recorder pointed at missing markup
+The AG Grid row selector was wrong and failure rows have no expand view. The recorder now hovers row 0 and zooms on the grid instead.
+
 ## 2026-11-11 to 11-12 (session 6)
 
 ### Hosted run 1 died with a bare ReadTimeout

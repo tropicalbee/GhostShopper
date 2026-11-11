@@ -270,3 +270,13 @@ Rules `2026-11-05.3`, 100 points in total.
 - One LLM config for every provider: `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`. We removed the `GROQ_API_KEY` / `GROQ_MODEL` fallback, the `GroqLLM` class and the `--llm groq` alias. Groq is still a provider (`LLM_PROVIDER=groq`). `/api/health` reports `llm_configured` and `presenter_unlocked`.
 - LLM timeouts and dropped connections are retried like a 429. One slow Nemotron reply ended hosted run 1 with a bare `ReadTimeout`.
 - Judging runs Dec 1 to 15 on the free tier, whose disk is wiped on every restart, and visitors only see their own checks plus shared examples. So real runs 31 (bad store, 49) and 34 (fixed store, 100, all ID links ok) ship in `backend/app/examples/` and load as shared examples at startup (`EXAMPLE_RUNS=1`). The export blanks sandbox account emails and local paths. We picked 34 over 32 because it has the store order links. We turned down a persistent disk (paid) and re-running checks by hand after each restart.
+
+## 2026-11-12: demo video
+
+- Remotion for the edit, because one timeline can hold the footage, cards, captions, voice clips and music, and the user renders with one command. Rejected: Hyperframes (brag) and the ffmpeg-only builder, which could only fade plain text.
+- Cards, captions and frame use the dashboard's own tokens and Geist, so cards and footage look like one product.
+- The video shows the vault payment (saved PayPal account, no popup, no password) because it is the more PayPal-centric path. The popup path stays in the product and got the unknown-form fix.
+- The take ran on Nemotron 3.5 Lightning because the 120B model took about 40 s per step and had an outage. It keeps "Nemotron drives the agent" true. Rejected: Groq or Gemini, which would have changed that line.
+- The video tells this take's story, 18 to 100 with a lost sale, so footage and narration match. The README still reports runs 31 and 34 (49 to 100) on the 120B model.
+- After an outside review of the pitch, PayPal's problem comes earlier: a card after the title asks "Can an AI agent buy from your store?" and "Does the payment match the order?". The bad run is described as what happened in run 47 (never reached checkout, nothing paid), since a low score alone doesn't mean a lost sale. The ending says what GhostShopper checks instead of listing hosts. Rejected: a WebMCP demo, because GhostShopper doesn't test WebMCP; and a name credit, at the user's choice.
+- `video/` stays out of git (in .gitignore). Only `scripts/video/` and the docs are committed.

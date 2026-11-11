@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-11-12, session 7 (demo video)
+
+### Done
+- Video pipeline moved to Remotion in `video/`: dashboard-style title, score and end cards, screen footage in a rounded frame with zooms on the key spots, kinetic captions, music ducked under the voice. `scripts/video/record_demo.py` now records a CDP screencast at 1.5x density (Playwright's own video was too soft to zoom into) and saves zoom targets in `markers.json`.
+- Live take recorded: run 47 (bad store, 18/100, the agent gave up after 25 steps) and run 48 (fixed store, 100/100, bought in 11 steps with the vault payment, $24.00 captured, $22.67 net, 4 of 4 IDs linked). Both on Nemotron 3.5 Lightning with real Sandbox calls.
+- VIDEO_SCRIPT.md rewritten for the 18 to 100 story, vault payment and the Mako voice.
+- PayPal popup fix: an unknown form now gets 12 s to show a known button before the run asks for a human, and the popup is saved as evidence.
+- `POST /api/runs` accepts `payment: "vault"` as a dev option. The sandbox buyer's vault token is saved.
+- Tests: 76 PayPal/checkout and 79 run/vault/API tests passed.
+
+### Next
+1. User: 11 Mako clips into `demo-video/live/voice/row01..row11.wav`, one music track into `demo-video/live/music.mp3`.
+2. `cd video && npm run studio` to check, then `npm run render`.
+3. YouTube upload (Public), link into the README `<!-- VIDEO_URL -->` marker and Devpost, submit before 12:00 PT.
+
+### Blockers
+- None. NVIDIA's 120B Nemotron was slow (about 40 s per reply) and briefly down (503) today, so the video take used Lightning.
+
 ## 2026-11-12, session 6 (deploy, open sandbox, audit, video prep)
 
 ### Done

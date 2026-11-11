@@ -116,3 +116,9 @@ Everything below was built during the PayPal AI Hackathon 2026.
 
 - README rewritten for judges and developers: demo screenshots, technical depth, benchmarks split into mock and real Sandbox, setup for Windows and macOS/Linux, limits and FAQ, plus a banner at docs/assets/banner.svg.
 - README rewritten around the PayPal pitch, with a new banner, today's run screenshots, results split into live and mock, setup per OS and credits.
+
+## 2026-11-12 (video day)
+- Remotion edit of the demo video in `video/`: animated title, score and end cards, zooms, captions, per-row voice clips and music.
+- Sharper recordings from a CDP screencast, with zoom targets saved per scene.
+- PayPal popup: unknown pages get a grace period before a human is asked, with a screenshot as evidence.
+- `payment: "vault"` on `POST /api/runs` (dev option).
