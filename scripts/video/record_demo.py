@@ -4,6 +4,10 @@ Assumes a server is already running (default http://localhost:8000, a dev server
 
     python scripts/video/record_demo.py --mode mock --out demo-video/dry-run
     python scripts/video/record_demo.py --mode live --out demo-video/live
+    python scripts/video/record_demo.py --mode live --bad-flaws price_as_image,no_structured_data,never_marks_paid --out demo-video/v2
+
+--bad-flaws names the flaws that are ON for the bad run (everything else is off); the admin scene then unticks exactly
+those, so the fixed run has every flaw off. Default: the classic flaws (the demo's "bad store").
 
 Frames come from a CDP screencast at 1.5x pixel density (Playwright's own video is 1 Mbps VP8 and too soft to zoom
 into). markers.json also holds `focus` boxes, the on-screen spots the video zooms into (fractions of the viewport).
@@ -24,7 +28,7 @@ from playwright.async_api import Page, async_playwright
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from store.flaws import AGENT_FLAWS, CLASSIC_FLAWS, FLAW_KEYS  # noqa: E402
+from store.flaws import CLASSIC_FLAWS, FLAW_KEYS  # noqa: E402
 
 PRODUCT = "/store/products/speckled-stoneware-mug"
 HOSTED_URL = "https://ghostshopper.onrender.com"
@@ -104,12 +108,22 @@ class Director:
     def now(self) -> float:
         return round(time.time() - self.t0, 2)
 
-    async def focus(self, name: str, selector: str):
-        """Note where an element sits right now, so the video can zoom into it."""
-        box = await self.page.evaluate(
-            """s => { const el = document.querySelector(s); if (!el) return null; const r = el.getBoundingClientRect();
-              return [r.left / innerWidth, r.top / innerHeight, r.width / innerWidth, r.height / innerHeight]; }""",
-            selector)
+    async def focus(self, name: str, selector: str, union: bool = False):
+        """Note where an element sits right now, so the video can zoom into it. With `union`, the box covers every
+        element the selector matches (a table column), clipped to the viewport."""
+        if union:
+            box = await self.page.evaluate(
+                """s => { const els = [...document.querySelectorAll(s)]; if (!els.length) return null;
+                  const rs = els.map(e => e.getBoundingClientRect());
+                  const l = Math.max(0, Math.min(...rs.map(r => r.left))), t = Math.max(0, Math.min(...rs.map(r => r.top)));
+                  const r = Math.min(innerWidth, Math.max(...rs.map(r => r.right))), b = Math.min(innerHeight, Math.max(...rs.map(r => r.bottom)));
+                  return [l / innerWidth, t / innerHeight, (r - l) / innerWidth, (b - t) / innerHeight]; }""",
+                selector)
+        else:
+            box = await self.page.evaluate(
+                """s => { const el = document.querySelector(s); if (!el) return null; const r = el.getBoundingClientRect();
+                  return [r.left / innerWidth, r.top / innerHeight, r.width / innerWidth, r.height / innerHeight]; }""",
+                selector)
         if box is None:
             print(f"  WARNING focus {name}: nothing matches {selector}", flush=True)
             return
@@ -187,6 +201,18 @@ class Director:
         raise TimeoutError(f"run {run_id} still running after {timeout}s")
 
 
+def parse_bad_flaws(value: str | None) -> set[str]:
+    """The flaws that are on for the bad run. None means the classic demo flaws; an unknown key is an error."""
+    if value is None:
+        return set(CLASSIC_FLAWS)
+    keys = [k.strip() for k in value.split(",") if k.strip()]
+    unknown = [k for k in keys if k not in FLAW_KEYS]
+    if unknown or not keys:
+        raise SystemExit(f"--bad-flaws: unknown flaw key(s) {', '.join(unknown) or '(none given)'}. "
+                         f"Valid keys: {', '.join(FLAW_KEYS)}")
+    return set(keys)
+
+
 def set_store_flaws(base: str, flaws: dict[str, bool]):
     r = httpx.put(f"{base}/store/admin/flaws.json", json={"flaws": flaws}, timeout=10)
     if r.status_code != 200:
@@ -206,8 +232,10 @@ async def record(args) -> Path:
         return {**common, **({} if live else {"cassette": cassette})}
 
     httpx.get(f"{base}/api/health", timeout=10).raise_for_status()
-    # The bad store: classic flaws on, everything else off (what backend/app/seed.py sets).
-    set_store_flaws(base, {k: k in CLASSIC_FLAWS for k in FLAW_KEYS})
+    # The bad store: exactly the chosen flaws on, everything else off (by default the classic flaws, as backend/app/seed.py).
+    bad_flaws = parse_bad_flaws(args.bad_flaws)
+    set_store_flaws(base, {k: k in bad_flaws for k in FLAW_KEYS})
+    print(f"  bad store flaws: {', '.join(k for k in FLAW_KEYS if k in bad_flaws)}", flush=True)
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=True)
@@ -253,22 +281,33 @@ async def record(args) -> Path:
         # (c) the bad-store run
         bad = await run_scene("bad_run_live", args.before_cassette)
 
-        # (d) results of the bad run: score, the AG Grid failures table, then the fix list
+        # (d) results of the bad run: score and the purchase trace (first mismatch), then the AG Grid failures table
         d.begin("bad_results")
         await d.route(f"/run/{bad}")
         await page.wait_for_selector("#fix-first", timeout=30000)
         await d.focus("summary", "[aria-label=Summary]")
-        await asyncio.sleep(5)
+        await asyncio.sleep(4)
+        await page.wait_for_selector("#trace-h", timeout=30000)
+        await d.scroll_to("#trace-h", 3.0, offset=60)
+        await asyncio.sleep(1)
+        await d.focus("trace", "section[aria-labelledby=trace-h]")
+        # The third column is "Store order" (the first is the field label); the explain row holds the first mismatch.
+        await d.focus("store_order", "table.trace tr > :nth-child(3)", union=True)
+        await d.focus("mismatch", "table.trace tr.explain")
+        await asyncio.sleep(d.left(args.bad_results))
+        d.end()
+
+        d.begin("advanced")
         await d.route(f"/run/{bad}/advanced")
         await page.wait_for_selector("[role=tablist]", timeout=30000)
-        await asyncio.sleep(3)
-        await d.scroll_to("[role=tablist]", 3.5, offset=40)
+        await asyncio.sleep(2)
+        await d.scroll_to("[role=tablist]", 3.0, offset=40)
         await page.wait_for_selector(".ag-row", timeout=30000)
         await asyncio.sleep(2)
         await page.locator(".ag-row[row-index='0']").last.hover(position={"x": 200, "y": 20}, timeout=10000)
         await asyncio.sleep(1)
         await d.focus("grid", ".ag-root-wrapper")
-        await asyncio.sleep(d.left(args.bad_results))
+        await asyncio.sleep(d.left(args.advanced_hold))
         d.end()
 
         d.begin("bad_fixes")
@@ -286,7 +325,8 @@ async def record(args) -> Path:
         await d.goto("/store/admin")
         await d.focus("form", "form")
         await asyncio.sleep(2)
-        for key in AGENT_FLAWS:
+        # Every flaw is a checkbox named by its key (store/templates/admin.html), purchase flaws included.
+        for key in (k for k in FLAW_KEYS if k in bad_flaws):
             box = page.locator(f"input[name={key}]")
             await box.scroll_into_view_if_needed()
             await box.uncheck()
@@ -294,6 +334,9 @@ async def record(args) -> Path:
         await asyncio.sleep(1)
         await page.get_by_role("button", name="Save settings").click()
         await page.wait_for_load_state("load")
+        still_on = [k for k, on in httpx.get(f"{base}/store/admin/flaws.json", timeout=10).json().items() if on]
+        if still_on:
+            raise RuntimeError(f"the fixed store still has flaws on after saving the admin form: {', '.join(still_on)}")
         await asyncio.sleep(d.left(args.admin_hold))
         d.end()
 
@@ -309,6 +352,11 @@ async def record(args) -> Path:
         await d.scroll_to("#trace-h", 3.0, offset=60)
         await d.focus("trace", "section[aria-labelledby=trace-h]")
         await d.focus("links", "section[aria-labelledby=linked-by-id]")
+        await d.focus("link_rows", "section[aria-labelledby=linked-by-id] ul")
+        await asyncio.sleep(d.left(args.trace_hold * 0.55))
+        await d.scroll_to("#money-h", 3.0, offset=120)
+        await asyncio.sleep(1)
+        await d.focus("money", "section[aria-labelledby=money-h]")  # customer paid, PayPal fee, you keep
         await asyncio.sleep(d.left(args.trace_hold))
         d.end()
 
@@ -356,14 +404,18 @@ def main():
     p.add_argument("--mode", choices=["mock", "live"], default="mock")
     p.add_argument("--payment", choices=["vault", "popup"], default="vault",
                    help="live mode: vault pays with the saved sandbox buyer (python -m backend.app.vault setup)")
+    p.add_argument("--bad-flaws", default=None, metavar="KEYS",
+                   help="comma-separated flaw keys that are ON for the bad run, all others off "
+                        "(default: the classic flaws). The fixed run has every flaw off.")
     p.add_argument("--before-cassette", default="day3_checkout_flaws_on")
     p.add_argument("--after-cassette", default="day3_checkout_flaws_off")
     p.add_argument("--store-hold", type=float, default=8)
     p.add_argument("--landing-hold", type=float, default=8)
     p.add_argument("--bad-results", type=float, default=23)
+    p.add_argument("--advanced-hold", type=float, default=14)
     p.add_argument("--bad-fixes", type=float, default=10)
     p.add_argument("--admin-hold", type=float, default=11)
-    p.add_argument("--trace-hold", type=float, default=25)
+    p.add_argument("--trace-hold", type=float, default=30)
     p.add_argument("--compare-hold", type=float, default=7)
     p.add_argument("--market-hold", type=float, default=4)
     p.add_argument("--close-hold", type=float, default=10)

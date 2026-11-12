@@ -10,6 +10,7 @@ import asyncio
 import json
 import sqlite3
 import time
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -54,8 +55,13 @@ def evaluate(case: Case, trace: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# The server shares this process (and the machine) with up to four browsers: httpx's default 5s connect timeout is
+# shorter than the server thread can be starved for under load (seen as a bare ConnectTimeout in the benchmark).
+HTTP_TIMEOUT_S = 30.0
+
+
 async def _trace(srv: LiveServer, run_id: int) -> dict[str, Any]:
-    async with httpx.AsyncClient() as http:
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_S) as http:
         resp = await http.get(f"{srv.url}/api/runs/{run_id}")
         resp.raise_for_status()
     return resp.json()["trace"]
@@ -63,7 +69,7 @@ async def _trace(srv: LiveServer, run_id: int) -> dict[str, Any]:
 
 async def _purchase(srv: LiveServer, db_path: Path, runs_dir: Path, flaw: str, scenario: str) -> int:
     store_url = f"{srv.url}/store/"
-    async with httpx.AsyncClient() as http:
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_S) as http:
         (await http.put(f"{srv.url}/mock-paypal/scenario", json={"scenario": scenario})).raise_for_status()
     snapshot = await apply_flaws(store_url, "off" if flaw == "healthy" else flaw)
     payment = make_payment_handler("mock", store_url, "mock", True)
@@ -187,7 +193,9 @@ async def run_trace_matrix(cases: tuple[Case, ...] = CASES, *, workers: int = 4,
                         results.append(await run_purchase_case(srv, db_path, out_dir / "runs", job))
                 except Exception as exc:  # recorded, never silently dropped
                     ids = [c.id for c in job] if isinstance(job, list) else [job.id]
-                    errors.append({"cases": ids, "worker": i, "error": f"{type(exc).__name__}: {exc}"[:300]})
+                    where = traceback.extract_tb(exc.__traceback__)[-1]
+                    errors.append({"cases": ids, "worker": i,
+                                   "error": f"{type(exc).__name__}: {exc} ({where.name}:{where.lineno})"[:300]})
 
     started = time.monotonic()
     await asyncio.gather(*(worker(i) for i in range(max(1, min(workers, len(jobs))))))
