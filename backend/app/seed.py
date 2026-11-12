@@ -1,6 +1,6 @@
 """Put the app in the exact demo state in one go.
 
-    python -m backend.app.seed                 # bad store: the 4 classic flaws on, the rest off
+    python -m backend.app.seed                 # bad store: the 8 classic flaws on, the rest off
     python -m backend.app.seed --with-runs     # also record a before/after pair (needs a PAYPAL_MODE=mock server)
 
 Never deletes anything: earlier runs stay in the database; the demo just uses the newest ones.

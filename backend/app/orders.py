@@ -358,6 +358,8 @@ async def refund_order(order_id: str, request: Request):
 @router.get("/orders/{order_id}/verify")
 def verify_order(order_id: str, request: Request):
     """Order <-> capture <-> advertised amount <-> fees. Used by the agent after a purchase."""
+    if not ORDER_ID_RE.match(order_id):
+        raise HTTPException(status_code=400, detail={"error": "BAD_ORDER_ID", "message": "Malformed order id"})
     db_path = request.app.state.settings.database_path
     order = db.get_order(db_path, order_id, include_raw=True)
     if order is None:
@@ -371,6 +373,9 @@ def verify_order(order_id: str, request: Request):
 
 @router.get("/orders/{order_id}")
 def get_order(order_id: str, request: Request):
+    # No owner check: the agent reads its own order over plain HTTP without the browser's owner cookie.
+    if not ORDER_ID_RE.match(order_id):
+        raise HTTPException(status_code=400, detail={"error": "BAD_ORDER_ID", "message": "Malformed order id"})
     order = db.get_order(request.app.state.settings.database_path, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail={"error": "UNKNOWN_ORDER", "message": "No such order"})

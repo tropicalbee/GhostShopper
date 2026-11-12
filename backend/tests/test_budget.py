@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app import db
+from backend.app import db, runs
 from backend.app.agent.loop import goal_text
 from backend.app.agent.service import RunConfigError, parse_budget
 from backend.app.main import create_app
@@ -89,7 +89,8 @@ def test_goal_names_the_limit_only_when_there_is_one():
 
 
 @pytest.mark.parametrize("budget", ["abc", "0", "-1", "10.005", "99999"])
-def test_api_refuses_bad_budgets_with_a_plain_message(tmp_path, budget):
+def test_api_refuses_bad_budgets_with_a_plain_message(tmp_path, budget, monkeypatch):
+    monkeypatch.setattr(runs, "live_llm_configured", lambda: True)  # otherwise the missing LLM is refused first
     with TestClient(create_app(make_settings(tmp_path))) as c:
         c.cookies.set(COOKIE, new_token())
         r = c.post("/api/runs", json={"budget": budget})

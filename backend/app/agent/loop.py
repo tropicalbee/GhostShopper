@@ -24,6 +24,7 @@ from .vision import VISION_TIMEOUT_S, look_at_page
 
 DEFAULT_TARGET = "Speckled Stoneware Mug"
 OBSERVATION_LIMIT = 4000
+MAX_LOOKS = 5  # look_at_page calls per run; each one is a paid vision call
 # Tools whose result is made of page text. The model gets it between <page_content> tags (see _tool_message).
 PAGE_CONTENT_TOOLS = ("open_page", "find_elements", "read_text", "click", "look_at_page")
 _PAGE_CONTENT_TAG = re.compile(r"</?\s*page_content", re.I)
@@ -238,6 +239,7 @@ async def run_shopper(
                                                        cfg.budget, pay_tool)},
             ]
             nudges = 0
+            looks = 0
             done = False
             while not done and idx < cfg.max_steps:
                 try:
@@ -260,6 +262,10 @@ async def run_shopper(
                              else max(cfg.step_timeout_s, cfg.vision_timeout_s) if call.name == "look_at_page"
                              else cfg.step_timeout_s)
                     try:
+                        if call.name == "look_at_page":
+                            looks += 1
+                            if looks > MAX_LOOKS:
+                                raise ToolError(f"look_at_page limit reached ({MAX_LOOKS} per run); use the text tools.")
                         obs = await asyncio.wait_for(
                             _dispatch(call.name, call.arguments, tools, rec, engine, payment, vision_llm),
                             timeout=limit)

@@ -26,6 +26,10 @@ services:
         sync: false
       - key: SANDBOX_BUYER_PASSWORD
         sync: false
+      - key: PAYPAL_VAULT_TOKEN_ID
+        sync: false
+      - key: PAYPAL_VAULT_CUSTOMER_ID
+        sync: false
       - key: LLM_PROVIDER   # nvidia for Nemotron
         value: nvidia
       - key: LLM_MODEL
@@ -51,4 +55,6 @@ services:
       - key: MARKET_DAILY_CAP
         value: "100"
       - key: ORDER_DAILY_CAP
+        value: "100"
+      - key: CATALOG_DAILY_CAP
         value: "100"

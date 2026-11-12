@@ -59,7 +59,7 @@ def main() -> int:
     p.add_argument("--cassette", help="mock: name of the recorded responses to replay")
     p.add_argument("--record", help="live: save this run's LLM replies as a cassette with this name")
     p.add_argument("--flaws", default="keep",
-                   help="set store flaws before the run: on (the 4 classic flaws), off, all, keep, "
+                   help="set store flaws before the run: on (the 8 classic flaws), off, all, keep, "
                         "or a comma-separated list of flaw keys")
     p.add_argument("--checkout", action="store_true", help="also pay with PayPal")
     p.add_argument("--paypal", choices=["mock", "sandbox"], default="sandbox",

@@ -139,15 +139,18 @@ async def start_run(body: StartRun, request: Request):
         missing = real_checkout_missing(settings.paypal_configured or "sandbox" in state.paypal_clients or external)
         if missing:
             raise _error(400, "RUN_CONFIG", f"The real PayPal sandbox option isn't set up on this server. Missing: {', '.join(missing)}.")
+    llm = body.llm or ("live" if live_llm_configured() else "scripted" if settings.dev_options else None)
+    if llm is None:
+        raise _error(400, "RUN_CONFIG", "No LLM is configured on this server. Set LLM_PROVIDER, LLM_MODEL and LLM_API_KEY.")
     req = RunRequest(
         store_url=body.store_url,
-        llm=body.llm or ("live" if live_llm_configured() else "scripted"),
+        llm=llm,
         cassette=body.cassette,
         record=body.record,
         flaws=body.flaws or "keep",
         checkout=True if real or webmcp else (demo if body.checkout is None else body.checkout),
         paypal="sandbox" if real else (body.paypal or settings.paypal_mode),
-        payment=body.payment or "popup",
+        payment=body.payment or ("vault" if real and not webmcp and db.latest_vault_token(settings.database_path, "sandbox") else "popup"),
         # A real purchase runs in a Kernel browser with headless off: its live view is how a person approves.
         browser="kernel" if real else body.browser,
         max_steps=body.max_steps or 25,

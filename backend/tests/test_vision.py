@@ -364,3 +364,19 @@ async def test_without_vision_the_tool_is_not_offered_or_usable(server):  # noqa
     assert "You cannot see images" in shopper.system
     step = next(s for s in run["steps"] if s["tool"] == "look_at_page")
     assert not step["ok"] and "not available" in step["observation"]
+
+
+@requires_browser
+@pytest.mark.anyio
+async def test_look_at_page_is_capped_per_run(server):  # noqa: F811
+    from backend.app.agent.loop import MAX_LOOKS
+
+    looks = [("look_at_page", {"question": f"What price is shown ({n})?"}) for n in range(MAX_LOOKS + 1)]  # varied: no loop warning
+    steps = [("open_page", {"url": "/store/products/speckled-stoneware-mug"})] + looks + [
+        ("finish", {"outcome": "reached_checkout", "price": "$24.00", "in_stock": "unknown", "summary": "done"})]
+    vision = ScriptedVision("The price shown is $24.00.")
+    run = await vision_run(server, ScriptedShopper(steps), vision)
+    done = [s for s in run["steps"] if s["tool"] == "look_at_page"]
+    assert len(done) == MAX_LOOKS + 1 and all(s["ok"] for s in done[:MAX_LOOKS])
+    assert not done[-1]["ok"] and "limit reached" in done[-1]["observation"]
+    assert len(vision.questions) == MAX_LOOKS

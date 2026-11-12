@@ -68,7 +68,7 @@ LIVE_TIMEOUTS = Timeouts(button_s=30, popup_s=15, approval_s=120, capture_s=45, 
 # Fake login for the mock popup only (it accepts any non-empty value). Not a real account.
 MOCK_BUYER = BuyerCredentials("mock-buyer@example.test", "mock-password")
 
-# The sandbox login/review page ids, with fallbacks. Unverified against live PayPal; adjust after the first live run.
+# The sandbox login/review page ids, with fallbacks. Live sandbox runs 53 to 59 used these.
 SELECTORS = {
     "email": ["#email", "input[name=login_email]", "input[type=email]"],
     "next": ["#btnNext", "button:has-text('Next')"],
@@ -360,7 +360,8 @@ class PayPalCheckout:
                 await popup.wait_for_timeout(100)
             await popup.wait_for_load_state("domcontentloaded", timeout=t.popup_s * 1000)
             evidence["popup_url"] = popup.url.split("?")[0]
-            evidence["screenshot"] = await self._popup_shot(tools, popup)  # before anything is typed
+            if shot := await self._popup_shot(tools, popup):  # before anything is typed
+                evidence["screenshot"] = shot
         except PlaywrightError:
             pass
         if engine.budget is not None:
@@ -402,8 +403,10 @@ class PayPalCheckout:
         try:
             approved_by = await self._login_and_approve(popup, rec, tools, done_origin)
         except _Stuck as exc:
+            shot = await self._popup_shot(tools, popup, "paypal-popup-stuck.png")  # what PayPal showed when it stalled
             await self._close(popup)
-            return "stuck", ("approval_timeout", f"Approval did not complete within {self.timeouts.approval_s:.0f}s (stuck {exc}).", {})
+            return "stuck", ("approval_timeout", f"Approval did not complete within {self.timeouts.approval_s:.0f}s (stuck {exc}).",
+                             {"screenshot": shot} if shot else {})
         except _ErrorPage as exc:
             await self._close(popup)
             hint = ERROR_PAGE_HINTS.get(exc.issue)
@@ -534,7 +537,7 @@ class PayPalCheckout:
         try:
             await popup.screenshot(path=str(path))
         except PlaywrightError:
-            pass  # evidence only: a closing window must not fail the payment
+            return ""  # evidence only: a closing window must not fail the payment, and no file means no screenshot
         return path.as_posix()
 
     async def _wait_for_result(self, page: Page, timeout_s: float) -> tuple[str, str]:

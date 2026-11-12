@@ -209,3 +209,49 @@ async def test_vault_run_behind_an_account_wall_creates_no_order(server):  # noq
     assert (c["passed"], c["code"]) == (0, "account_required") and run["order"] is None
     with db.connect(server.db_path) as conn:
         assert conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0] == 0
+
+
+# --- a saved sandbox buyer for hosted servers whose database starts empty ----------------------------------
+
+def sandbox_app(tmp_path, monkeypatch, **kw):
+    for name, value in (("KERNEL_API_KEY", "k"), ("SANDBOX_BUYER_EMAIL", "b@example.test"), ("SANDBOX_BUYER_PASSWORD", "p")):
+        monkeypatch.setenv(name, value)
+    settings = Settings(paypal_client_id="", paypal_client_secret="", database_path=tmp_path / "v.db",
+                        app_base_url="https://demo.example", paypal_mode="sandbox", dev_options=False, **kw)
+    return create_app(settings, paypal=FakePayPalClient())
+
+
+def test_the_environment_buyer_is_saved_at_startup_and_never_shown(tmp_path, monkeypatch):
+    app = sandbox_app(tmp_path, monkeypatch, vault_token_id="TOKENSECRET123", vault_customer_id="CUST1")
+    with TestClient(app, base_url="https://demo.example") as c:
+        saved = db.latest_vault_token(tmp_path / "v.db", "sandbox")
+        assert saved["payment_token_id"] == "TOKENSECRET123" and saved["customer_id"] == "CUST1"
+        health = c.get("/api/health")
+        assert health.json()["vault_ready"] is True and "TOKENSECRET123" not in health.text
+    with TestClient(app, base_url="https://demo.example"):  # a restart does not add a second row
+        pass
+    with db.connect(tmp_path / "v.db") as conn:
+        assert conn.execute("SELECT COUNT(*) FROM vault_tokens").fetchone()[0] == 1
+
+
+def test_no_saved_buyer_means_vault_is_not_ready(tmp_path, monkeypatch):
+    with TestClient(sandbox_app(tmp_path, monkeypatch), base_url="https://demo.example") as c:
+        assert c.get("/api/health").json()["vault_ready"] is False
+
+
+@pytest.mark.parametrize("token, expected", [("TOKENSECRET123", "vault"), ("", "popup")])
+def test_a_real_sandbox_run_defaults_to_the_vault_only_when_a_buyer_is_saved(tmp_path, monkeypatch, token, expected):
+    from backend.app import runs
+
+    seen = []
+
+    async def fake_execute(req, url, db_path, on_start=None, **kw):
+        seen.append(req)
+        on_start(1)
+
+    monkeypatch.setattr(runs, "live_llm_configured", lambda: True)
+    monkeypatch.setattr(runs, "execute", fake_execute)
+    monkeypatch.setattr(runs, "prepare", lambda *a, **k: (None, None))
+    with TestClient(sandbox_app(tmp_path, monkeypatch, vault_token_id=token), base_url="https://demo.example") as c:
+        assert c.post("/api/runs", json={"real_payment": True}).status_code == 202
+    assert seen[0].payment == expected

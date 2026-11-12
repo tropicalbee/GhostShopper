@@ -86,6 +86,12 @@ def test_unknown_order(client):
     assert client.post("/api/paypal/orders/bad..id/refund").status_code == 400
 
 
+def test_reading_an_order_validates_the_id(client):
+    assert client.get("/api/paypal/orders/bad..id").status_code == 400
+    assert client.get("/api/paypal/orders/bad..id/verify").status_code == 400
+    assert client.get("/api/paypal/orders/NEVERCREATED1/verify").status_code == 404
+
+
 @pytest.mark.parametrize("owner", [None, "0" * 64])
 def test_only_the_owning_browser_can_refund(client, owner):
     # Shared examples (None) and other browsers' orders look unknown, like their runs do.

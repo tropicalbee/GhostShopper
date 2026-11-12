@@ -336,7 +336,7 @@ def test_health_keeps_its_keys(tmp_path):
         assert set(c.get("/api/health").json()) == {"status", "paypal_configured", "paypal_env", "paypal_mode",
                                                     "llm_configured", "vision_available", "demo_admin_open", "retention_days",
                                                     "real_checkout_available", "real_checkout_missing",
-                                                    "presenter_unlocked"}
+                                                    "presenter_unlocked", "vault_ready"}
 
 
 # --- Per-run PayPal mode on a deployed server ---
@@ -368,6 +368,7 @@ def capture_start(monkeypatch):
 
     monkeypatch.setattr(runs, "execute", fake_execute)
     monkeypatch.setattr(runs, "prepare", lambda *a, **k: (None, None))
+    monkeypatch.setattr(runs, "live_llm_configured", lambda: True)  # a start with no LLM is refused before the run
     return seen
 
 
@@ -489,6 +490,7 @@ async def test_the_store_and_orders_follow_the_active_mode_and_reset_after_the_r
 
     monkeypatch.setattr(runs, "execute", fake_execute)
     monkeypatch.setattr(runs, "prepare", lambda *a, **k: (None, None))
+    monkeypatch.setattr(runs, "live_llm_configured", lambda: True)
     app = create_app(deployed(tmp_path, client_id="id", client_secret="secret"))
     FlawStore(app.state.settings.database_path).set_many({"extra_checkout_step": False})  # straight to the PayPal page
     async with unlock(async_client(app)) as c:

@@ -4,12 +4,16 @@ shortcut: one process only (the Dockerfile runs a single uvicorn worker, and run
 in-process lock anyway). Counters reset on restart. Move to a shared store before running more than one instance.
 """
 
+import logging
 import time
 from collections import deque
 
 from fastapi import HTTPException, Request
 
 from store.app import has_admin_cookie
+
+log = logging.getLogger(__name__)
+_warned_short_forwarded = False
 
 
 class RateLimiter:
@@ -39,6 +43,11 @@ def client_ip(request: Request, hops: int) -> str:
     forwarded = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
     if hops > 0 and len(forwarded) >= hops:
         return forwarded[-hops]
+    global _warned_short_forwarded
+    if hops > 0 and forwarded and not _warned_short_forwarded:
+        # Fewer entries than trusted proxies: TRUSTED_PROXY_HOPS is probably set too high for this host.
+        _warned_short_forwarded = True
+        log.warning("X-Forwarded-For has %d entries but TRUSTED_PROXY_HOPS is %d; check the setting.", len(forwarded), hops)
     return request.client.host if request.client else "unknown"
 
 

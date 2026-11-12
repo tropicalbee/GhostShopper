@@ -333,9 +333,12 @@ router = APIRouter(prefix="/api", tags=["catalog"])
 @router.get("/catalog")
 async def catalog(request: Request, store_url: str | None = None):
     """Catalog readiness for the demo store, or a pasted live store. Informational: never part of the score."""
-    rate_limit(request, "api_limiter")
+    rate_limit(request, "api_limiter", daily_cap="catalog")
     try:
-        return await check_catalog(store_url, request.app.state.settings.app_base_url)
+        async with asyncio.timeout(BUDGET_S + 10):  # backstop: the check's own budget stops it early, this stops a hang
+            return await check_catalog(store_url, request.app.state.settings.app_base_url)
+    except TimeoutError as exc:
+        raise HTTPException(status_code=400, detail={"error": "CATALOG_UNAVAILABLE", "message": "The catalog check took too long and was stopped. Try again, or check a store that responds faster."}) from exc
     except (SiteError, CatalogError) as exc:
         raise HTTPException(status_code=400, detail={"error": "CATALOG_UNAVAILABLE", "message": str(exc)}) from exc
 

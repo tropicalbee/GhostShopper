@@ -74,6 +74,13 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
         owns_client = "sandbox" not in clients and settings.paypal_configured
         if owns_client:
             clients["sandbox"] = PayPalClient(settings.paypal_client_id, settings.paypal_client_secret)
+        if settings.vault_token_id and "sandbox" in clients:
+            # A fresh database (a new deploy) has no saved buyer; seed the one from the environment. Never logged.
+            saved = db.latest_vault_token(settings.database_path, "sandbox")
+            if saved is None or saved["payment_token_id"] != settings.vault_token_id:
+                db.save_vault_token(settings.database_path, paypal_mode="sandbox",
+                                    payment_token_id=settings.vault_token_id, customer_id=settings.vault_customer_id or None)
+                log.info("Vault: saved the sandbox buyer from the environment")
         yield
         if owns_client:
             await clients.pop("sandbox").aclose()
@@ -89,7 +96,8 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
     app.state.run_limiter = RateLimiter(*settings.run_rate_limit)
     app.state.api_limiter = RateLimiter(*settings.api_rate_limit)
     app.state.daily_caps = {name: RateLimiter(cap, 86400) for name, cap in (
-        ("runs", settings.run_daily_cap), ("market", settings.market_daily_cap), ("orders", settings.order_daily_cap))}
+        ("runs", settings.run_daily_cap), ("market", settings.market_daily_cap), ("orders", settings.order_daily_cap),
+        ("catalog", settings.catalog_daily_cap))}
     unlock_limiter = RateLimiter(*settings.unlock_rate_limit)
 
     @app.middleware("http")
@@ -138,6 +146,7 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
             # Whether a run may ask for a real PayPal sandbox purchase, and what is missing if not.
             "real_checkout_available": not real_missing,
             "real_checkout_missing": real_missing,
+            "vault_ready": db.latest_vault_token(settings.database_path, "sandbox") is not None,  # a saved sandbox buyer
             "presenter_unlocked": presenter_unlocked(request),  # this browser may change the store's flaws
             "llm_configured": live_llm_configured(),
             "vision_available": live_llm_configured() and bool(vision_model()),  # the shopper can be given eyes

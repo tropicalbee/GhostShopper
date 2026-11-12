@@ -57,6 +57,7 @@ def valid_start(app, monkeypatch, forwarded: str, admin: bool = False):
     async def fake_execute(req, url, db_path, on_start=None, **kw):
         on_start(1)
 
+    monkeypatch.setattr(runs, "live_llm_configured", lambda: True)
     monkeypatch.setattr(runs, "execute", fake_execute)
     monkeypatch.setattr(runs, "prepare", lambda *a, **k: (None, None))
     c = TestClient(app, base_url="https://testserver")

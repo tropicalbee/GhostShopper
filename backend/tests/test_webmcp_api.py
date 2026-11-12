@@ -35,6 +35,14 @@ def test_path_and_store_are_open_options_but_must_make_sense(deployed):
     assert start(deployed, path="webmcp", llm="scripted").json()["detail"]["message"].startswith("Only store_url can be set")
 
 
+def test_no_llm_configured_is_an_explicit_error_not_a_silent_scripted_run(deployed, monkeypatch):
+    for name in ("LLM_PROVIDER", "LLM_MODEL", "LLM_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    r = start(deployed, store_url="https://shop.example")
+    assert r.status_code == 400 and r.json()["detail"]["error"] == "RUN_CONFIG"
+    assert r.json()["detail"]["message"].startswith("No LLM is configured on this server")
+
+
 def test_the_showcase_needs_a_browser_a_person_can_reach_and_the_sandbox_buyer(deployed, monkeypatch):
     monkeypatch.delenv("SANDBOX_BUYER_EMAIL", raising=False)
     r = start(deployed, path="webmcp", store="paypal_showcase")

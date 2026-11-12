@@ -43,6 +43,9 @@ class Settings:
     run_daily_cap: int = 40
     market_daily_cap: int = 100
     order_daily_cap: int = 100
+    catalog_daily_cap: int = 100
+    vault_token_id: str = ""  # a saved sandbox buyer for hosted real-sandbox runs; seeded into the database at startup
+    vault_customer_id: str = ""
     # How many proxies in front of us append to X-Forwarded-For (Render: 1). The client IP is that many entries from the right.
     trusted_proxy_hops: int = 1
 
@@ -90,7 +93,7 @@ def get_settings() -> Settings:
     retention = os.getenv("RETENTION_DAYS", "30").strip()
     if not retention.isdigit() or int(retention) < 1:
         raise ValueError(f"RETENTION_DAYS must be a whole number of days (1 or more), got {retention!r}")
-    caps = {name: _count(name, default) for name, default in (("RUN_DAILY_CAP", 40), ("MARKET_DAILY_CAP", 100), ("ORDER_DAILY_CAP", 100))}
+    caps = {name: _count(name, default) for name, default in (("RUN_DAILY_CAP", 40), ("MARKET_DAILY_CAP", 100), ("ORDER_DAILY_CAP", 100), ("CATALOG_DAILY_CAP", 100))}
     return Settings(
         paypal_client_id=os.getenv("PAYPAL_CLIENT_ID", "").strip(),
         paypal_client_secret=os.getenv("PAYPAL_CLIENT_SECRET", "").strip(),
@@ -104,6 +107,9 @@ def get_settings() -> Settings:
         run_daily_cap=caps["RUN_DAILY_CAP"],
         market_daily_cap=caps["MARKET_DAILY_CAP"],
         order_daily_cap=caps["ORDER_DAILY_CAP"],
+        catalog_daily_cap=caps["CATALOG_DAILY_CAP"],
+        vault_token_id=os.getenv("PAYPAL_VAULT_TOKEN_ID", "").strip(),
+        vault_customer_id=os.getenv("PAYPAL_VAULT_CUSTOMER_ID", "").strip(),
         trusted_proxy_hops=_count("TRUSTED_PROXY_HOPS", 1, minimum=0),
     )
 

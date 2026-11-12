@@ -1,6 +1,8 @@
 """Catalog readiness: JSON-LD field detection, the demo store under its existing flaws, sitemap and link discovery on
 Shopify-like local sites, and the endpoint's rate limit and public-host rule. Everything runs against local servers."""
 
+import asyncio
+
 import pytest
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -151,6 +153,7 @@ def deployed(tmp_path, monkeypatch):
     app.state.settings = Settings(paypal_client_id="", paypal_client_secret="", database_path=tmp_path / "d.db",
                                   app_base_url="https://ghostshopper.example", dev_options=False)
     app.state.api_limiter = RateLimiter(*app.state.settings.api_rate_limit)
+    app.state.daily_caps = {"catalog": RateLimiter(app.state.settings.catalog_daily_cap, 86400)}
 
     @app.middleware("http")
     async def owner(request, call_next):
@@ -262,3 +265,21 @@ async def test_the_time_budget_stops_the_crawl_and_reports_what_was_checked(tmp_
         assert r["percent"] is None and "ran out of time" in r["summary"]
     else:
         assert r["percent"] is not None and f"Checked {checked} of 12" in r["summary"]
+
+
+def test_catalog_endpoint_has_a_daily_cap_when_deployed(deployed):
+    deployed.app.state.daily_caps = {"catalog": RateLimiter(1, 86400)}
+    params = {"store_url": "http://127.0.0.1:9/"}
+    assert deployed.get("/api/catalog", params=params).status_code == 400
+    assert deployed.get("/api/catalog", params=params).status_code == 429
+
+
+def test_catalog_endpoint_times_out_with_a_clear_error(deployed, monkeypatch):
+    async def hang(*args, **kwargs):
+        await asyncio.sleep(5)
+
+    monkeypatch.setattr(cr, "BUDGET_S", -9.9)  # the timeout is BUDGET_S + 10 = 0.1s
+    monkeypatch.setattr(cr, "check_catalog", hang)
+    r = deployed.get("/api/catalog")
+    assert r.status_code == 400 and r.json()["detail"]["error"] == "CATALOG_UNAVAILABLE"
+    assert "too long" in r.json()["detail"]["message"]
