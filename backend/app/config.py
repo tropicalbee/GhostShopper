@@ -108,6 +108,12 @@ def get_settings() -> Settings:
     )
 
 
+def vision_model() -> str:
+    """VISION_MODEL: the model id the shopper uses to look at pages ('' when not set). It runs on the same
+    provider, base URL and key as the main LLM (LLM_PROVIDER, LLM_API_KEY, LLM_BASE_URL)."""
+    return os.getenv("VISION_MODEL", "").strip()
+
+
 @dataclass(frozen=True)
 class BuyerCredentials:
     """Sandbox buyer login. repr is masked so it can never leak into logs or tracebacks."""

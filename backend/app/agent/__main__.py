@@ -9,7 +9,7 @@ import asyncio
 import json
 import sys
 
-from ..config import get_settings
+from ..config import get_settings, vision_model
 from .recorder import load_run
 from .service import RunConfigError, RunRequest, execute, resolve_target
 from .site import allow_private_hosts
@@ -70,15 +70,26 @@ def main() -> int:
     p.add_argument("--browser", choices=["local", "kernel"], help="default: BROWSER_PROVIDER, else local")
     p.add_argument("--store-url", help="default: APP_BASE_URL + /store/")
     p.add_argument("--budget", help="spending limit in USD, like 30.00; the shopper won't pay a checkout total above it")
+    p.add_argument("--vision", action="store_true",
+                   help="let the shopper look at pages (look_at_page) with the vision model in VISION_MODEL; "
+                        "slower, never changes the score")
     p.add_argument("--max-steps", type=int, default=25)
     p.add_argument("--headed", action="store_true", help="show the browser window (needed for human approval locally)")
     a = p.parse_args()
 
+    if a.vision and not vision_model():
+        print("Config error: --vision needs VISION_MODEL in .env (a vision model id on the same provider as "
+              "LLM_MODEL, for NVIDIA: nvidia/nemotron-3.5-super-vl-120b-a12b)", file=sys.stderr)
+        return 2
+    if a.vision and "vision" not in RunRequest.__dataclass_fields__:
+        print("Config error: this build of the run service has no vision option yet (RunRequest.vision).",
+              file=sys.stderr)
+        return 2
     settings = get_settings()
     store_url = a.store_url or f"{settings.app_base_url}/store/"
     req = RunRequest(llm=a.llm, cassette=a.cassette, record=a.record, flaws=a.flaws, checkout=a.checkout,
                      paypal=a.paypal, payment=a.payment, max_steps=a.max_steps, headless=not a.headed, browser=a.browser,
-                     store_url=a.url, budget=a.budget)
+                     store_url=a.url, budget=a.budget, **({"vision": True} if a.vision else {}))
 
     async def go() -> int:
         target = await resolve_target(req, settings.app_base_url) if a.url else None

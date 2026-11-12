@@ -1,0 +1,162 @@
+{
+  "recorded_from": "nvidia:nvidia/nemotron-3.5-super-vl-120b-a12b",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-af907c6a-6332-4556-8842-33d1dc6624de",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"http://localhost:8000/store/\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-b7190c37-7df6-4636-9d26-d498de2de601",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-50e0b5da-bbad-4687-87b3-5724aa8d73e3",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"links\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-d52bfb8f-b61b-4076-a16c-d2dfcad2405b",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"http://localhost:8000/store/products/speckled-stoneware-mug\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-37c86a2b-55b6-47fc-8af3-70d18aa75815",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-7dfbfe10-2193-444c-8ad7-d762ece1bd66",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-1d8d70c7-3047-41b7-bf78-3762d282d5cb",
+          "type": "function",
+          "function": {
+            "name": "look_at_page",
+            "arguments": "{\"question\":\"What is the price and stock status of the Speckled Stoneware Mug?\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-89b5216c-1edc-4be9-94bd-e20811f9729b",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e10\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-b048eae0-6a37-44a0-9378-90a33caa2af0",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-f0d6a0af-9871-4c73-b217-2bb0280dcfc7",
+          "type": "function",
+          "function": {
+            "name": "pay_with_saved_paypal",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-f08f15d5-53b5-4b4c-84d9-7a66bf9c2dfd",
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "arguments": "{\"outcome\":\"purchased\",\"summary\":\"Found the Speckled Stoneware Mug at http://localhost:8000/store/products/speckled-stoneware-mug. Price: $24.00, in stock (ships from Asheville in 3 business days). Clicked 'Buy now', proceeded to checkout, and paid with saved PayPal. Payment completed successfully. Order number: 18R290193K6411640. Capture ID: 5HL19861FM754541J. Amount: $24.00 USD.\",\"price\":\"$24.00\",\"in_stock\":\"in stock\"}"
+          }
+        }
+      ]
+    }
+  ],
+  "vision_answers": [
+    "The price is $24.00 and it is in stock (ships from Asheville in 3 business days)."
+  ]
+}
