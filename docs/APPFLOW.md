@@ -117,5 +117,5 @@ When a run has a spending limit (`budget` on `POST /api/runs`, or `--budget`), c
 
 - Reword the fixes with `POST /api/runs/{id}/explain` (LLM, text only; the deterministic fix stays next to it).
 - Compare a check with the previous check of the same store from the same browser: `GET /api/runs/{id}/compare`. `GET /api/runs/compare?before=&after=` takes two of your own checks of the same store.
-- Market check with `GET /api/market/{sku}` (Channel3, or recorded fixtures).
+- Market check with `GET /api/market/{sku}` (Channel3, or recorded fixtures, labelled sample data).
 - Rate the explanations with `python -m backend.app.eval judge <run>` (a separate metric).

@@ -16,7 +16,7 @@ It also runs the same purchase through WebMCP tools and checks both paths agains
 
 A payment can succeed while the store's order is wrong: captured but still pending, marked paid after a decline, duplicated on a retry. GhostShopper links the records by ID and flags each broken link. It got all 33 deterministic trace scenarios right (mock PayPal, demo store).
 
-Earlier live runs on the 120B Nemotron model went from 49/100 with five agent-facing failures (run 31) to 100/100 with a completed purchase verified against the store's order (run 34, $24.00 captured, $22.67 net). In run 52 a review hid a message aimed at AI agents. GhostShopper flagged it and the shopper did not follow it. The merchant also gets a fix list ordered by points and a before/after comparison. Market context for the product (similar listings and a median price) comes from recorded Channel3 responses in the demo, labelled as sample data, and is not reliable price intelligence.
+Earlier live runs on the 120B Nemotron model went from 49/100 with five agent-facing failures (run 31) to 100/100 with a completed purchase verified against the store's order (run 34, $24.00 captured, $22.67 net). In run 52 a review hid a message aimed at AI agents. GhostShopper flagged it and the shopper did not follow it. The merchant also gets a fix list ordered by points and a before/after comparison. Market context for the product (similar listings and a median price) comes from Channel3. A live check on the hosted site on 2026-11-12 found 18 similar mugs, median $20.13, against our $24.00. Recorded responses are the labelled fallback. It is not reliable price intelligence.
 
 The GhostShopper readiness score comes from our own deterministic checks. It is a diagnostic, not an Agent Ready, ACP or UCP conformance test, and not a PayPal certification. The WebMCP path gets an 8-item tool checklist computed by code, not a score. PayPal's own WebMCP needs enablement through Store Sync, which is a request form, and we could not get it for our demo store. So on Fernhill the WebMCP tools are our adapter for the same `shopping.*` tool contract PayPal's showcase registers, wired to our own Orders v2 sandbox checkout. The live results (65 to 100 in runs 50 and 51, 49 to 100 in runs 31 and 34) are from our demo store. The offline mock seed pair is 24 to 100.
 
@@ -44,4 +44,4 @@ The full five record trace works on the demo store only, because real stores don
 
 ## Built with
 
-PayPal JS SDK v6, PayPal Orders v2 (sandbox), WebMCP (Chromium native, CDP), NVIDIA Nemotron, Kernel, Channel3 (recorded responses), Playwright, FastAPI, SQLite, React, Vite, TypeScript, AG Grid Community.
+PayPal JS SDK v6, PayPal Orders v2 (sandbox), WebMCP (Chromium native, CDP), NVIDIA Nemotron, Kernel, Channel3, Playwright, FastAPI, SQLite, React, Vite, TypeScript, AG Grid Community.

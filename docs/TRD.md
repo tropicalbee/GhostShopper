@@ -48,13 +48,14 @@ Python 3.11+ (dev on 3.13), FastAPI, httpx, Jinja2, SQLite (stdlib `sqlite3`), p
 | PayPal Orders v2 | Server create + capture | `POST /v1/oauth2/token` (client credentials), `POST /v2/checkout/orders` (intent CAPTURE, items + breakdown), `POST /v2/checkout/orders/{id}/capture`. Fees from `captures[0].seller_receivable_breakdown`. Sandbox host hardcoded: `api-m.sandbox.paypal.com`. |
 | LLM provider | Navigation and fix explanations | `ChatModel` base class in `agent/llm.py`. `OpenAICompatibleChat` covers NVIDIA Nemotron (primary, `LLM_PROVIDER=nvidia`), Groq (free tier, supported alternative), OpenAI, OpenRouter, Together, Ollama and any OpenAI-compatible URL. `AnthropicChat` translates to and from the Anthropic Messages API and sends no temperature or forced `tool_choice`. Providers are entries in `PROVIDERS`. Config: `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL`, the same for every provider. Missing config is an error. `--llm mock` replays cassettes. |
 | Kernel | Hosted browser for real runs | Local Playwright in dev. Same tool layer, different browser factory. |
-| Channel3 | Market check: similar products | D4. |
+| Channel3 | Market check (`GET /api/market/{sku}`): similar products and a median price. | Live with `CHANNEL3_API_KEY` (checked on the hosted site on 2026-11-12, see METRICS.md); without a key, recorded responses labelled as sample data. |
 | WebMCP | Agent-side tool discovery and calls | Chromium's native WebMCP through the CDP WebMCP domain. Launch flag `--enable-features=WebMCP` (Chromium 156). See [research/paypal-webmcp.md](research/paypal-webmcp.md). |
 
 ## Key technical rules
 
 - The order amount is computed server-side from `store/products.json`; the browser only sends SKU + quantity.
 - Capture only orders this server created (checked in SQLite).
+- The presenter token only unlocks the flaw toggles and the Kernel live view. New check picks the real sandbox for every visitor.
 - Missing credentials return explicit errors (503 `PAYPAL_NOT_CONFIGURED`, "PayPal is not configured" on the checkout page). No sample-data fallback.
 - Failures are detected by deterministic checks in the tool layer, not by the LLM. The score is a pure function of the recorded failures and checkout result.
 

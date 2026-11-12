@@ -118,6 +118,9 @@ The store order number is sent to PayPal as the purchase unit `custom_id`, and P
 | step_count | INTEGER | |
 | order_id | TEXT | the linked order |
 | awaiting | TEXT | JSON while waiting for a human: stage, reason, since, timeout, Kernel live view URL |
+| live | INTEGER | 1 = a real store: browse-only, never pays. Default 0. |
+| platform | TEXT | shopify, wix, woocommerce or unknown: the platform the store looks like |
+| platform_evidence | TEXT | JSON list of the signals that decided `platform` |
 | paypal_readiness | TEXT | JSON: PayPal setup checklist, recommendations and the 0-100 PayPal readiness figure (`agent/paypal_readiness.py`). Separate from the score. |
 | agent_safety | TEXT | JSON list of text aimed at AI agents that the shopper met: where, excerpt, hidden, step, screenshot (`agent/injection.py`). Returned in the run payload as `agent_safety`. Not scored. |
 | path | TEXT | `browser` (default) or `webmcp`: how the shopper used the store |
@@ -152,6 +155,7 @@ One row per check per run (`UNIQUE(run_id, check_key)`; the first outcome wins).
 | reason | TEXT | readable explanation |
 | evidence | TEXT | JSON: url, selector, screenshot, snippet, order details |
 | fix | TEXT | the LLM's rewording of the fix; never scored |
+| created_at | TEXT | |
 
 `failures` is a view: `SELECT * FROM checks WHERE passed IS NOT 1` (failed and untested).
 
@@ -165,6 +169,7 @@ One row per check per run (`UNIQUE(run_id, check_key)`; the first outcome wins).
 | breakdown | TEXT | JSON fix list, most points first |
 | excluded | TEXT | JSON list of excluded checks |
 | rules_version | TEXT | `scoring.RULES_VERSION` |
+| created_at | TEXT | |
 
 ## vault_tokens
 The sandbox buyer's saved PayPal account (Vault v3), created once by `python -m backend.app.vault`. The payment token is secret-ish: it is never sent to the LLM and is redacted in run logs.

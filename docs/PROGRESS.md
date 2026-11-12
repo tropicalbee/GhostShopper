@@ -2,6 +2,48 @@
 
 Entries before 2026-11-11 are in [archive/PROGRESS-2026-11-05-to-11-10.md](archive/PROGRESS-2026-11-05-to-11-10.md). The full original file, before the split: [PROGRESS.md at a44951e](https://github.com/tropicalbee/GhostShopper/blob/a44951e642b2f8d88d750b7c7eaa2519ad2afeab/docs/PROGRESS.md).
 
+## 2026-11-12, session 11 (final audit fixes)
+
+### Done
+- README intro shortened to two sentences.
+- Code fixes from the audit (applied by another agent): catalog time bound and daily cap, 5 `look_at_page` calls per run, popup screenshot key, id validation on order read and verify, 400 `RUN_CONFIG` with no LLM, localhost origins hidden in every failure column, one-time log for short `X-Forwarded-For`.
+- Docs: PRD flaw table now has all 20 flaws; SCHEMA has the missing `runs` columns; VIDEO_SCRIPT matches cut v2; README model attribution follows the local database; test count, Impact bullets, Kernel and hosted-purchase lines state the evidence; TRD, APPFLOW, CHANGELOG, PLAN and DECISIONS updated.
+- Hosted run 5 (Kernel, sandbox, popup): 41/75, blocked at step_limit, popup approval timed out at the password step after 120 s, no capture. Numbers in METRICS.md.
+- Frontend files with no importers, left in place (the build leaves them out, so the shipped app is unaffected): `frontend/src/components/MoneyFlow.tsx`, `MoneyHero.tsx`, `Nav.tsx`, `Walkthrough.tsx`, `ShopperFlow.tsx`, `frontend/src/screens/Home.tsx`, `frontend/src/components/ui/{badge,card,separator,sonner,tooltip}.tsx`, `frontend/src/assets/walkthrough/`.
+
+### Not verified
+- Full suite: 646 of 657 passed; the 11 failures were test setups (no LLM configured, old health keys), fixed and rerun green (59 passed). The whole suite was not rerun after that fix.
+- The hosted vault purchase: needs the redeploy with `PAYPAL_VAULT_TOKEN_ID` and `PAYPAL_VAULT_CUSTOMER_ID`.
+- The live-site latency figures came from the hosted check.
+
+### Next
+1. Redeploy with the vault env vars.
+2. One hosted vault run.
+3. Fresh clone test.
+4. Video link into the README and Devpost.
+5. Submit by 12:00 PT (01:30 IST).
+
+### Blockers
+- None. The GitHub repo returned 404 during the audit and was made public the same evening (repo page and LICENSE return 200).
+
+## 2026-11-12, session 10 (final audit)
+
+### Done
+- Read-only crawl of the hosted site at 1440 and 390 px (landing, new check, my checks, ledger, run 1 and 2, compare, advanced, store, health, catalog): no horizontal overflow, no console errors beyond expected 404s (no earlier check to compare for run 1, no other-path check).
+- Example checks leaked `http://localhost:8000` in the Advanced grid ("What we saw"); the grid now shows the store path only.
+- `.env.example` and README now list `ALLOW_PRIVATE_URLS`.
+- Channel3 text updated: the hosted `/api/market/FH-MUG-01` returns live Channel3 results (18 similar, median $20.13). Numbers in METRICS.md.
+- README and DEVPOST links all resolve; setup scripts, Dockerfile and gitignore reviewed, nothing required at runtime is ignored.
+
+### Not verified
+- Fresh clone run, hosted redeploy of the grid fix, the frontend change in a browser (build passes only).
+
+### Next
+- Redeploy on Render, submit before 12:00 PT.
+
+### Blockers
+- None.
+
 ## 2026-11-12, session 9 (WebMCP, catalog readiness)
 
 ### Done
@@ -28,7 +70,7 @@ Entries before 2026-11-11 are in [archive/PROGRESS-2026-11-05-to-11-10.md](archi
 ### Done
 - New video story: "Paid, but your store doesn't know." Three live Sandbox runs on the vault payment: 50 (PayPal captured $24.00, store order #1071 still Awaiting payment, 65/100), 51 (fixed, 100/100, #1072 Paid), 52 (hidden instructions for agents flagged, not followed).
 - `record_demo.py --bad-flaws` picks the bad store's flaws; the admin scene unticks exactly those and fails if any flaw stays on. New `record_tour.py` (read-only site tour) and `record_safety.py` (one live run with hidden instructions, flaws restored after).
-- Script v3 in VIDEO_SCRIPT.md, checked against the code and the runs. No mock numbers, no model named in the voice.
+- Script for cut v2 in VIDEO_SCRIPT.md, checked against the code and the runs. No mock numbers, no model named in the voice.
 - Edit rebuilt as `video/src/V2.tsx` (Remotion): shots anchored to voice lines, zooms on recorded focus boxes, no captions, a five-stage tracker in the trace's real order, end card. Voice: Kokoro "Heart" from Hugging Face, local ONNX. Music: an original pad.
 
 ### Next
@@ -72,7 +114,7 @@ Entries before 2026-11-11 are in [archive/PROGRESS-2026-11-05-to-11-10.md](archi
 - Full suite: 540 passed.
 
 ### In progress
-- Video pipeline: `scripts/video/record_demo.py` (Playwright records the dashboard) and `scripts/video/build_video.py` (ffmpeg cuts, speeds up, adds cards and voice), output in `demo-video/` (gitignored). A Sonnet agent was building it and dry-running it on mock data when the session ended; check whether both files exist and work.
+- Superseded by the Remotion cut (see DECISIONS.md, "2026-11-12: demo video"). Video pipeline: `scripts/video/record_demo.py` (Playwright records the dashboard) and `scripts/video/build_video.py` (ffmpeg cuts, speeds up, adds cards and voice), output in `demo-video/` (gitignored). A Sonnet agent was building it and dry-running it on mock data when the session ended; check whether both files exist and work.
 
 ### Next
 1. Video in a new session: check the dry run, record the two live runs locally, add the voice clips (row01 to row11 from Google AI Studio, Windows Zira as backup), the user renders, upload to YouTube as Public.

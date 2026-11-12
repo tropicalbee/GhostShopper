@@ -2,6 +2,18 @@
 
 Everything below was built during the PayPal AI Hackathon 2026.
 
+## 2026-11-12 (final audit fixes)
+- `/api/catalog` has a total time bound and a daily cap (`CATALOG_DAILY_CAP`, default 100). `look_at_page` is capped at 5 per run.
+- The stuck PayPal popup screenshot is saved as `screenshot`, so the scorecard shows it, and no path is stored when the capture failed.
+- `GET /orders/{id}` and `/orders/{id}/verify` validate the id like refund (400 `BAD_ORDER_ID`).
+- A run with no LLM configured returns 400 `RUN_CONFIG` unless developer options are on, instead of silently using the rule-based navigator.
+- Localhost origins are hidden in every failure text column. A one-time log line when `X-Forwarded-For` has fewer entries than `TRUSTED_PROXY_HOPS`.
+- Hosted real run 5 recorded in METRICS.md. The vault token from the environment is in progress.
+- Docs: PRD lists all 20 store flaws, SCHEMA has `runs.live`, `platform` and `platform_evidence`, README states what the hosted and local evidence shows.
+
+## 2026-11-12 (final audit)
+- Advanced grid hides the recorded localhost origin on example checks; `ALLOW_PRIVATE_URLS` documented; Channel3 docs match the live hosted check.
+
 ## 2026-11-12 (WebMCP and catalog readiness)
 - WebMCP path: the shopper uses a page's WebMCP tools through Chromium's native WebMCP (CDP WebMCP domain), with a shim fallback. `python -m backend.app.webmcp discover | run | compare`.
 - Fernhill adapter for the `shopping.*` tool contract (`store/static/webmcp.js`, `POST /store/webmcp/rpc`) on the store's own order and capture code.
@@ -135,7 +147,7 @@ Everything below was built during the PayPal AI Hackathon 2026.
 - README rewritten around the PayPal pitch, with a new banner, today's run screenshots, results split into live and mock, setup per OS and credits.
 
 ## 2026-11-12 (video day)
-- Remotion edit of the demo video in `video/`: animated title, score and end cards, zooms, captions, per-row voice clips and music.
+- Remotion edit of the demo video in `video/`: animated title, score and end cards, zooms, per-row voice clips and music. The first take had kinetic captions; the final v2 cut has none.
 - Sharper recordings from a CDP screencast, with zoom targets saved per scene.
 - PayPal popup: unknown pages get a grace period before a human is asked, with a screenshot as evidence.
 - `payment: "vault"` on `POST /api/runs` (dev option).

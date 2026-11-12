@@ -38,11 +38,11 @@ Small merchants (one person up to a small team, selling on their own site) getti
 
 ## Demo flow
 
-Start with the bad store (the four classic flaws on) and run the shopper: low score, failures listed. Apply the fixes by switching the flaws off, run again, and get a higher score plus a completed sandbox purchase.
+Start with the bad store (the eight classic flaws on) and run the shopper: low score, failures listed. Apply the fixes by switching the flaws off, run again, and get a higher score plus a completed sandbox purchase.
 
 ## Demo store flaws (each behind a toggle)
 
-The first four are on in the demo. The other eleven are off by default. Six of them exist for the saboteur benchmark, and five are new on 2026-11-10: four purchase flaws that break the trace and one safety flaw.
+The store has 20 flaws (`store/flaws.py`). The eight classic ones are on in the demo: the four agent-readiness flaws (the first four rows) and the four PayPal setup flaws. The other twelve are off by default. Six of them feed the saboteur benchmark, one is a PayPal setup flaw that is not in the classic set, and five are the four purchase flaws that break the trace plus one safety flaw.
 
 | Flaw | What the agent runs into |
 |---|---|
@@ -60,6 +60,11 @@ The first four are on in the demo. The other eleven are off by default. Six of t
 | Declined marked paid (`declined_marked_paid`) | PayPal declined the payment, but the store's order says paid. |
 | Success after cancel (`success_after_cancel`) | The buyer cancelled in PayPal, but the store confirms the order. |
 | Duplicate on retry (`duplicate_on_retry`) | A retry after a temporary error creates a second store order. |
+| No PayPal on the product page (`no_paypal_express`) | The PayPal button only appears at checkout, not on the product page. On by default. |
+| No Pay Later (`no_pay_later`) | No Pay Later messaging next to the price and no Pay Later button at checkout. On by default. |
+| No Venmo (`no_venmo`) | Checkout offers no Venmo button. On by default. |
+| No card or guest checkout (`no_card_checkout`) | Checkout offers PayPal only, with no way to pay by card without a PayPal account. On by default. |
+| Guest checkout disabled (`no_guest_checkout`) | Checkout asks for an account with a password before the PayPal button appears. Off by default. |
 | Hidden agent instructions (`hidden_agent_instructions`) | The page hides text telling AI agents what to do. The guard flags it. |
 
 ## Success criteria

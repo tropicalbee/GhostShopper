@@ -6,6 +6,7 @@ Decisions before 2026-11-10 are in [archive/DECISIONS-2026-11-05-to-11-09.md](ar
 ## Still in force from earlier
 
 - Scoring is by cause. Each failure code maps to a cause and a fix, and only the store's own failures cost points. Failures that are not the store's fault are excluded and the score is renormalized. An unknown code counts as the store's fault.
+- On a live (real) store the payment steps after the PayPal button are excluded from the score, not counted as zero, because GhostShopper only pays on its own demo store (`agent/engine.py`). Rejected: scoring them as failures, which would punish every real store for something the shopper never tries.
 - The score is 100 points of weighted checks (rules version 2026-11-05.3). The model never sees the weights and never computes the score.
 - The server prices every order from `store/products.json`. The browser only sends SKU and quantity, and the server only captures orders it created.
 - The store order number goes to PayPal as `custom_id`, not `invoice_id` (see 2026-11-11 below).

@@ -1,4 +1,4 @@
-# Video script v3 (2:50 to 2:55)
+# Video script, cut v2 (2:50 to 2:55)
 
 The story is the payment. PayPal says the money arrived, the store says it's still waiting, and GhostShopper finds out why. The agent struggling with the store is the setup.
 
@@ -28,7 +28,7 @@ Plus a read-only tour of the landing page, the New check page and the demo store
 | 6 Payment safety | New check page: payment and the spending limit field. | "The agent pays with a saved PayPal account, through the Vault. The payment token never reaches the model, and an optional spending limit is checked before PayPal is called." |
 | 7 Resolution | Store admin, the flaws switched off. Run 51 sped up: price readable, checkout, order #1072. The four "Linked" rows, the Money panel ($24.00, fee -$1.33, you keep $22.67, PayPal sandbox), then before and after 65 to 100. | "The merchant makes the fixes, and runs the same agent again. This time it reads the price, pays through PayPal's Orders API in the sandbox, and the five-stage trace shows no mismatches. All four ID links match. Twenty-four dollars captured. Twenty-two sixty-seven kept, after PayPal's fee. Sixty-five, to a hundred. These results come from two live runs, in PayPal's sandbox." |
 | 8 It also guards the agent | Run 52 live, then its results: the "Instructions aimed at AI shoppers" panel ("Hidden from people", "did not follow"). Then the landing's "What it catches" grid. | "It also guards the agent. In another live run, the store hid a message for AI agents inside a review, asking for the customer's email. GhostShopper flagged it, and the agent ignored it, and paid the normal price. The trace also checks for an order marked paid after a declined payment, a thank-you page after a cancel, and a second order on a retry." |
-| 9 Where it runs | The landing's closing call to action and the footer's "Built with" list. | "Run it locally with Playwright, or use Kernel's cloud browser on the hosted Render demo. Channel3 adds market context. And it's all open source." |
+| 9 Where it runs | The landing's closing call to action and the footer's "Built with" list. | "Run it locally with Playwright, or in Kernel's cloud browser. Channel3 adds market context. And it's all open source." |
 | 10 Identity | End card: logo, GhostShopper, the tagline, ghostshopper.onrender.com, github.com/tropicalbee/GhostShopper, built with PayPal Orders v2, JS SDK v6, Vault, AG Grid, Kernel, Channel3, Render. | "I'm Shibangi, and I built GhostShopper, so small merchants can see their store through an AI shopper's eyes, before an agent tries to buy. Thank you, PayPal." |
 
 ## Checked against the code and the runs
@@ -42,7 +42,7 @@ Plus a read-only tour of the landing page, the New check page and the demo store
 
 ## What the video doesn't claim
 
-No WebMCP, Agent Ready, ACP or UCP. No real merchants or revenue. No benchmark numbers.
+No WebMCP, Agent Ready, ACP or UCP. No real merchants or revenue. No benchmark numbers. The WebMCP and vision work came after the recorded cut and is covered in the README and Devpost.
 
 ## Making it
 

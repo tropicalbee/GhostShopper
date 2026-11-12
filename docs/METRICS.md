@@ -78,6 +78,10 @@ Not valid until run live. These came from replayed cassettes, so they test the h
 |---|---|---|---|---|---|---|
 | 7 | cassette `judge_classic` (`valid = 0`) | 5 | 4.8 | 4.4 | 0% | 0 |
 
+### Market check, live Channel3 (hosted site, 2026-11-12)
+
+`GET /api/market/FH-MUG-01` on ghostshopper.onrender.com returned source `channel3` ("Live Channel3 search results."): 18 similar products (2 removed as duplicates or multi-packs), min $6.99, median $20.13, max $88.00. Our price $24.00 is 19.3% above the median, not competitive. Read-only GET.
+
 ### Market check (recorded fixtures, not live Channel3 data)
 
 | Product | Comparables | Median | Our price | Versus median | Competitive |
@@ -353,3 +357,34 @@ Shopper model and `VISION_MODEL` were both `nvidia/nemotron-3.5-super-vl-120b-a1
 | Run 59, price_as_image + no_structured_data | Step 6: `look_at_page` ("What is the price and stock status of the Speckled Stoneware Mug?"), answer "The price is $24.00 and it is in stock (ships from Asheville in 3 business days)." Bought in 12 steps, capture COMPLETED $24.00 (fee 1.33, net 22.67), store order #1078 Paid. Readiness 65/100 (price_in_text, structured_data, stock_readable still fail) |
 | Run 58, price_as_image only | Vision available, `look_at_page` never called. Read 24.00 USD from the structured data, bought, 84/100, order #1077 Paid |
 | Vision tests | `test_vision.py` 26 tests (fake vision model, no network); with provider, safety and recorder tests 79 passed; e2e and guards 16 passed |
+
+## Hosted real run 5 (2026-11-12)
+
+The first real run on the hosted site, in Kernel, against the flawed demo store. Read from the hosted run record. Model: `nvidia/nemotron-3.5-super-vl-120b-a12b`.
+
+| What | Value |
+|---|---|
+| Browser, PayPal, payment | Kernel, sandbox, popup (no saved vault buyer on the hosted database) |
+| Started, finished | 17:34:00 UTC, 17:43:07 UTC (9 min 7 s) |
+| Outcome, end reason | blocked, step_limit |
+| Steps | 25 |
+| Score | 41/75 (6 checks excluded as not the store's fault; discover 5, details 9, checkout 10, payment 7, outcome 0) |
+| Store failures | price_in_text, structured_data, clear_buy_button, no_extra_steps, stock_readable |
+| Step 18, `pay_with_paypal` | "Approval did not complete within 120s (stuck at 'password')" |
+| Step 19 | store order #1049 shown as Cancelled |
+| Capture | none, so no order was captured |
+| Step 24 | a second `pay_with_paypal` was refused: payment was already attempted in this run |
+
+Every completed purchase so far ran locally.
+
+### Live site check (same day)
+
+| What | Value |
+|---|---|
+| API latency, warm | 0.6 to 1.0 s |
+| `POST /api/runs` | 202 in 0.88 s |
+| `/api/catalog` | 2.6 s |
+
+### Test suite (2026-11-12)
+
+Full run after the audit fixes, `pytest -q`: 657 tests, 646 passed, 11 failed, 779.5 s. The 11 failures were test setups only: 10 started a run on a server with no LLM (now a 400 `RUN_CONFIG` by design) and 1 listed the health keys without the new `vault_ready`. After fixing them, `test_budget.py` and `test_server_hardening.py` pass (59 passed, 63.8 s). Frontend `npm run build` passes.

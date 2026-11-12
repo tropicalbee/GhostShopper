@@ -23,7 +23,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] POST /api/runs, GET /api/runs, GET /api/runs/{id}
 - [x] Runs with all flaws on and off recorded in METRICS.md (mock LLM)
 - [x] Robustness: step limit, loop detection, per-step and LLM timeouts, gave-up as a scored check
-- [ ] The same two runs with live Groq (needs GROQ_API_KEY and GROQ_MODEL; user)
+- [x] The same two runs with a live LLM (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`): runs 31 and 32 on Nemotron, see METRICS.md
 
 ## D3 (Nov 7, built with mocks on Nov 5): agent completes checkout
 - [x] pay_with_paypal: PayPal popup, buyer login, approve (live selectors unverified)
@@ -49,7 +49,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] Before/after comparison: endpoint and CLI
 - [x] Deterministic fix per failure type; LLM may only reword it (cassette for now)
 - [x] Product feed in Google product feed columns, with coverage and CSV download (Nov 7)
-- [ ] Live Channel3 run (needs CHANNEL3_API_KEY; user)
+- [x] Live Channel3 run: verified on the hosted site, Nov 12 (18 similar, median $20.13)
 
 ## D5 (Nov 9): scoring and dashboard
 - [x] Deterministic score function, unit tests, rules_version
@@ -65,13 +65,13 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] Ledger redesign (user-picked from two mocks), sidebar and phone menu, every screen size
 - [x] Provider-agnostic LLM layer, backend robustness and speed pass, frontend loading and polling work (Nov 6, fourth session)
 - [x] Demo store redesign: 12 products, photos, reviews, responsive pages, flaws kept (Nov 6, late session)
-- [ ] Decide how live-store payment checks count (default in code: excluded)
+- [x] Decide how live-store payment checks count: excluded, not scored as zero (see DECISIONS.md)
 
 ## Evaluation (added Nov 5, between D4 and D5)
 - [x] Saboteur: 6 more flaws (10 in total), each a toggle with a ground-truth label
 - [x] Benchmark: precision, recall and missed flaws per type; classic 16-combination matrix and 30 random combinations
 - [x] LLM-as-judge for fix explanations (secondary metric; harness tested on cassettes only)
-- [ ] Judge and saboteur proposals with live Groq (user)
+- [ ] Judge and saboteur proposals with a live LLM (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`; user). METRICS.md shows only the replayed-cassette judge run, so this stays open
 
 ## D6 (Nov 10): deploy and README
 - [x] Serve the frontend build from FastAPI
@@ -110,7 +110,7 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 ## D7 (Nov 11): video and submit
 - [x] docs/VIDEO_SCRIPT.md (3 minutes) and seed command for the demo state
 - [x] Record the demo video (under 3 minutes): v2, 2:54, live runs 50, 51 and 52
-- [ ] Devpost description, with the built-during-the-hackathon section from CHANGELOG.md
+- [x] Devpost description, with the built-during-the-hackathon section from CHANGELOG.md
 - [ ] Submit
 
 ## Nov 12: WebMCP, catalog readiness, mobile

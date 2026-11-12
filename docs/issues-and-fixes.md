@@ -4,6 +4,42 @@ What broke, why, and what we did about it. Newest first.
 Entries before 2026-11-10 are in [archive/issues-and-fixes-2026-11-05-to-11-09.md](archive/issues-and-fixes-2026-11-05-to-11-09.md). The full original file, before the split: [issues-and-fixes.md at a44951e](https://github.com/tropicalbee/GhostShopper/blob/a44951e642b2f8d88d750b7c7eaa2519ad2afeab/docs/issues-and-fixes.md).
 
 
+## 2026-11-12 (session 11, final audit fixes)
+
+These code fixes were applied by another agent during the audit. Tests for them are not recorded in METRICS.md yet.
+
+### Hosted PayPal popup stalled (hosted run 5)
+Hosted run 5 ran in Kernel and its PayPal popup approval timed out at the password step after 120 s, so nothing was captured. Root cause: the hosted SQLite has no saved vault buyer after a redeploy, so real runs fell back to the password popup. Fix in progress: read the vault token from the environment.
+
+### /api/catalog had no total time bound and no daily cap
+A slow store could hold a request open, and any visitor could call it without limit. Fix: an asyncio timeout around the whole check and a daily cap, `CATALOG_DAILY_CAP` (default 100).
+
+### look_at_page had no per-run cap
+A model could call the vision tool on every step. Fix: at most 5 calls per run.
+
+### Stuck PayPal popup screenshot never reached the scorecard
+The capture was saved under a key the scorecard does not read. Fix: it is saved as `screenshot`, and no path is stored when the capture failed.
+
+### Order read and verify endpoints accepted any id
+`GET /orders/{id}` and `/orders/{id}/verify` accepted any string as an id. Fix: the same `ORDER_ID_RE` check as refund (400 `BAD_ORDER_ID`). They still have no owner check, because the agent reads its own order over plain HTTP without the owner cookie; PayPal order ids are hard to guess.
+
+### A run with no LLM configured silently used the rule-based navigator
+Fix: the request now fails with 400 `RUN_CONFIG` unless developer options are on.
+
+### Localhost origins hidden in only one failure text column
+Session 10 stripped the loopback origin from one column. Fix: it is hidden in every failure text column.
+
+### Proxy hop count could be wrong without a sign
+Fix: a one-time log line when `X-Forwarded-For` has fewer entries than `TRUSTED_PROXY_HOPS`.
+
+## 2026-11-12 (session 10, final audit)
+
+### Example checks showed a localhost address on the hosted site
+The bundled examples were recorded on a local server, so the Advanced grid's "What we saw" text said `first at http://localhost:8000/store/checkout/details...`. Fix: the grid strips the loopback origin and shows the store path. The raw API still carries the recorded URLs.
+
+### ALLOW_PRIVATE_URLS missing from .env.example
+The SSRF guard reads it but it was undocumented. Added to `.env.example` and the README table.
+
 ## 2026-11-12 (session 9)
 
 ### Headless PayPal approval stuck at the password step
