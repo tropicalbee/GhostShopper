@@ -2,6 +2,7 @@ import { AllCommunityModule, colorSchemeDark, ModuleRegistry, themeQuartz, type 
 import { AgGridReact } from "ag-grid-react";
 
 import type { Fix } from "@/lib/api";
+import { stripLocalOrigin } from "@/lib/utils";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -40,10 +41,20 @@ const STAGE: Record<string, string> = { discover: "Find", details: "Details", ch
 // the technical fix column is hidden (it stays in the developer report) so Evidence stays in view.
 // The selector rides in the technical fix's tooltip and in the developer report.
 const columns: ColDef<Fix>[] = [
-  { headerName: "Problem", field: "title", flex: 1.3, minWidth: 160, wrapText: true, autoHeight: true, cellClass: `${CELL} font-medium` },
+  { headerName: "Problem", field: "title", flex: 1.3, minWidth: 160, wrapText: true, autoHeight: true, cellClass: `${CELL} font-medium`, valueFormatter: (p) => stripLocalOrigin(p.value) },
   { headerName: "Stage", field: "stage", width: 96, cellClass: CELL, valueFormatter: (p) => STAGE[p.value] ?? p.value },
   { headerName: "Points", field: "points", width: 100, type: "rightAligned", sort: "desc", cellClass: `${CELL} num` },
-  { headerName: "What we saw", field: "reason", flex: 1.6, minWidth: 180, wrapText: true, autoHeight: true, cellClass: `${CELL} text-muted-foreground` },
+  {
+    headerName: "What we saw",
+    field: "reason",
+    flex: 1.6,
+    minWidth: 180,
+    wrapText: true,
+    autoHeight: true,
+    cellClass: `${CELL} text-muted-foreground`,
+    // Example checks were recorded against a local server; show the store's own path, not that address.
+    valueFormatter: (p) => stripLocalOrigin(p.value),
+  },
   {
     headerName: "Technical fix",
     field: "fix",
@@ -52,9 +63,13 @@ const columns: ColDef<Fix>[] = [
     wrapText: true,
     autoHeight: true,
     cellClass: CELL,
-    tooltipValueGetter: (p) => (p.data?.evidence.selector ? `${p.value}
+    valueFormatter: (p) => stripLocalOrigin(p.value),
+    tooltipValueGetter: (p) => {
+      const fix = stripLocalOrigin(p.value);
+      return p.data?.evidence.selector ? `${fix}
 
-Selector: ${p.data.evidence.selector}` : p.value),
+Selector: ${stripLocalOrigin(p.data.evidence.selector)}` : fix;
+    },
   },
   {
     headerName: "Evidence",

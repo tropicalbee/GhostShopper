@@ -13,7 +13,7 @@ import { PathCompareTable, WebMCPPanels, WebMCPStrip } from "@/components/WebMCP
 import { api, ApiError, sameSeries, shotName, shotUrl, startCheck, type Health, type PlainFix, type Run, type RunSummary } from "@/lib/api";
 import { fetchCompare } from "@/lib/compare";
 import { go, useCountUp, useFetch } from "@/lib/hooks";
-import { cn } from "@/lib/utils";
+import { cn, stripLocalOrigin } from "@/lib/utils";
 
 // Results re-renders on each frame of the score count-up; the fix list does not change, so skip it.
 const FixItem = memo(function FixItem({ fix, n }: { fix: PlainFix; n: number }) {
@@ -24,10 +24,10 @@ const FixItem = memo(function FixItem({ fix, n }: { fix: PlainFix; n: number }) 
       </span>
       <div>
         <h3 className="text-[17px] leading-snug font-semibold tracking-[-0.01em]">{fix.title}</h3>
-        <p className="mt-1 text-muted-foreground">{fix.why}</p>
+        <p className="mt-1 text-muted-foreground">{stripLocalOrigin(fix.why)}</p>
         <div className="mt-4 rounded-lg border bg-panel px-4 py-3">
           <p className="text-[13px] font-semibold">How to fix it</p>
-          <p className="mt-0.5">{fix.steps ?? fix.how}</p>
+          <p className="mt-0.5">{stripLocalOrigin(fix.steps ?? fix.how)}</p>
         </div>
         {fix.screenshot_url && (
           <div className="mt-2">
