@@ -22,6 +22,7 @@ from store.orders import StoreOrders
 
 from .. import db
 from ..failures import BUYER_SIDE_CAPTURE_ISSUES
+from ..internal_key import key_header, read_key_file
 from ..vault import VaultError, load_token
 from . import checks
 from .browser import PageTools, ToolError
@@ -38,10 +39,11 @@ REQUEST_TIMEOUT_S = 60.0
 class VaultPayment:
     tool_name = TOOL_NAME
 
-    def __init__(self, vault_id: str, customer_id: str | None, api_base: str, mode: str):
+    def __init__(self, vault_id: str, customer_id: str | None, api_base: str, mode: str, internal_key: str | None = None):
         self._vault_id = vault_id
         self.api_base = api_base.rstrip("/")
         self.mode = mode
+        self._internal_key = read_key_file() if internal_key is None else internal_key  # "" = send none
         self.secrets = tuple(s for s in (vault_id, customer_id) if s)
         self.max_duration_s = BUTTON_WAIT_S[mode] + REQUEST_TIMEOUT_S + 30
         self.store_orders: list[int] = []  # the demo store's order numbers this payment made
@@ -56,7 +58,7 @@ class VaultPayment:
 
     async def _get(self, path: str) -> dict | None:
         async with httpx.AsyncClient(timeout=10.0) as http:
-            resp = await http.get(f"{self.api_base}{path}")
+            resp = await http.get(f"{self.api_base}{path}", headers=key_header(self._internal_key))
         return resp.json() if resp.status_code == 200 else None
 
     def _no_popup_checks(self, rec: RunRecorder, url: str) -> None:
@@ -202,7 +204,7 @@ class VaultPayment:
 
 
 def make_vault_handler(mode: str, store_url: str, db_path, server_mode: str | None = None,
-                       server_configured: bool | None = None) -> VaultPayment:
+                       server_configured: bool | None = None, internal_key: str | None = None) -> VaultPayment:
     """A missing token, or a server in another PayPal mode, is an explicit error: never a silent fallback."""
     api_base = _origin(store_url)
     if server_mode is None:
@@ -222,4 +224,4 @@ def make_vault_handler(mode: str, store_url: str, db_path, server_mode: str | No
         token = load_token(db_path, mode)
     except VaultError as exc:
         raise PaymentConfigError(str(exc)) from exc
-    return VaultPayment(token["payment_token_id"], token["customer_id"], api_base, mode)
+    return VaultPayment(token["payment_token_id"], token["customer_id"], api_base, mode, internal_key)

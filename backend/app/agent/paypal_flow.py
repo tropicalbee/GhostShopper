@@ -32,6 +32,7 @@ from store.orders import StoreOrders
 from .. import db
 from ..config import BuyerCredentials, sandbox_buyer
 from ..failures import BUYER_SIDE_CAPTURE_ISSUES
+from ..internal_key import key_header, read_key_file
 from . import checks
 from .browser import PageTools, ToolError
 from .engine import CheckEngine
@@ -164,9 +165,10 @@ async def popup_state(popup: Page) -> str:
 
 class PayPalCheckout:
     def __init__(self, buyer: BuyerCredentials, api_base: str, timeouts: Timeouts, mode: str,
-                 on_awaiting_human: HumanHook | None = None):
+                 on_awaiting_human: HumanHook | None = None, internal_key: str | None = None):
         self._buyer = buyer
         self.api_base = api_base.rstrip("/")
+        self._internal_key = read_key_file() if internal_key is None else internal_key  # "" = send none
         self.timeouts = timeouts
         self.mode = mode
         self.on_awaiting_human = on_awaiting_human
@@ -562,7 +564,7 @@ class PayPalCheckout:
 
     async def _backend_get(self, path: str) -> dict[str, Any] | None:
         async with httpx.AsyncClient(timeout=10.0) as http:
-            resp = await http.get(f"{self.api_base}{path}")
+            resp = await http.get(f"{self.api_base}{path}", headers=key_header(self._internal_key))
         return resp.json() if resp.status_code == 200 else None
 
 
@@ -573,6 +575,7 @@ def make_payment_handler(
     server_configured: bool | None = None,
     on_awaiting_human: HumanHook | None = None,
     human_wait: bool = True,
+    internal_key: str | None = None,
 ) -> PayPalCheckout:
     """Live sandbox only when every credential is present and the server agrees; never a silent fallback."""
     api_base = _origin(store_url)
@@ -588,7 +591,7 @@ def make_payment_handler(
             f"Checkout mode '{mode}' requested, but the server runs PAYPAL_MODE={server_mode}. "
             f"Restart the server with PAYPAL_MODE={mode}, or run with --paypal {server_mode}.")
     if mode == "mock":
-        return PayPalCheckout(MOCK_BUYER, api_base, MOCK_TIMEOUTS, mode, on_awaiting_human)
+        return PayPalCheckout(MOCK_BUYER, api_base, MOCK_TIMEOUTS, mode, on_awaiting_human, internal_key)
     if mode != "sandbox":
         raise PaymentConfigError(f"Unknown PayPal mode {mode!r}")
     missing = []
@@ -603,4 +606,4 @@ def make_payment_handler(
             + ". Use a PAYPAL_MODE=mock server with --paypal mock to test the checkout path.")
     # human_wait off: nobody can reach this run's browser, so a human check fails the run at once.
     timeouts = LIVE_TIMEOUTS if human_wait else replace(LIVE_TIMEOUTS, human_s=0)
-    return PayPalCheckout(buyer, api_base, timeouts, mode, on_awaiting_human)
+    return PayPalCheckout(buyer, api_base, timeouts, mode, on_awaiting_human, internal_key)

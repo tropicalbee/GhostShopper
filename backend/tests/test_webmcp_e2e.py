@@ -26,7 +26,8 @@ async def webmcp_run(server, flaws="off", scenario="ok", llm=None, native=True) 
     async with httpx.AsyncClient() as http:
         (await http.put(f"{server.url}/mock-paypal/scenario", json={"scenario": scenario})).raise_for_status()
     snapshot = await apply_flaws(store_url, flaws)
-    payment = make_payment_handler("mock", store_url, server_mode="mock", server_configured=True)
+    payment = make_payment_handler("mock", store_url, server_mode="mock", server_configured=True,
+                                    internal_key=server.internal_key)
     cfg = WebMCPConfig(store_url=store_url, db_path=server.db_path, flaws=snapshot, runs_dir=server.runs_dir,
                        paypal_mode="mock", target_product=TARGET, native=native)
     return load_run(server.db_path, await run_webmcp_shopper(cfg, llm or ScriptedWebMCP(TARGET), payment))

@@ -40,7 +40,7 @@ async def checkout_run(server, cassette, flaws="off", scenario="ok", checkout=Tr
         (await http.put(f"{server.url}/mock-paypal/scenario", json={"scenario": scenario})).raise_for_status()
     snapshot = await apply_flaws(store_url, flaws)
     payment = (make_payment_handler("mock", store_url, server_mode="mock", server_configured=True,
-                                    on_awaiting_human=hook) if checkout else None)
+                                    on_awaiting_human=hook, internal_key=server.internal_key) if checkout else None)
     if payment and timeouts:
         payment.timeouts = timeouts
     cfg = RunConfig(store_url=store_url, db_path=server.db_path, flaws=snapshot, runs_dir=server.runs_dir,

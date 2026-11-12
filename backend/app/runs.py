@@ -142,6 +142,7 @@ async def start_run(body: StartRun, request: Request):
     llm = body.llm or ("live" if live_llm_configured() else "scripted" if settings.dev_options else None)
     if llm is None:
         raise _error(400, "RUN_CONFIG", "No LLM is configured on this server. Set LLM_PROVIDER, LLM_MODEL and LLM_API_KEY.")
+    payment = body.payment or ("vault" if real and not webmcp and db.latest_vault_token(settings.database_path, "sandbox") else "popup")
     req = RunRequest(
         store_url=body.store_url,
         llm=llm,
@@ -150,9 +151,11 @@ async def start_run(body: StartRun, request: Request):
         flaws=body.flaws or "keep",
         checkout=True if real or webmcp else (demo if body.checkout is None else body.checkout),
         paypal="sandbox" if real else (body.paypal or settings.paypal_mode),
-        payment=body.payment or ("vault" if real and not webmcp and db.latest_vault_token(settings.database_path, "sandbox") else "popup"),
-        # A real purchase runs in a Kernel browser with headless off: its live view is how a person approves.
-        browser="kernel" if real else body.browser,
+        payment=payment,
+        # A real popup purchase runs in a Kernel browser with headless off: its live view is how a person approves.
+        # A saved-buyer (vault) purchase has no popup, so it uses the server's browser (BROWSER_PROVIDER), which
+        # also lets a local server's own Chromium reach the store on localhost.
+        browser="kernel" if real and payment == "popup" else body.browser,
         max_steps=body.max_steps or 25,
         budget=body.budget,
         headless=False if real else not body.headed,
@@ -163,7 +166,7 @@ async def start_run(body: StartRun, request: Request):
         **({"target_product": SHOWCASE_TARGET} if external else {}),
     )
     # Both modes are served; the run is checked against the mode it asked for, not the server's default.
-    server = ServerInfo(req.paypal, req.paypal in state.paypal_clients or settings.paypal_configured)
+    server = ServerInfo(req.paypal, req.paypal in state.paypal_clients or settings.paypal_configured, state.internal_key)
     try:
         target = await resolve_target(req, settings.app_base_url)  # friendly errors for links we can't check
         live = not target.demo and not webmcp

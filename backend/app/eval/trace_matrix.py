@@ -72,7 +72,7 @@ async def _purchase(srv: LiveServer, db_path: Path, runs_dir: Path, flaw: str, s
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_S) as http:
         (await http.put(f"{srv.url}/mock-paypal/scenario", json={"scenario": scenario})).raise_for_status()
     snapshot = await apply_flaws(store_url, "off" if flaw == "healthy" else flaw)
-    payment = make_payment_handler("mock", store_url, "mock", True)
+    payment = make_payment_handler("mock", store_url, "mock", True, internal_key=srv.internal_key)
     cfg = RunConfig(store_url=store_url, db_path=db_path, flaws=snapshot, checkout=True, paypal_mode="mock",
                     max_steps=45, runs_dir=runs_dir)
     return await run_shopper(cfg, ScriptedNavigator(DEFAULT_TARGET), payment)

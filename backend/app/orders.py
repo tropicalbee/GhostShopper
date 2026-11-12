@@ -17,6 +17,8 @@ from store.orders import StoreOrders
 from . import db
 from .agent.recorder import invalidate_run
 from .failures import BUYER_SIDE_CAPTURE_ISSUES
+from .internal_key import HEADER as KEY_HEADER
+from .internal_key import key_ok
 from .paypal import PayPalClient, PayPalError, summarize_capture
 from .ratelimit import charge_daily_cap, rate_limit
 from .verification import verify_payment
@@ -355,9 +357,17 @@ async def refund_order(order_id: str, request: Request):
     }
 
 
+def _require_agent(request: Request) -> None:
+    """Order reads are for the shopper agent only (it has no owner cookie, so it sends the server's internal key).
+    A missing or wrong key looks like an unknown order, so the route reveals nothing to anyone else."""
+    if not key_ok(request.app.state.internal_key, request.headers.get(KEY_HEADER)):
+        raise HTTPException(status_code=404, detail={"error": "UNKNOWN_ORDER", "message": "No such order"})
+
+
 @router.get("/orders/{order_id}/verify")
 def verify_order(order_id: str, request: Request):
     """Order <-> capture <-> advertised amount <-> fees. Used by the agent after a purchase."""
+    _require_agent(request)
     if not ORDER_ID_RE.match(order_id):
         raise HTTPException(status_code=400, detail={"error": "BAD_ORDER_ID", "message": "Malformed order id"})
     db_path = request.app.state.settings.database_path
@@ -373,7 +383,7 @@ def verify_order(order_id: str, request: Request):
 
 @router.get("/orders/{order_id}")
 def get_order(order_id: str, request: Request):
-    # No owner check: the agent reads its own order over plain HTTP without the browser's owner cookie.
+    _require_agent(request)
     if not ORDER_ID_RE.match(order_id):
         raise HTTPException(status_code=400, detail={"error": "BAD_ORDER_ID", "message": "Malformed order id"})
     order = db.get_order(request.app.state.settings.database_path, order_id)

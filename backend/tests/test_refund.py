@@ -63,7 +63,7 @@ def test_refund_is_verified_and_stored(client, tmp_path):
     assert stored["refund_id"] == body["refund_id"]
     assert stored["refund_status"] == "COMPLETED"
     assert stored["refunded_at"]
-    assert client.get(f"/api/paypal/orders/{order_id}").json()["refund_amount"] == "24.00"
+    assert client.get(f"/api/paypal/orders/{order_id}", headers={"X-GhostShopper-Key": client.app.state.internal_key}).json()["refund_amount"] == "24.00"
 
 
 def test_second_refund_is_refused(client):
@@ -87,9 +87,9 @@ def test_unknown_order(client):
 
 
 def test_reading_an_order_validates_the_id(client):
-    assert client.get("/api/paypal/orders/bad..id").status_code == 400
-    assert client.get("/api/paypal/orders/bad..id/verify").status_code == 400
-    assert client.get("/api/paypal/orders/NEVERCREATED1/verify").status_code == 404
+    assert client.get("/api/paypal/orders/bad..id", headers={"X-GhostShopper-Key": client.app.state.internal_key}).status_code == 400
+    assert client.get("/api/paypal/orders/bad..id/verify", headers={"X-GhostShopper-Key": client.app.state.internal_key}).status_code == 400
+    assert client.get("/api/paypal/orders/NEVERCREATED1/verify", headers={"X-GhostShopper-Key": client.app.state.internal_key}).status_code == 404
 
 
 @pytest.mark.parametrize("owner", [None, "0" * 64])
@@ -194,3 +194,17 @@ def test_record_refund_never_overwrites_another_refund(client, tmp_path):
     db.record_refund(path, order_id, {"id": "R2", "status": "PENDING", "amount": amount})
     assert db.get_order(path, order_id)["refund_id"] == "R1"
     assert db.get_order(path, order_id)["refund_status"] == "COMPLETED"
+
+
+def test_order_reads_are_agent_only(client):
+    order_id = place_order(client)
+    for path in (f"/api/paypal/orders/{order_id}", f"/api/paypal/orders/{order_id}/verify"):
+        assert client.get(path).status_code == 404
+        assert client.get(path, headers={"X-GhostShopper-Key": "wrong"}).status_code == 404
+        assert client.get(path, headers={"X-GhostShopper-Key": client.app.state.internal_key}).status_code == 200
+    assert "UNKNOWN_ORDER" in client.get(f"/api/paypal/orders/{order_id}").text
+
+
+def test_server_writes_its_key_file_at_startup(client):
+    key_file = client.app.state.settings.database_path.parent / ".internal_key"
+    assert key_file.read_text(encoding="utf-8") == client.app.state.internal_key

@@ -61,10 +61,12 @@ def _buyer(req: RunRequest, store_url: str, server: ServerInfo | None, external:
             raise RunConfigError("Live sandbox checkout disabled; missing SANDBOX_BUYER_EMAIL / SANDBOX_BUYER_PASSWORD.")
         timeouts = LIVE_TIMEOUTS if req.human_wait else replace(LIVE_TIMEOUTS, human_s=0)
         parsed = urlparse(store_url)
-        return PayPalCheckout(buyer, f"{parsed.scheme}://{parsed.netloc}", timeouts, "sandbox", on_awaiting_human)
+        return PayPalCheckout(buyer, f"{parsed.scheme}://{parsed.netloc}", timeouts, "sandbox", on_awaiting_human,
+                              internal_key="")  # PayPal's showcase must never get our key
     try:
         return make_payment_handler(req.paypal, store_url, server.paypal_mode if server else None,
-                                    server.paypal_configured if server else None, on_awaiting_human, req.human_wait)
+                                    server.paypal_configured if server else None, on_awaiting_human, req.human_wait,
+                                    internal_key=server.internal_key if server else None)
     except PaymentConfigError as exc:
         raise RunConfigError(str(exc)) from exc
 

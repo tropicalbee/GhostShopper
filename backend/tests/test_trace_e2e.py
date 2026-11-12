@@ -149,7 +149,8 @@ async def test_the_saved_paypal_payment_makes_the_same_trace(server):  # noqa: F
     await save_token(settings)
     store_url = f"{server.url}/store/"
     snapshot = await apply_flaws(store_url, "never_marks_paid")
-    payment = make_vault_handler("mock", store_url, server.db_path, server_mode="mock", server_configured=True)
+    payment = make_vault_handler("mock", store_url, server.db_path, server_mode="mock", server_configured=True,
+                                 internal_key=server.internal_key)
     cfg = RunConfig(store_url=store_url, db_path=server.db_path, flaws=snapshot, runs_dir=server.runs_dir,
                     checkout=True, paypal_mode="mock")
     run = load_run(server.db_path, await run_shopper(cfg, ReplayLLM(resolve_cassette("day3_checkout_vault")), payment))

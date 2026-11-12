@@ -93,17 +93,18 @@ def test_agent_order_captures_and_records(client):
     assert r.status_code == 201, r.text
     got = r.json()
     assert (got["amount"], got["gross_amount"], got["paypal_fee"], got["net_amount"]) == ("24.00", "24.00", "1.33", "22.67")
-    stored = client.get(f"/api/paypal/orders/{got['order_id']}").json()
+    agent = {"X-GhostShopper-Key": client.app.state.internal_key}
+    stored = client.get(f"/api/paypal/orders/{got['order_id']}", headers=agent).json()
     assert stored["capture_status"] == "COMPLETED" and stored["status"] == "COMPLETED"
-    assert client.get(f"/api/paypal/orders/{got['order_id']}/verify").json()["ok"] is True
-    assert "MOCKVAULTABC123" not in client.get(f"/api/paypal/orders/{got['order_id']}").text
+    assert client.get(f"/api/paypal/orders/{got['order_id']}/verify", headers=agent).json()["ok"] is True
+    assert "MOCKVAULTABC123" not in client.get(f"/api/paypal/orders/{got['order_id']}", headers=agent).text
 
 
 def test_agent_order_captures_when_paypal_did_not(client):
     client.fake.vault_completes_immediately = False
     r = client.post("/api/paypal/agent-orders", json=BODY)
     assert r.status_code == 201, r.text
-    assert client.get(f"/api/paypal/orders/{r.json()['order_id']}").json()["capture_status"] == "COMPLETED"
+    assert client.get(f"/api/paypal/orders/{r.json()['order_id']}", headers={"X-GhostShopper-Key": client.app.state.internal_key}).json()["capture_status"] == "COMPLETED"
 
 
 def test_agent_order_is_idempotent_for_the_same_request_id(client):
@@ -130,7 +131,8 @@ async def test_vault_payment_run_captures_and_verifies_without_a_popup(server): 
     await save_token(settings)
     store_url = f"{server.url}/store/"
     snapshot = await apply_flaws(store_url, "off")
-    payment = make_vault_handler("mock", store_url, server.db_path, server_mode="mock", server_configured=True)
+    payment = make_vault_handler("mock", store_url, server.db_path, server_mode="mock", server_configured=True,
+                                 internal_key=server.internal_key)
     cfg = RunConfig(store_url=store_url, db_path=server.db_path, flaws=snapshot, runs_dir=server.runs_dir,
                     checkout=True, paypal_mode="mock")
     run = load_run(server.db_path, await run_shopper(cfg, ReplayLLM(resolve_cassette("day3_checkout_vault")), payment))
@@ -162,7 +164,8 @@ async def test_vault_payment_over_budget_is_refused_without_charging(server):  #
     await save_token(settings)
     store_url = f"{server.url}/store/"
     snapshot = await apply_flaws(store_url, "off")
-    payment = make_vault_handler("mock", store_url, server.db_path, server_mode="mock", server_configured=True)
+    payment = make_vault_handler("mock", store_url, server.db_path, server_mode="mock", server_configured=True,
+                                 internal_key=server.internal_key)
     cfg = RunConfig(store_url=store_url, db_path=server.db_path, flaws=snapshot, runs_dir=server.runs_dir,
                     checkout=True, paypal_mode="mock", budget=Decimal("20.00"))
     run = load_run(server.db_path, await run_shopper(cfg, ReplayLLM(resolve_cassette("day3_checkout_vault")), payment))
@@ -201,7 +204,8 @@ async def test_vault_run_behind_an_account_wall_creates_no_order(server):  # noq
     await save_token(settings)
     store_url = f"{server.url}/store/"
     snapshot = await apply_flaws(store_url, "no_guest_checkout")
-    payment = make_vault_handler("mock", store_url, server.db_path, server_mode="mock", server_configured=True)
+    payment = make_vault_handler("mock", store_url, server.db_path, server_mode="mock", server_configured=True,
+                                 internal_key=server.internal_key)
     cfg = RunConfig(store_url=store_url, db_path=server.db_path, flaws=snapshot, runs_dir=server.runs_dir,
                     checkout=True, paypal_mode="mock")
     run = load_run(server.db_path, await run_shopper(cfg, ReplayLLM(resolve_cassette("day3_checkout_vault")), payment))
@@ -239,8 +243,8 @@ def test_no_saved_buyer_means_vault_is_not_ready(tmp_path, monkeypatch):
         assert c.get("/api/health").json()["vault_ready"] is False
 
 
-@pytest.mark.parametrize("token, expected", [("TOKENSECRET123", "vault"), ("", "popup")])
-def test_a_real_sandbox_run_defaults_to_the_vault_only_when_a_buyer_is_saved(tmp_path, monkeypatch, token, expected):
+@pytest.mark.parametrize("token, expected, browser", [("TOKENSECRET123", "vault", None), ("", "popup", "kernel")])
+def test_a_real_sandbox_run_defaults_to_the_vault_only_when_a_buyer_is_saved(tmp_path, monkeypatch, token, expected, browser):
     from backend.app import runs
 
     seen = []
@@ -255,3 +259,4 @@ def test_a_real_sandbox_run_defaults_to_the_vault_only_when_a_buyer_is_saved(tmp
     with TestClient(sandbox_app(tmp_path, monkeypatch, vault_token_id=token), base_url="https://demo.example") as c:
         assert c.post("/api/runs", json={"real_payment": True}).status_code == 202
     assert seen[0].payment == expected
+    assert seen[0].browser == browser  # only a popup needs Kernel's live view; a vault run uses BROWSER_PROVIDER

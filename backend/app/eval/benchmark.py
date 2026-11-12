@@ -45,7 +45,7 @@ async def run_combo(srv: LiveServer, db_path: Path, runs_dir: Path, combo: tuple
                     checkout: bool, max_steps: int) -> RunResult:
     store_url = f"{srv.url}/store/"
     snapshot = await apply_flaws(store_url, ",".join(combo) if combo else "off")
-    payment = make_payment_handler("mock", store_url, "mock", True) if checkout else None
+    payment = make_payment_handler("mock", store_url, "mock", True, internal_key=srv.internal_key) if checkout else None
     cfg = RunConfig(store_url=store_url, db_path=db_path, flaws=snapshot, checkout=checkout,
                     paypal_mode="mock" if checkout else "off", max_steps=max_steps, runs_dir=runs_dir)
     started = time.monotonic()

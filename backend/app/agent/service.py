@@ -1,7 +1,7 @@
 """Builds a run from a request: validates config up front, sets store flaws, then runs the agent."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Callable, Literal
@@ -107,6 +107,7 @@ class ServerInfo:
 
     paypal_mode: str
     paypal_configured: bool
+    internal_key: str | None = field(default=None, repr=False)  # in-process runs only; CLI runs read the key file
 
 
 def real_checkout_missing(paypal_configured: bool) -> list[str]:
@@ -134,14 +135,16 @@ def build_payment(req: RunRequest, store_url: str, server: ServerInfo | None = N
             raise RunConfigError("Vault payment needs the database path.")
         try:
             return make_vault_handler(req.paypal, store_url, db_path, server.paypal_mode if server else None,
-                                      server.paypal_configured if server else None)
+                                      server.paypal_configured if server else None,
+                                      internal_key=server.internal_key if server else None)
         except PaymentConfigError as exc:
             raise RunConfigError(str(exc)) from exc
     from .paypal_flow import PaymentConfigError, make_payment_handler
 
     try:
         return make_payment_handler(req.paypal, store_url, server.paypal_mode if server else None,
-                                    server.paypal_configured if server else None, on_awaiting_human, req.human_wait)
+                                    server.paypal_configured if server else None, on_awaiting_human, req.human_wait,
+                                    internal_key=server.internal_key if server else None)
     except PaymentConfigError as exc:
         raise RunConfigError(str(exc)) from exc
 

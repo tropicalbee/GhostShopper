@@ -13,6 +13,7 @@ class LiveServer:
             s.bind(("127.0.0.1", 0))
             self.port = s.getsockname()[1]
         self.url = f"http://127.0.0.1:{self.port}"
+        self.internal_key = getattr(app.state, "internal_key", None)  # what the agent sends to read orders
         self._server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=self.port, log_level="warning"))
         self._thread = threading.Thread(target=self._server.run, daemon=True)
 

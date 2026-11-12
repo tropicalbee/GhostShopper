@@ -136,7 +136,7 @@ def test_capture_records_fees(client, tmp_path):
     assert stored["status"] == "COMPLETED"
     assert stored["capture_id"] == "CAP123"
     assert stored["paypal_fee"] == "1.33"
-    assert client.get("/api/paypal/orders/ORDER123ABC").json()["net_amount"] == "22.67"
+    assert client.get("/api/paypal/orders/ORDER123ABC", headers={"X-GhostShopper-Key": client.app.state.internal_key}).json()["net_amount"] == "22.67"
 
 
 def test_capture_unknown_or_malformed_order(client):

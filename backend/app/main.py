@@ -19,6 +19,7 @@ from .catalog_readiness import router as catalog_router
 from .config import PAYPAL_MODES, PAYPAL_SDK_URL, Settings, get_settings, vision_model
 from .examples import load_examples
 from .ledger import router as ledger_router
+from .internal_key import new_key, write_key
 from .market import MarketError, market_check
 from .orders import router as orders_router
 from .owner import COOKIE, MAX_AGE_S, hash_token, new_token, valid_token
@@ -64,6 +65,7 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        write_key(settings.database_path, app.state.internal_key)  # only a started server publishes it, never an import
         purged = db.purge_old_runs(settings.database_path, settings.runs_dir, settings.retention_days)
         if purged:
             log.info("Retention: deleted %d check(s) older than %d days", len(purged), settings.retention_days)
@@ -89,6 +91,7 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
                   docs_url="/api/docs" if settings.dev_options else None,
                   redoc_url=None, openapi_url="/api/openapi.json" if settings.dev_options else None)
     app.state.settings = settings
+    app.state.internal_key = new_key()  # agent-only order reads; see internal_key.py
     app.state.paypal_clients = clients
     app.state.paypal_active = settings.paypal_mode
     app.state.run_lock = asyncio.Lock()
