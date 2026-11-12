@@ -1,7 +1,9 @@
-import { ArrowRight, Camera, Check, CreditCard, Crosshair, Globe, Image as ImageIcon, MousePointer2, MousePointerClick, ReceiptText, ScanEye, Store, Timer, X } from "lucide-react";
+import { ArrowRight, Camera, Check, CreditCard, Crosshair, Globe, Image as ImageIcon, Menu, MousePointer2, MousePointerClick, ReceiptText, ScanEye, Store, Timer, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 
 import { Logo } from "@/components/bits";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScoreRing, type RingMark } from "@/components/ReadinessPanels";
 import { TraceTable } from "@/components/TraceTable";
 import { startCheck, type Trace, type TraceCell } from "@/lib/api";
@@ -149,6 +151,7 @@ export function Landing() {
   const [after, setAfter] = useState(false);
   const [touched, setTouched] = useState(false);
   const [ctaInView, setCtaInView] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const navCtas = useRef<HTMLDivElement>(null);
   const score = useCountUp(after ? 100 : 62, touched ? (after ? 62 : 100) : 0, 1100);
 
@@ -218,19 +221,76 @@ export function Landing() {
               ))}
             </div>
           </div>
-          <div ref={navCtas} aria-hidden={ctaInView || undefined} className={cn("flex gap-2 transition-opacity duration-150 motion-reduce:transition-none", ctaInView && "pointer-events-none opacity-0")}>
-            <a href="#/new?store=yours" className="inline-flex h-[34px] items-center rounded-md border border-[#2e2e2e] bg-card px-3 text-[13.5px] font-medium whitespace-nowrap text-foreground no-underline hover:border-[#555] max-sm:hidden">
-              Check your store
-            </a>
-            <button type="button" disabled={busy} onClick={() => start(null)} className="shine inline-flex h-[34px] items-center rounded-md bg-foreground px-3 text-[13.5px] font-medium whitespace-nowrap text-[#0a0a0a] disabled:opacity-60">
-              Run the demo
-            </button>
+          <div className="flex items-center gap-2">
+            <div ref={navCtas} aria-hidden={ctaInView || undefined} className={cn("flex gap-2 transition-opacity duration-150 motion-reduce:transition-none", ctaInView && "pointer-events-none opacity-0")}>
+              <a href="#/new?store=yours" className="inline-flex h-[34px] items-center rounded-md border border-[#2e2e2e] bg-card px-3 text-[13.5px] font-medium whitespace-nowrap text-foreground no-underline hover:border-[#555] max-sm:hidden">
+                Check your store
+              </a>
+              <button type="button" disabled={busy} onClick={() => start(null)} className="shine inline-flex h-[34px] items-center rounded-md bg-foreground px-3 text-[13.5px] font-medium whitespace-nowrap text-[#0a0a0a] disabled:opacity-60">
+                Run the demo
+              </button>
+            </div>
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Open the menu" className="size-11 bg-card lg:hidden">
+                  <Menu aria-hidden />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 gap-0 p-0">
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+                <SheetDescription className="sr-only">Jump to a section or open the app.</SheetDescription>
+                <div className="flex h-16 items-center gap-[9px] border-b px-5 text-base font-semibold tracking-[-0.03em]">
+                  <Logo className="size-[22px]" />
+                  GhostShopper
+                </div>
+                <nav aria-label="Menu" className="flex flex-col gap-0.5 p-3">
+                  {[
+                    ["How it works", "how"],
+                    ["Purchase trace", "trace"],
+                    ["Readiness score", "score"],
+                  ].map(([label, id]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setTimeout(() => jump(id), 250);
+                      }}
+                      className="flex min-h-11 items-center rounded-lg px-3 text-left text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <div className="my-2 border-t" />
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      start(null);
+                    }}
+                    className="flex min-h-11 items-center rounded-lg px-3 text-left text-sm font-medium text-foreground disabled:opacity-60"
+                  >
+                    Run the demo
+                  </button>
+                  {[
+                    ["Check your store", "#/new?store=yours"],
+                    ["My checks", "#/checks"],
+                    ["Sales ledger", "#/ledger"],
+                  ].map(([label, href]) => (
+                    <a key={href} href={href} onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground no-underline hover:text-foreground">
+                      {label}
+                    </a>
+                  ))}
+                </nav>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </nav>
 
       <section data-cta className="relative overflow-hidden pt-16 pb-20 lg:pt-24 lg:pb-[110px]">
-        <div className={cn(wrap, "relative grid items-center gap-12 lg:grid-cols-[1fr_430px]")}>
+        <div className={cn(wrap, "relative grid grid-cols-[minmax(0,1fr)] items-center gap-12 lg:grid-cols-[1fr_430px]")}>
           <div className="reveal-in">
             <h1 className="text-[clamp(40px,4vw,58px)] leading-[1.02] font-medium tracking-[-0.045em] text-balance">See your store through an AI shopper&apos;s eyes.</h1>
             <p className="mt-[22px] max-w-[500px] text-[17px] leading-[27px] text-muted-foreground">An AI agent shops your store and pays with PayPal. GhostShopper then checks that the agent, PayPal and your store agree on what was bought, and shows where they don&apos;t.</p>
@@ -305,7 +365,7 @@ export function Landing() {
       </section>
 
       <section id="how" className="relative border-y bg-gradient-to-b from-[#060606] to-black">
-        <ol className={cn(wrap, "relative grid gap-6 pt-10 pb-9 md:grid-cols-5 md:gap-0")}>
+        <ol className={cn(wrap, "relative grid grid-cols-[minmax(0,1fr)] gap-6 pt-10 pb-9 md:grid-cols-5 md:gap-0")}>
           <div className="march absolute top-[50px] right-[calc(20%-10px)] left-2.5 hidden h-0.5 md:block" aria-hidden />
           <TraceGhost count={TRACE_STEPS.length} target={LIT_STEP} />
           {TRACE_STEPS.map(([key, t, d], i) => (
@@ -321,7 +381,7 @@ export function Landing() {
       </section>
 
       <Spine tag="01 · AGENT WANTED">
-        <div className="grid items-start gap-12 xl:grid-cols-[400px_1fr]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-12 xl:grid-cols-[400px_1fr]">
           <div className="reveal-in">
             <h2 className={h2}>An AI shopper walks your store, step by step.</h2>
             <p className={lede}>It reads pages, clicks and pays with real tool calls. Nothing is scripted, so it gets stuck where a real agent would.</p>
@@ -350,7 +410,7 @@ export function Landing() {
                 00:31
               </span>
             </div>
-            <div className="grid sm:grid-cols-[1fr_250px]">
+            <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-[1fr_250px]">
               <div className="grid gap-0.5 px-[18px] py-4">
                 {(
                   [
@@ -426,7 +486,7 @@ export function Landing() {
           <h2 className={h2}>If your store doesn&apos;t say, neither do we.</h2>
           <p className={lede}>The last record is the one shoppers and agents actually see. When it disagrees, you get the fix. When it&apos;s missing, the trace says Unknown and names what&apos;s missing.</p>
         </div>
-        <div className="mt-11 grid gap-[18px] md:grid-cols-2">
+        <div className="mt-11 grid grid-cols-[minmax(0,1fr)] gap-[18px] md:grid-cols-2">
           <div className="glass lift reveal-in overflow-hidden p-7">
             <h3 className="text-[21px] leading-[1.2] font-medium tracking-[-0.03em]">When the store says something wrong</h3>
             <p className="mt-2 text-[15px] leading-[23px] text-muted-foreground">The first disagreement is marked. Later ones are left alone, because they usually follow from the first.</p>
@@ -480,7 +540,7 @@ export function Landing() {
               </span>
               <Chip>Example · Practice mode</Chip>
             </div>
-            <div className="grid min-h-[430px] lg:grid-cols-[400px_1fr]">
+            <div className="grid min-h-[430px] grid-cols-[minmax(0,1fr)] lg:grid-cols-[400px_1fr]">
               <div className="relative grid place-items-center border-b p-[30px] lg:border-r lg:border-b-0 [background:radial-gradient(circle_at_50%_50%,rgba(255,255,255,.05),transparent_60%)]">
                 <ScoreRing marks={MARKS(after)} size={300} stroke={14} className="size-[240px] sm:size-[290px]" />
                 <div className="absolute text-center">
@@ -531,7 +591,7 @@ export function Landing() {
             <h2 className={h2}>What it catches.</h2>
             <p className="mt-3.5 max-w-[600px] text-[17px] leading-[27px] text-muted-foreground">Each one is a real problem planted in the demo store. Switch them on, run the check, and watch the shopper find them.</p>
           </div>
-          <div className="mt-11 grid auto-rows-[310px] gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-11 grid auto-rows-[310px] grid-cols-[minmax(0,1fr)] gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
             <Catch wide title="No product data" text="People see a mug and a price. An agent looks for structured product data and finds none, so it can't confirm what it's buying.">
               <div className="relative w-[min(520px,90%)] overflow-hidden rounded-[10px] border border-[#262626] bg-gradient-to-b from-[#0d0d0d] to-[#060606] font-mono text-[12.5px] leading-[21px]" aria-hidden>
                 <div className="pointer-events-none absolute right-0 left-0 z-[1] h-[22px] border-b border-white/30 bg-gradient-to-b from-transparent to-white/10" style={{ animation: "scan 2.6s var(--ease) infinite" } as CSSProperties} />
@@ -618,7 +678,7 @@ export function Landing() {
 
       <footer className="relative mt-2.5 bg-[#0a0a0a]">
         <div className="tear-top absolute inset-x-0 -top-2.5 h-2.5" aria-hidden />
-        <div className={cn(wrap, "grid gap-10 pt-16 pb-[52px] sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]")}>
+        <div className={cn(wrap, "grid grid-cols-[minmax(0,1fr)] gap-10 pt-16 pb-[52px] sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]")}>
           <div>
             <div className="flex items-center gap-[9px] text-base font-semibold tracking-[-0.03em]">
               <Logo className="size-[22px]" />

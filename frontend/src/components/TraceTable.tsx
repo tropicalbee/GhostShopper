@@ -54,8 +54,8 @@ function Cell({ cell, field, lit, name }: { cell: TraceCell; field: Field; lit: 
     <span
       className={
         lit
-          ? "inline-flex rounded-full border border-[#9a9a9a] bg-[#0a0a0a] px-2.5 py-0.5 text-xs font-medium text-white shadow-[0_0_14px_rgba(255,255,255,0.16)]"
-          : "inline-flex rounded-full border border-[#262626] bg-[#141414] px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+          ? "inline-flex rounded-full border border-[#9a9a9a] bg-[#0a0a0a] px-2.5 py-0.5 text-xs font-medium [overflow-wrap:normal] break-normal text-white shadow-[0_0_14px_rgba(255,255,255,0.16)]"
+          : "inline-flex rounded-full border border-[#262626] bg-[#141414] px-2.5 py-0.5 text-xs font-medium [overflow-wrap:normal] break-normal text-muted-foreground"
       }
     >
       {text}

@@ -213,13 +213,13 @@ export function NewCheck({ yours }: { yours: boolean }) {
                 </div>
               </Field>
               <Field title="Payment" help={health?.paypal_mode === "mock" ? "Practice mode never calls PayPal, and every result says so." : "Uses PayPal's test environment. No real money."}>
-                <div role="radiogroup" aria-label="Payment" className="mt-3 inline-flex max-w-full flex-wrap rounded-[10px] border border-[#242424] bg-[#0c0c0c] p-[3px]">
-                  <button type="button" role="radio" aria-checked={!real} onClick={() => setReal(false)} className={cn("flex min-h-9 items-center gap-2 rounded-lg px-3.5 text-[13.5px] transition-colors", !real ? "bg-gradient-to-b from-[#1f1f1f] to-[#141414] text-foreground shadow-[inset_0_0_0_1px_#2e2e2e]" : "text-faint")}>
+                <div role="radiogroup" aria-label="Payment" className="mt-3 grid max-w-full grid-cols-1 gap-[3px] rounded-[10px] border border-[#242424] bg-[#0c0c0c] p-[3px] sm:inline-grid sm:auto-cols-fr sm:grid-flow-col">
+                  <button type="button" role="radio" aria-checked={!real} onClick={() => setReal(false)} className={cn("flex min-h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-[13.5px] whitespace-nowrap transition-colors", !real ? "bg-gradient-to-b from-[#1f1f1f] to-[#141414] text-foreground shadow-[inset_0_0_0_1px_#2e2e2e]" : "text-faint")}>
                     <FlaskConical className="size-[15px]" aria-hidden />
                     {modeLabel}
                   </button>
                   {health && (
-                    <button type="button" role="radio" aria-checked={real} disabled={!health.real_checkout_available} onClick={() => setReal(true)} className={cn("flex min-h-9 items-center gap-2 rounded-lg px-3.5 text-[13.5px] transition-colors disabled:opacity-50", real ? "bg-gradient-to-b from-[#1f1f1f] to-[#141414] text-foreground shadow-[inset_0_0_0_1px_#2e2e2e]" : "text-faint")}>
+                    <button type="button" role="radio" aria-checked={real} disabled={!health.real_checkout_available} onClick={() => setReal(true)} className={cn("flex min-h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-[13.5px] whitespace-nowrap transition-colors disabled:opacity-50", real ? "bg-gradient-to-b from-[#1f1f1f] to-[#141414] text-foreground shadow-[inset_0_0_0_1px_#2e2e2e]" : "text-faint")}>
                       <CreditCard className="size-[15px]" aria-hidden />
                       Real PayPal sandbox
                     </button>
