@@ -4,6 +4,27 @@ What broke, why, and what we did about it. Newest first.
 Entries before 2026-11-10 are in [archive/issues-and-fixes-2026-11-05-to-11-09.md](archive/issues-and-fixes-2026-11-05-to-11-09.md). The full original file, before the split: [issues-and-fixes.md at a44951e](https://github.com/tropicalbee/GhostShopper/blob/a44951e642b2f8d88d750b7c7eaa2519ad2afeab/docs/issues-and-fixes.md).
 
 
+## 2026-11-12 (session 9)
+
+### Headless PayPal approval stuck at the password step
+Run 53 (WebMCP on Fernhill, headless) created the PayPal order but the buyer approval stopped at PayPal's password step, so nothing was captured. Cause: PayPal's login does not finish in a headless browser. Fix: none in code; live PayPal approval runs headed, as runs 31, 34 and 50 did.
+
+### The discover command used the shim only
+`webmcp discover` installed the JS shim and never asked the browser for its own tools. Fix: it launches Chromium with `--enable-features=WebMCP` and reads the CDP WebMCP domain first. The shim is the fallback, and the report names the source.
+
+### Showcase price parsing and product_found on a generic target
+Run 55 on PayPal's showcase misread the price, and product_found was judged against a generic target. Fix: both corrected. Run 56 then bought the $25.00 gift card with prices consistent.
+
+### Catalog check hit 429s and showed a misleading 0 of 1
+Opening product pages quickly on the Shopify demo store got HTTP 429, and one readable page gave a 0 percent figure. Fix: one page at a time, 2 s apart, Retry-After honoured, a 60 s budget, and no percent when too few pages could be read.
+
+### Run 58 was not a vision test
+With only `price_as_image` on, the JSON-LD still had the price, so the shopper read 24.00 USD from structured data and never called `look_at_page` (84/100, order #1077 Paid). A vision test must remove every text source of the price. Run 59 (`price_as_image` plus `no_structured_data`) is the valid test: the shopper used vision at step 6 and bought.
+
+### Health test pinned the old fields
+The full suite had one failure: a health-keys test listed the old `/api/health` fields. Fix: updated for the new field.
+
+
 ## 2026-11-12 (session 8)
 
 ### First video edit judged choppy and off-message

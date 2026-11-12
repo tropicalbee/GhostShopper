@@ -323,3 +323,33 @@ Run 33 issues: no Product JSON-LD, no stock status, alt text "Product Image", no
 | Run 50 to 51 | 65 to 100 (+35): price as text 12, structured data 12, stock readable 4 |
 | Run 52, hidden instructions for AI agents | purchased at $24.00 in 11 steps, one finding at step 2 (off-screen review text, hidden from people), the shopper did not follow it |
 | Video v2 | 2:54.5, Kokoro "Heart" voice time-stretched 4%, original ambient pad |
+
+## 2026-11-12 (session 9, WebMCP, catalog readiness, live, PayPal Sandbox)
+
+Model for runs 53 to 57: NVIDIA Nemotron 3.5 Super VL 120B (`nvidia/nemotron-3.5-super-vl-120b-a12b`). Local Chromium, headed unless said. Live numbers only in this table; mock numbers stay in the sections above.
+
+| What | Value |
+|---|---|
+| Native discovery, PayPal showcase | 4 tools (`shopping.searchProducts`, `shopping.getProduct`, `shopping.initiateCheckout`, `shopping.completeCheckout`), source native WebMCP. Page loads PayPal web-sdk v6 core and PayPal's WebMCP script |
+| Native discovery, `sauce-demo.myshopify.com` (not built by us, no PayPal SDK) | 12 tools: ask_business, browse_store, cancel_cart, create_cart, get_cart, get_product, get_ucp_profile, manage_orders, proceed_to_checkout, search_catalog, show_variant, update_cart. Discovery only. Its robots.txt and tool descriptions hold text aimed at agents, treated as data |
+| Run 53, WebMCP on Fernhill, headless | PayPal order created (store cart #1074). Buyer approval stuck at PayPal's password step in a headless browser. Outcome blocked, nothing captured |
+| Run 54, WebMCP on Fernhill, flaws price_as_image + no_structured_data + never_marks_paid | 4 tool calls (search, getProduct, initiateCheckout, completeCheckout) plus the runtime's approval and read-back. Capture COMPLETED $24.00 (capture 7YC63355SU675642L). Store order #1075 Awaiting payment. First mismatch at the store order. 4 of 4 ID links ok. 24.00 in search, product, checkout and capture. Tool checks 7 pass, order_recorded fail. 39 s |
+| Run 57, browser agent, same store and flaws, same model, vault payment | 10 agent steps, 35 s, readiness 65/100 (price as text 12, structured data 12, stock 4 lost). Capture COMPLETED $24.00, fee 1.33, net 22.67. Store order Awaiting payment, same first mismatch, 4 of 4 links |
+| Compare 57 vs 54 (code verdict) | "WebMCP bought in 4 tool calls; the browser agent took 10 steps. Both paths hit the same first mismatch: the store order still says Awaiting payment." Wall time similar (35 s browser, 39 s WebMCP): the WebMCP path includes the buyer's PayPal approval page that the vault payment skips. No speed claim |
+| Run 56, WebMCP on PayPal's showcase (external demo) | Bought a Starbucks gift card at $25.00, buyer approved in the PayPal Sandbox, `completeCheckout` COMPLETED. 25.00 in search, product and checkout. Tool checks 7 pass, order_recorded not tested (no store order on PayPal's merchant). 76 s |
+| Run 55 | Earlier showcase purchase; its price parsing was then fixed (see issues-and-fixes) |
+| Catalog readiness, demo store | 12/12 machine-readable with flaws off, 0/12 with `no_structured_data` (also 0/12 with `currency_missing`) |
+| Catalog readiness, `sauce-demo.myshopify.com` | 3 product pages found, 2 checked, 0 of 2 machine-readable (no Product JSON-LD, matching runs 33 and 37). Third page refused with HTTP 429 after polite retries. One page at a time, 2 s apart, Retry-After honoured, 60 s budget, no percent when too few pages could be read |
+| Full test suite | 643 passed, 1 failed (a health-keys test pinned to the old `/api/health` fields; updated for the new field) |
+| That test file plus all WebMCP test files | 85 passed |
+| New test files | `test_webmcp_*` (rpc, discover, e2e, compare, checks, api), `test_catalog_readiness` (25 tests) |
+
+### Shopper vision (same session, live, PayPal Sandbox, vault payment, headed)
+
+Shopper model and `VISION_MODEL` were both `nvidia/nemotron-3.5-super-vl-120b-a12b`.
+
+| What | Value |
+|---|---|
+| Run 59, price_as_image + no_structured_data | Step 6: `look_at_page` ("What is the price and stock status of the Speckled Stoneware Mug?"), answer "The price is $24.00 and it is in stock (ships from Asheville in 3 business days)." Bought in 12 steps, capture COMPLETED $24.00 (fee 1.33, net 22.67), store order #1078 Paid. Readiness 65/100 (price_in_text, structured_data, stock_readable still fail) |
+| Run 58, price_as_image only | Vision available, `look_at_page` never called. Read 24.00 USD from the structured data, bought, 84/100, order #1077 Paid |
+| Vision tests | `test_vision.py` 26 tests (fake vision model, no network); with provider, safety and recorder tests 79 passed; e2e and guards 16 passed |

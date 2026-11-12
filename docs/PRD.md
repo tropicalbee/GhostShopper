@@ -6,7 +6,7 @@
 
 PayPal measured it: an agent buys in 3 tool calls when a store exposes checkout as agent tools (WebMCP). Most small stores don't, so the agent has to use the page, and that takes 30+ steps. A merchant has no way to see where that path breaks: whether the agent can find a product, read the price, tell which button buys, and finish checkout. Humans don't hit these failures, so they stay invisible.
 
-PayPal is building the infrastructure through Agent Ready and Store Sync, which are separate services. GhostShopper helps merchants diagnose their existing storefront and purchase flow before they pursue those integrations. It is a diagnostic, not a PayPal certification, and it doesn't test WebMCP.
+Structured tools only fix the browsing half. If the store's back end never marks the order paid, a WebMCP purchase breaks just like a browser one. PayPal is building the infrastructure through Agent Ready and Store Sync, which are separate services, and Store Sync "lets customers place orders directly into your existing order management systems". GhostShopper runs the same purchase through the storefront and through WebMCP tools and checks that the order lands correctly on both. It is a diagnostic, not a PayPal certification or an Agent Ready, ACP or UCP conformance test.
 
 Traditional checkout tests verify known paths. GhostShopper tests what happens when an AI shopper has to find the product, read the page and complete the purchase without human intuition. The purchase trace checks that the intended purchase, the PayPal order, the capture and the store's order agree, and it comes before the score.
 
@@ -30,6 +30,11 @@ Small merchants (one person up to a small team, selling on their own site) getti
 12. Store orders. The demo store keeps its own orders and an order page, so the trace has a store record to compare.
 13. Agent safety report. Text aimed at AI agents that the shopper met on a page (hidden or visible) is listed with where it was found. The shopper treats page content as data and has hard limits (no other hosts, no downloads, no password or card fields). It never changes the score.
 14. Screens. Landing, New check, Live check and Results (with the trace and the safety report), in a black monochrome receipt style. See `UI_SPEC.md`.
+
+15. WebMCP path. The same purchase through WebMCP tools: the shopper discovers the page's tools and the model picks every call (search, product, initiate checkout, complete checkout). The runtime approves as the sandbox buyer, and the same five-record trace applies. A compare view sets the browser run and the WebMCP run side by side. On the demo store the tools are GhostShopper's adapter for PayPal's `shopping.*` contract. On PayPal's own showcase it is an external demo. No readiness score.
+16. WebMCP tool checks. Eight checks computed by code (tools discovered, schemas valid, product found, price consistent, buyer approval required, hand-off to PayPal, checkout completed, order recorded). A checklist, not a score.
+17. Catalog readiness. The share of up to 12 product pages with machine-readable Product data, against the 80% line in PayPal's Pulse Report. Informational, never scored, and no percent when too few pages could be read.
+18. Shopper vision (optional). A `look_at_page` tool screenshots the store's own page and asks a vision model a question, for pages where text fails (a price drawn into an image). Store pages only, never PayPal pages. The answer is page content: framed as data and scanned for text aimed at agents. It never changes the score. Needs `VISION_MODEL`.
 
 ## Demo flow
 
@@ -66,4 +71,4 @@ The first four are on in the demo. The other eleven are off by default. Six of t
 
 ## Out of scope
 
-Accounts and login, multiple stores, multiple product flows, live PayPal, real merchant onboarding, Postgres, paid AG Grid features, LLM-computed scores, store polish.
+Accounts and login, multiple stores, multiple product flows, live PayPal, real merchant onboarding, Postgres, paid AG Grid features, LLM-computed scores, store polish. A WebMCP readiness score, WebMCP purchases on stores we do not run (discovery only), forging or reusing PayPal's storefront token, and Agent Ready, ACP or UCP conformance testing.

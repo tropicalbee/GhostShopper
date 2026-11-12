@@ -2,6 +2,27 @@
 
 Entries before 2026-11-11 are in [archive/PROGRESS-2026-11-05-to-11-10.md](archive/PROGRESS-2026-11-05-to-11-10.md). The full original file, before the split: [PROGRESS.md at a44951e](https://github.com/tropicalbee/GhostShopper/blob/a44951e642b2f8d88d750b7c7eaa2519ad2afeab/docs/PROGRESS.md).
 
+## 2026-11-12, session 9 (WebMCP, catalog readiness)
+
+### Done
+- New framing: structured tools fix the browsing half only, so GhostShopper runs the same purchase through the storefront and through WebMCP tools and checks both against the same five-record trace.
+- WebMCP path built on Chromium's native WebMCP over CDP, with a shim fallback. Fernhill gets an adapter for the `shopping.*` contract PayPal's showcase registers. PayPal's showcase is used as a labelled external demo.
+- Live runs on Nemotron 3.5 Super VL 120B: 53 (headless approval stuck), 54 (Fernhill WebMCP, capture COMPLETED $24.00, store order still Awaiting payment), 56 (PayPal showcase, $25.00 gift card), 57 (browser agent on the same store, 65/100). Compare 57 vs 54 gives the same first mismatch on both paths.
+- Native discovery on PayPal's showcase (4 tools) and on the Shopify demo store (12 tools).
+- Catalog readiness (demo store 12/12 and 0/12; Shopify demo 0 of 2 checked, third page 429).
+- Shopper vision (optional `look_at_page`), live-verified: run 59 (price only in an image) read $24.00 from the screenshot and bought, order #1078 Paid, score unchanged at 65/100. Run 58 (JSON-LD still had the price) never called it.
+- Mobile landing fixes, link preview card, demo-store paths, trace matrix timeout fix.
+- README, DEVPOST, PRD, TRD, SCHEMA, APPFLOW, DECISIONS, METRICS, PLAN, CHANGELOG, issues-and-fixes and `research/paypal-webmcp.md` updated.
+
+### Next
+1. Push, Render redeploy with `VISION_MODEL`, hosted check.
+2. Update the demo video.
+3. Fresh-clone test, submit before 12:00 PT.
+
+### Blockers
+- None.
+
+
 ## 2026-11-12, session 8 (video v2)
 
 ### Done

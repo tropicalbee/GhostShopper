@@ -120,6 +120,8 @@ The store order number is sent to PayPal as the purchase unit `custom_id`, and P
 | awaiting | TEXT | JSON while waiting for a human: stage, reason, since, timeout, Kernel live view URL |
 | paypal_readiness | TEXT | JSON: PayPal setup checklist, recommendations and the 0-100 PayPal readiness figure (`agent/paypal_readiness.py`). Separate from the score. |
 | agent_safety | TEXT | JSON list of text aimed at AI agents that the shopper met: where, excerpt, hidden, step, screenshot (`agent/injection.py`). Returned in the run payload as `agent_safety`. Not scored. |
+| path | TEXT | `browser` (default) or `webmcp`: how the shopper used the store |
+| webmcp | TEXT | JSON for WebMCP runs: `discovery` (tools, source), `calls`, `handoff`, `price_consistency`, `tool_checks`, `external_demo` (true on PayPal's showcase), `label`. Not scored. |
 | error | TEXT | |
 | owner_hash | TEXT | SHA-256 of the browser's owner token. NULL = shared example (made by the CLI or seed). `unclaimed` = made before checks had owners; hidden from the web, kept for the CLI. |
 

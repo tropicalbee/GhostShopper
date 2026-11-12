@@ -71,6 +71,21 @@ The LLM chooses every action. Code evaluates the checks, never the LLM.
 7. Add the observation to the conversation and go back to 4. Stop on `finish`, a loop, three timeouts in a row, 25 steps, or an error.
 8. Finish. Decide the outcome from the checks, record task_completed, and mark the rest as not tested (or excluded, if something outside the store stopped the run). Compute and save the score.
 
+## The WebMCP shopper loop (`backend/app/webmcp/shopper.py`)
+
+Same purchase, other path. The LLM chooses every tool call. Code does the rest.
+
+1. Prepare. Same config checks as the browser path. WebMCP payment runs only on the demo store and on PayPal's showcase (labelled an external demo). Other sites are discovery only.
+2. Launch Chromium with `--enable-features=WebMCP` and open the store.
+3. Discover. Read the tools through the CDP WebMCP domain. The shim is used only if the browser has no native WebMCP, and the report says which source it was.
+4. Give the LLM the discovered tools plus `finish`. Tool names are mapped to names the LLM provider accepts (`shopping.searchProducts` becomes `shopping__searchProducts`).
+5. The LLM searches, reads the product (`getProduct`) and calls `initiateCheckout`. Results reach the model inside `<tool_result>` tags, framed as data. The same injection scan applies.
+6. When `initiateCheckout` returns an approval URL, the runtime takes over. It signs the sandbox buyer in to PayPal and approves, then tells the LLM the outcome. The LLM never sees credentials. If approval did not finish, the LLM is told not to complete the checkout.
+7. The LLM calls `completeCheckout`. The runtime reads the store's order page back and records it as a step.
+8. Finish on `finish`, a loop, or the step limit. Code decides the outcome from what the tools and PayPal returned, never from what the LLM claimed.
+9. Build the trace (five records), the price consistency across search, product, checkout and capture, and the 8 tool checks. No readiness score.
+10. `python -m backend.app.webmcp compare <browser_run> <webmcp_run>` or `GET /api/runs/{id}/compare-path` gives the side-by-side verdict.
+
 ## Paying (`agent/paypal_flow.py`)
 
 1. The agent has to be on checkout. Wait for a visible `<paypal-button>`: paypal_button_found.

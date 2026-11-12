@@ -8,13 +8,15 @@
 
 **Paid, but your store doesn't know.** In a live PayPal Sandbox run on our demo store, with a deliberate store bug switched on, an AI shopper paid $24.00 through a saved PayPal account. PayPal's capture came back COMPLETED ($1.33 fee, $22.67 net). The store's own order, #1071, still said Awaiting payment. GhostShopper compared five records of the purchase and flagged the store order as the first mismatch. All four ID links between the records held, and the store's agent readiness was 65/100 (run 50, Nemotron 3.5 Lightning). With every flaw fixed (run 51) the score was 100/100 and order #1072 was Paid.
 
+**Structured tools fix the browsing half.** GhostShopper runs the same purchase through the ordinary storefront with a browser agent and through WebMCP tools, then checks both against the same five-record purchase trace. In run 57 (browser) and run 54 (WebMCP, through our adapter of the `shopping.*` tools PayPal's showcase registers) on the same flawed demo store, both paths ended with PayPal's capture COMPLETED for $24.00 and the store order still Awaiting payment.
+
 [Repository](https://github.com/tropicalbee/GhostShopper) · [Architecture](#how-it-works) · [Results](#results) · [Run it locally](#run-it-locally)
 Hosted demo: [ghostshopper.onrender.com](https://ghostshopper.onrender.com). The free tier sleeps when idle, so the first load may take about a minute.
 
 <!-- HOSTED_URL -->
 <!-- VIDEO_URL -->
 
-`Python 3.11` · `FastAPI` · `Playwright` · `React + Vite` · `AG Grid` · `PayPal Orders v2 + JS SDK v6` · `NVIDIA Nemotron` · `Kernel` · `Channel3 (recorded responses)`
+`Python 3.11` · `FastAPI` · `Playwright` · `React + Vite` · `AG Grid` · `PayPal Orders v2 + JS SDK v6` · `NVIDIA Nemotron` · `WebMCP (Chromium, CDP)` · `Kernel` · `Channel3 (recorded responses)`
 
 </div>
 
@@ -37,9 +39,11 @@ Hosted demo: [ghostshopper.onrender.com](https://ghostshopper.onrender.com). The
 
 ## Why this exists
 
-PayPal showed that structured WebMCP tools cut an agent's shopping journey from **30+ interface steps to three tool calls** in its test storefront. Where those structured capabilities aren't available, agents have to navigate the ordinary storefront themselves. GhostShopper tests that ordinary storefront with a browser-driven agent, the PayPal JS SDK v6 button and Orders v2.
+PayPal's WebMCP lets an agent buy through structured tools. In PayPal's test storefront that cut the journey from **30+ interface steps to three tool calls**. Structured tools only fix the browsing half, though. If the store's back end never marks the order paid, a WebMCP purchase breaks the same way a browser purchase does. PayPal's Store Sync docs say it "lets customers place orders directly into your existing order management systems". GhostShopper checks that the order actually lands there correctly.
 
-It sends an AI shopper through the storefront, shows where the purchase breaks with evidence for each failure, then reruns the purchase through PayPal Sandbox and checks that the intended purchase, the PayPal order, the capture and the store's order all agree.
+So it runs the same purchase two ways: through the ordinary storefront with a browser agent (PayPal JS SDK v6 button, Orders v2), and through WebMCP tools. Both paths are checked against the same purchase trace: the intended purchase, the PayPal order, the capture, the store's order and what the store says afterwards. The browser path also gets evidence for each failure and a readiness score.
+
+PayPal's Agentic Commerce Pulse Report (498 US merchants, Q1 2026) found that only about 1 in 5 merchants have 80% or more of their catalog as structured, machine-readable data, and that data security is the top barrier. GhostShopper's catalog readiness figure measures that 80% line. Its safety guard and tool checks speak to the security side: the agent never holds credentials, and the buyer approves in PayPal. Source: [the report](https://www.paypal.com/us/brc/article/agentic-commerce-pulse-report-findings).
 
 Traditional checkout tests verify known paths. GhostShopper tests what happens when an AI shopper has to find the product, read the page and complete the purchase without human intuition.
 
@@ -62,12 +66,15 @@ And when the agent does pay, nobody checks that the store recorded the same purc
 | **3. Pay** | The agent pays through the real PayPal Sandbox: JS SDK v6 button, buyer approval, Orders v2 capture. |
 | **4. Verify** | The purchase trace compares five records of the same purchase wherever each record exposes them, and checks that they're linked by ID. |
 | **5. Score** | A deterministic readiness score out of 100, fixes ranked by points, and a before/after comparison after the fixes. |
+| **6. WebMCP path** | The same purchase through the store's WebMCP tools, with an 8-item tool checklist and a side-by-side comparison with the browser run. No readiness score: the score rates the page path. |
+| **7. Vision (optional)** | The shopper can call `look_at_page` to read a store page's screenshot when the text fails, for example a price drawn into an image. The answer is treated as page content and never changes the score. |
+| **8. Catalog readiness** | How many of up to 12 product pages carry machine-readable Product data. Informational, never part of the score. |
 
 **What sets it apart is the purchase trace.** A payment can succeed while the store's order is wrong: captured but still pending, marked paid after a decline, duplicated on a retry. GhostShopper links the records by ID and flags each broken link. It got all 33 deterministic trace scenarios right (mock PayPal, demo store), and in live run 50 it caught a seeded one on real Sandbox data. The score comes second, as a summary of the checks along the way.
 
 In live run 50 the shopper paid $24.00 through the Vault and PayPal captured it, but the store's order #1071 stayed Awaiting payment. The first mismatch was at the store order, all 4 of 4 ID links were ok, and readiness was 65/100. With every flaw off (run 51) it scored 100/100 and order #1072 was Paid. In run 52 a review hid a message aimed at AI agents. GhostShopper flagged it and the shopper did not follow it. Earlier live runs on the 120B Nemotron model went from 49/100 (run 31) to 100/100 (run 34), with the fixed store verified against the store's order ($22.67 net).
 
-> **Positioning.** PayPal is building the infrastructure for agentic commerce through [Agent Ready](https://developer.paypal.com/agent-ready/overview) and [Store Sync](https://developer.paypal.com/store-sync/overview), two separate services under [Agentic Commerce Services](https://developer.paypal.com/agentic-commerce-services/about). GhostShopper helps a merchant diagnose their existing storefront and purchase flow before they pursue those integrations. The readiness score comes from GhostShopper's own checks. It is not an Agent Ready, ACP, UCP or WebMCP conformance test, and not a PayPal certification or eligibility check. GhostShopper drives the ordinary storefront with a browser agent, PayPal JS SDK v6 and Orders v2.
+> **Positioning.** PayPal is building the infrastructure for agentic commerce through [Agent Ready](https://developer.paypal.com/agent-ready/overview) and [Store Sync](https://developer.paypal.com/store-sync/overview), two separate services under [Agentic Commerce Services](https://developer.paypal.com/agentic-commerce-services/about). GhostShopper helps a merchant check their purchase flow, on the storefront and through WebMCP tools, before and after they pursue those integrations. The readiness score and the WebMCP tool checklist come from GhostShopper's own checks. It is not an Agent Ready, ACP or UCP conformance test, and not a PayPal certification or eligibility check.
 >
 > There is also a Vault agent payment path (`POST /api/paypal/agent-orders`: saved vault id, idempotent request id, spending limit, server-side capture). It ran live in the PayPal Sandbox: runs 48, 50, 51 and 52 paid through it. It is not the same as Agent Ready delegated payment tokens.
 
@@ -119,6 +126,24 @@ The detailed version, with every file and twelve numbered steps, is in [docs/dia
 
 <img src="docs/diagrams/trace.png" alt="The purchase trace: records compared field by field where available, with the first mismatch flagged" width="720">
 
+## Two paths
+
+WebMCP lets a page register shopping tools that an agent calls directly. GhostShopper runs both paths on Fernhill and compares them.
+
+1. The browser path is the shopper loop above: pages, clicks, the PayPal button.
+2. The WebMCP path launches Chromium with `--enable-features=WebMCP`, so the page exposes native `document.modelContext`. GhostShopper finds the tools through the Chrome DevTools Protocol WebMCP domain (`WebMCP.enable`, `WebMCP.toolsAdded`) and calls them with `WebMCP.invokeTool` and `WebMCP.toolResponded`, like a browser-integrated agent. A small JS shim is a fallback only for browsers without native WebMCP (a Kernel browser, for example), and every report says which one was used.
+3. The model picks every tool call: `shopping.searchProducts`, `shopping.getProduct`, `shopping.initiateCheckout`, `shopping.completeCheckout`. The runtime, never the model, signs the sandbox buyer in to PayPal to approve. Credentials never reach the model.
+4. After checkout the runtime reads the store's order page back. The trace compares the same five records as on the browser path.
+5. `compare` puts the two runs side by side, and code writes the verdict.
+
+Whose tools are whose:
+
+- On PayPal's own showcase ([webmcp-store.paypal.com](https://webmcp-store.paypal.com/merchants/gift-cards?sdk=v6)), GhostShopper uses PayPal's real tools and service. This is labelled "externally demonstrated, not GhostShopper-integrated". PayPal's WebMCP needs enablement through Store Sync, which is a request form, and we could not get it for our demo store.
+- On Fernhill, the WebMCP tools are GhostShopper's adapter (`store/static/webmcp.js` and `POST /store/webmcp/rpc`). It implements the same `shopping.*` tool contract the showcase registers (names, schemas, result envelope, approval hand-off) and is wired to our own PayPal Orders v2 sandbox checkout. These are not PayPal's WebMCP tools.
+- On live stores such as the Shopify demo store, WebMCP is discovery only.
+
+The 8-item tool checklist (tools discovered, schemas valid, product found, price consistent, buyer approval required, hand-off to PayPal, checkout completed, order recorded) is computed by code. It is not a score.
+
 ## Engineering
 
 ### Design decisions
@@ -142,6 +167,7 @@ The agent reads third-party pages and touches a payment flow, so every limit is 
 
 - **Page content is data.** It reaches the model inside `<page_content>` tags. `agent/injection.py` scans visible and hidden text (display none, off-screen, aria-hidden, alt text, comments) and `robots.txt` for instructions aimed at agents, and logs every hit in the agent safety report.
 - **Hard limits.** No navigation to another host and no downloads. Password and card fields are refused. Live store requests must go to public hosts, with DNS pinned.
+- **Vision.** `look_at_page` screenshots store pages only, never PayPal pages. The vision answer is framed as data and scanned for text aimed at agents, like any page content.
 - **Credentials.** The sandbox buyer login comes from `.env` and is never logged, stored or screenshotted.
 - **Deployed mode.** Developer options are refused, and `/store/admin` is locked behind `DEMO_ADMIN_TOKEN` with an HMAC cookie.
 - **Abuse limits.** Per-client rate limits read `X-Forwarded-For` from the right, plus daily caps on runs, market checks and PayPal orders. The Docker image runs as non-root.
@@ -151,7 +177,8 @@ The agent reads third-party pages and touches a payment flow, so every limit is 
 | Service | Role |
 |---|---|
 | **PayPal** | JS SDK v6 button on the store, Orders v2 create and capture, fees from the capture |
-| **NVIDIA Nemotron** | The shopper's tool-calling model: Nemotron 120B for runs 31 to 37, Nemotron 3.5 Lightning for runs 47 to 52. Any OpenAI-compatible endpoint works through the same interface. |
+| **WebMCP** | Chromium launched with `--enable-features=WebMCP`, tools discovered and called through the Chrome DevTools Protocol WebMCP domain. A JS shim is the fallback for browsers without native WebMCP. |
+| **NVIDIA Nemotron** | The shopper's tool-calling model: Nemotron 120B for runs 31 to 37, Nemotron 3.5 Lightning for runs 47 to 52, Nemotron 3.5 Super VL 120B for runs 53 to 57. Any OpenAI-compatible endpoint works through the same interface. |
 | **Kernel** | Hosted cloud browser over CDP. Its live view lets a person finish PayPal's own checks. A browse-only Shopify run in Kernel matched the local run (62/100, same 5 issues). A hosted Kernel purchase with the real sandbox is not yet recorded. |
 | **Channel3** | Market context for the product (similar listings and a median price), shown in the Advanced view. In the demo it comes from recorded Channel3 responses, labelled as sample data. A live Channel3 key has not been run. Not reliable price intelligence, and never part of the score. |
 | **AG Grid Community** | Before/after and check grids in the dashboard |
@@ -159,6 +186,37 @@ The agent reads third-party pages and touches a payment flow, so every limit is 
 ## Results
 
 Every number links back to [docs/METRICS.md](docs/METRICS.md). Live evidence and mock benchmarks are kept apart.
+
+### Live: browser path vs WebMCP path, Nemotron 3.5 Super VL 120B + PayPal Sandbox (2026-11-12)
+
+Same store and same flaws (price as image, no structured data, store never marks paid). Local Chromium.
+
+| Run | Path | Outcome |
+|---|---|---|
+| 57 | browser agent, vault payment | 10 agent steps, 35 s, readiness 65/100 (price as text 12, structured data 12, stock 4 lost). PayPal capture COMPLETED $24.00 (fee $1.33, net $22.67). Store order Awaiting payment, first mismatch at the store order, 4 of 4 ID links ok |
+| 54 | WebMCP on Fernhill | 4 tool calls plus the runtime's buyer approval and order read-back, 39 s. Capture COMPLETED $24.00. Store order #1075 still Awaiting payment, same first mismatch, 4 of 4 ID links ok. Price 24.00 in search, product, checkout and capture. Tool checks: 7 pass, order_recorded fail. No readiness score |
+| 56 | WebMCP on PayPal's showcase (external demo) | Bought a Starbucks gift card at $25.00, buyer approved in the PayPal Sandbox, `completeCheckout` returned COMPLETED. Prices 25.00 in search, product and checkout. Tool checks: 7 pass, order_recorded not tested (no store order on PayPal's merchant). 76 s |
+| 53 | WebMCP on Fernhill, headless | Order created (store cart #1074), but buyer approval stuck at PayPal's password step in a headless browser. Blocked, nothing captured. Live PayPal approval runs headed |
+
+The compare verdict (57 vs 54, written by code): "WebMCP bought in 4 tool calls; the browser agent took 10 steps. Both paths hit the same first mismatch: the store order still says Awaiting payment." Wall time was similar (35 s browser, 39 s WebMCP) because the WebMCP path includes the buyer's PayPal approval page that the vault payment skips, so these runs do not show WebMCP being faster.
+
+Discovery on other sites (native WebMCP, no purchase):
+
+- PayPal's showcase: 4 tools (`shopping.searchProducts`, `shopping.getProduct`, `shopping.initiateCheckout`, `shopping.completeCheckout`). The page loads PayPal's web-sdk v6 core and PayPal's WebMCP script.
+- The public Shopify demo store `sauce-demo.myshopify.com`, which we did not build and which has no PayPal SDK: 12 WebMCP tools (`ask_business`, `browse_store`, `cancel_cart`, `create_cart`, `get_cart`, `get_product`, `get_ucp_profile`, `manage_orders`, `proceed_to_checkout`, `search_catalog`, `show_variant`, `update_cart`). Its robots.txt and tool descriptions contain text aimed at agents, which GhostShopper treats as data.
+
+Catalog readiness: the demo store is 12/12 machine-readable with flaws off and 0/12 with `no_structured_data` (also 0/12 with `currency_missing`). On `sauce-demo.myshopify.com` it found 3 product pages and checked 2: 0 of 2 machine-readable (no Product JSON-LD, matching runs 33 and 37). The third page was refused with HTTP 429 after polite retries, so no percent is shown. It loads one page at a time, 2 s apart, honours Retry-After, stops at a 60 s budget and shows no percent when too few pages could be read.
+
+### Live: shopper vision, Nemotron 3.5 Super VL 120B + PayPal Sandbox (2026-11-12)
+
+The shopper has an optional `look_at_page` tool: a viewport screenshot of the store's own page, with a question for the vision model. Store pages only, never PayPal pages. Both the shopper and `VISION_MODEL` were `nvidia/nemotron-3.5-super-vl-120b-a12b`. Vault payment, headed.
+
+| Run | Store | Outcome |
+|---|---|---|
+| 59 | price as image + no structured data (the price exists only as an image) | At step 6 the shopper called `look_at_page` ("What is the price and stock status of the Speckled Stoneware Mug?") and the vision model answered "The price is $24.00 and it is in stock (ships from Asheville in 3 business days)." It then bought the mug in 12 steps: capture COMPLETED $24.00 (fee 1.33, net 22.67), store order #1078 Paid. Readiness stayed 65/100 |
+| 58 | price as image only (JSON-LD still had the price) | Vision was available, but the shopper never called `look_at_page`. It read 24.00 USD from the structured data and bought: 84/100, order #1077 Paid |
+
+Vision does not change the score. Price in text, structured data and stock readable still failed in run 59, because Store Sync, WebMCP and catalog-reading agents need that data as text. Run 58 shows the agent used its eyes only when text failed.
 
 ### Live: Vault payment, Nemotron 3.5 Lightning + PayPal Sandbox (2026-11-12)
 
@@ -192,7 +250,8 @@ These check the detectors and the trace against hand-written labels on the demo 
 | Purchase trace, 33 deterministic scenarios | first mismatch found, no false alarms, no guessing | **33/33 deterministic trace scenarios passed** (mock PayPal, demo store), 0 false mismatches on healthy runs, 5/5 broken links found |
 | Flaw detection, 16 classic combinations | each check fires only when its flaw is on | precision 1.0, recall 1.0 (40 TP, 0 FP, 0 FN) |
 | Flaw detection, 30 random combinations of 10 flaws | the same on a wider mix | precision 1.0, recall 1.0 (105 TP, 0 FP, 0 FN) |
-| Full test suite | unit, API and browser e2e | over 500 tests |
+| Full test suite | unit, API and browser e2e | over 500 tests (643 passed and 1 failed, a health test pinned to the old `/api/health` fields, since updated) |
+| WebMCP tests | rpc, discover, e2e, compare, checks, api, plus catalog readiness | 85 passed (that file plus all WebMCP test files) |
 
 ### Reproduce them
 
@@ -209,7 +268,7 @@ Run them with the virtualenv's Python: `.venv\Scripts\python` on Windows, `.venv
 
 - **For small merchants.** A paid order the store never marked as paid (run 50) is found, with the record that disagrees named. Then a list of fixes in plain words, each with a screenshot of what the shopper saw, and a rerun that shows whether the fixes worked. No knowledge of structured data needed.
 - **Catches two kinds of problems.** A store an agent can't use (prices in images, unclear buttons, blocked checkout), and a purchase whose records disagree (captured but pending, paid after a decline, duplicated on retry).
-- **Why now.** As more purchases go through agents, a merchant needs to know whether an agent can buy from them before one tries. GhostShopper tests the ordinary storefront path agents fall back on.
+- **Why now.** As more purchases go through agents, a merchant needs to know whether an agent can buy from them before one tries. GhostShopper tests the storefront path and the WebMCP path against the same trace, so the merchant also sees whether the order lands correctly.
 - **No revenue claims.** The live results (65 → 100 in runs 50 and 51, 49 → 100 in runs 31 and 34) are from the demo store, on the Sandbox. The mock seed pair (24 → 100) is a separate, offline demo.
 
 ## Run it locally
@@ -263,7 +322,18 @@ python -m backend.app.agent.compare --last      # prints the mock score change (
 python -m backend.app.seed                                                    # demo state, classic flaws on
 python -m backend.app.agent --llm live --flaws keep --checkout --paypal sandbox --headed
 python -m backend.app.agent --llm live --flaws off --checkout --paypal sandbox --headed
+python -m backend.app.agent --llm live --flaws keep --checkout --paypal sandbox --headed --vision   # with VISION_MODEL set
 python -m backend.app.agent.compare --last
+```
+
+**WebMCP and catalog readiness:**
+
+```bash
+python -m backend.app.webmcp discover <url>                                    # list the page's WebMCP tools (native, CDP)
+python -m backend.app.webmcp run --store demo --llm live --paypal sandbox --headed
+python -m backend.app.webmcp run --store showcase --llm live --paypal sandbox --headed
+python -m backend.app.webmcp compare 57 54                                     # browser run vs WebMCP run
+python -m backend.app.catalog_readiness --url <store>
 ```
 
 On Windows, avoid `--reload` when starting runs from the dashboard. For frontend development, run `cd frontend && npm run dev` (it proxies `/api` and `/store` to port 8000).
@@ -278,6 +348,7 @@ On Windows, avoid `--reload` when starting runs from the dashboard. For frontend
 | `SANDBOX_BUYER_EMAIL`, `SANDBOX_BUYER_PASSWORD` | sandbox runs | The sandbox buyer the agent logs in as. Never logged or stored. |
 | `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY` | live model runs | For Nemotron: `nvidia`, a tool-calling Nemotron model id, a key from build.nvidia.com |
 | `LLM_BASE_URL` | optional | Overrides the provider URL. Required for `openai-compatible`. |
+| `VISION_MODEL` | optional | A vision-capable model on the same provider and key as the main LLM. It turns on `look_at_page`. Without it vision is unavailable. |
 | `BROWSER_PROVIDER`, `KERNEL_API_KEY` | hosted browser | `local` (default) or `kernel`. Kernel needs the store on a public URL. |
 | `CHANNEL3_API_KEY` | optional | Live market check. Without it, recorded fixtures are used and labelled. |
 | `DATABASE_PATH` | optional | SQLite file, default `data/ghostshopper.db` |
@@ -293,7 +364,7 @@ On Windows, avoid `--reload` when starting runs from the dashboard. For frontend
 <details>
 <summary><b>API</b></summary>
 
-`POST /api/runs` · `GET /api/runs` · `GET /api/runs/{id}` · `GET /api/runs/{id}/compare` · `DELETE /api/runs/{id}` · `POST /api/runs/{id}/explain` · `GET /api/market/{sku}` · `GET /api/paypal/orders/{id}/verify`
+`POST /api/runs` (`vision: true` when the server has `VISION_MODEL`) · `GET /api/runs` · `GET /api/runs/{id}` · `GET /api/runs/{id}/compare` · `GET /api/runs/{id}/compare-path` · `GET /api/catalog` · `POST /store/webmcp/rpc` · `DELETE /api/runs/{id}` · `POST /api/runs/{id}/explain` · `GET /api/market/{sku}` · `GET /api/paypal/orders/{id}/verify`
 
 Each browser sees only its own checks, plus the shared examples from the CLI and the seed command.
 
@@ -303,7 +374,9 @@ Each browser sees only its own checks, plus the shared examples from the CLI and
 
 | Question | Answer |
 |---|---|
-| **Does it test WebMCP, Agent Ready, ACP or UCP?** | No. It is not a conformance test or certification. Where structured tools aren't available, agents navigate the ordinary storefront, and GhostShopper tests that. See [PayPal's WebMCP post](https://developer.paypal.com/community/blog/WebMCP_PayPal_Agent_Ready). |
+| **Does it test WebMCP?** | It runs a purchase through WebMCP tools and checks the result against the purchase trace, with an 8-item tool checklist. On Fernhill the tools are our adapter for the same `shopping.*` contract PayPal's showcase registers, not PayPal's own service. On PayPal's showcase it uses PayPal's real tools as an external demo. See [PayPal's WebMCP post](https://developer.paypal.com/community/blog/WebMCP_PayPal_Agent_Ready) and [docs/research/paypal-webmcp.md](docs/research/paypal-webmcp.md). |
+| **Is it an Agent Ready, ACP or UCP test?** | No. It is not a conformance test or a PayPal certification. |
+| **Is the WebMCP path scored?** | No. The tool checklist is computed by code and is not a score. The readiness score rates the page path. |
 | **Is 100/100 a PayPal certification?** | No. It means GhostShopper's checks found nothing wrong. It is not an Agent Ready eligibility check. |
 | **Does the full trace work on any store?** | Only on the demo store. Real stores don't expose their order records, so on a live store the store order shows as unknown. |
 | **Is this real money?** | No. PayPal Sandbox only, and Sandbox behaviour is not production behaviour. |

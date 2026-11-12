@@ -112,3 +112,18 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 - [x] Record the demo video (under 3 minutes): v2, 2:54, live runs 50, 51 and 52
 - [ ] Devpost description, with the built-during-the-hackathon section from CHANGELOG.md
 - [ ] Submit
+
+## Nov 12: WebMCP, catalog readiness, mobile
+- [x] WebMCP path: native Chromium WebMCP over CDP, shim fallback, discover and run CLI
+- [x] Fernhill adapter for the `shopping.*` contract (`store/static/webmcp.js`, `POST /store/webmcp/rpc`) on the store's own order code
+- [x] WebMCP shopper loop with runtime-side buyer approval and order read-back
+- [x] 8 tool checks (checklist, no score) and browser vs WebMCP compare
+- [x] Live runs: 53 (blocked, headless), 54 (Fernhill), 56 (PayPal showcase, external demo), 57 (browser, same store)
+- [x] Discovery on the Shopify demo store (12 tools, discovery only)
+- [x] Catalog readiness module, API and CLI, polite pacing and minimum sample
+- [x] Dashboard components for WebMCP and catalog readiness
+- [x] Mobile landing fixes, link preview card, demo-store paths in the trace view
+- [x] Docs and README updated for the WebMCP framing
+- [ ] Update the demo video
+- [ ] Fresh-clone test
+- [ ] Submit

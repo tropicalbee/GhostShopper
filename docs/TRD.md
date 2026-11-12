@@ -49,6 +49,7 @@ Python 3.11+ (dev on 3.13), FastAPI, httpx, Jinja2, SQLite (stdlib `sqlite3`), p
 | LLM provider | Navigation and fix explanations | `ChatModel` base class in `agent/llm.py`. `OpenAICompatibleChat` covers NVIDIA Nemotron (primary, `LLM_PROVIDER=nvidia`), Groq (free tier, supported alternative), OpenAI, OpenRouter, Together, Ollama and any OpenAI-compatible URL. `AnthropicChat` translates to and from the Anthropic Messages API and sends no temperature or forced `tool_choice`. Providers are entries in `PROVIDERS`. Config: `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL`, the same for every provider. Missing config is an error. `--llm mock` replays cassettes. |
 | Kernel | Hosted browser for real runs | Local Playwright in dev. Same tool layer, different browser factory. |
 | Channel3 | Market check: similar products | D4. |
+| WebMCP | Agent-side tool discovery and calls | Chromium's native WebMCP through the CDP WebMCP domain. Launch flag `--enable-features=WebMCP` (Chromium 156). See [research/paypal-webmcp.md](research/paypal-webmcp.md). |
 
 ## Key technical rules
 
@@ -60,6 +61,25 @@ Python 3.11+ (dev on 3.13), FastAPI, httpx, Jinja2, SQLite (stdlib `sqlite3`), p
 ## Purchase trace
 
 `GET /api/runs/{id}` carries a `trace` that compares five records of one purchase, field by field (product, quantity, amount, currency, status): what the agent wanted (run target and catalog price), the demo store's own order (`store_orders`), PayPal's order (the stored GET order response), PayPal's capture (the stored capture response) and what the store's order page shows afterwards. After a payment attempt the runtime opens that order page and records it as a step. A value a source does not expose is `unknown` with a reason, never filled in. The first disagreement is flagged, with a plain explanation and a fixed fix text. The builder is `backend/app/trace.py`. It does not touch the score, and no LLM is involved. Live stores only get `unknown` for the store's order, since the shopper cannot see it. The demo store keeps its own orders in `store_orders` (`store/orders.py`, order page `/store/orders/{n}`); four purchase flaws (`never_marks_paid`, `declined_marked_paid`, `success_after_cancel`, `duplicate_on_retry`) make the store's record disagree with PayPal's. The mock PayPal has `buyer_cancels` and `first_attempt_fails`, and the agent retries once on a temporary capture error.
+
+## WebMCP path
+
+`path` on a run is `browser` or `webmcp`. WebMCP runs live in `backend/app/webmcp/`.
+
+- Discovery (`discover.py`): Chromium launches with `--enable-features=WebMCP`, so the page exposes native `document.modelContext`. Tools are found through the CDP WebMCP domain (`WebMCP.enable`, `WebMCP.toolsAdded`) and called with `WebMCP.invokeTool` and `WebMCP.toolResponded`. `shim.js` is a fallback for browsers without native WebMCP (a Kernel browser, for example). Each report says which source was used.
+- Shopper (`shopper.py`): a tool-calling loop whose tools are the page's registered tools. The model picks every call. When `initiateCheckout` returns an approval URL, the runtime approves as the sandbox buyer using the same PayPal flow code as the browser path. Credentials never reach the model. After `completeCheckout` the runtime reads the store's order page back, so the trace has the same five records.
+- Fernhill adapter: `store/static/webmcp.js` registers the `shopping.*` tools PayPal's showcase registers, with the same schemas and result envelope. It posts JSON-RPC to `POST /store/webmcp/rpc` (`rpc.py`), which converges on `orders.place_order` and `capture_order`, the code behind the store's own PayPal button, so the purchase flaws act the same on both paths. It is not PayPal's WebMCP.
+- PayPal's showcase is an external demo: PayPal's tools and service, order values from the tool responses, no store order to read back.
+- Checks (`checks.py`): 8 deterministic tool checks, a checklist and not a score. Compare (`compare.py`, `GET /api/runs/{id}/compare-path`): a pure function over the two runs, with the verdict computed by code.
+- Live stores get discovery only.
+
+## Vision path
+
+`backend/app/agent/vision.py` adds the optional `look_at_page` tool. It takes a viewport screenshot of the store's own page and sends it with the shopper's question to `VISION_MODEL`, which uses the same provider and key as the main LLM. It refuses PayPal pages. The answer reaches the shopper inside `<page_content>` tags and goes through the same injection scan as page text. It is not a check input, so it never changes the score. Switches: `--vision` on the agent CLI, `vision: true` on `POST /api/runs` (open to visitors when the server has `VISION_MODEL`), a "Shopper can see images" switch on New check, and `vision_available` in `/api/health`. The run records its model as "<model> + vision <vision_model>".
+
+## Catalog readiness
+
+`backend/app/catalog_readiness.py` (`GET /api/catalog`, CLI `python -m backend.app.catalog_readiness --url <store>`) opens up to 12 product pages and checks each one's Product JSON-LD by code, against the 80% line in PayPal's Agentic Commerce Pulse Report. It uses the run's politeness layer (robots.txt, public hosts, DNS pinning), loads one page at a time 2 s apart, honours Retry-After, stops at a 60 s budget and shows no percent when too few pages could be read. Informational: it never changes the score.
 
 ## Prompt-injection guard
 

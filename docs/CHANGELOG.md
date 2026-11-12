@@ -2,6 +2,18 @@
 
 Everything below was built during the PayPal AI Hackathon 2026.
 
+## 2026-11-12 (WebMCP and catalog readiness)
+- WebMCP path: the shopper uses a page's WebMCP tools through Chromium's native WebMCP (CDP WebMCP domain), with a shim fallback. `python -m backend.app.webmcp discover | run | compare`.
+- Fernhill adapter for the `shopping.*` tool contract (`store/static/webmcp.js`, `POST /store/webmcp/rpc`) on the store's own order and capture code.
+- Runtime-side buyer approval and order read-back for WebMCP runs, so the five-record trace applies to both paths.
+- 8 WebMCP tool checks (a checklist, not a score) and a browser vs WebMCP comparison (`GET /api/runs/{id}/compare-path`).
+- PayPal's WebMCP showcase as a labelled external demo.
+- Catalog readiness (`GET /api/catalog`, `python -m backend.app.catalog_readiness`), polite pacing and a minimum sample.
+- `runs.path` and `runs.webmcp` columns, dashboard components for both features.
+- Mobile landing menu and hero overflow fixes, link preview card, demo-store paths in the trace view, trace matrix timeout fix.
+- Shopper vision: optional `look_at_page` tool (store pages only), `VISION_MODEL`, `--vision`, `vision: true` on `POST /api/runs`, a New check switch, a Vision label on runs, `vision_available` in health. It never changes the score.
+- Seven live runs (53 to 59) and README, DEVPOST and docs rewritten for the WebMCP framing.
+
 ## 2026-11-12 (video v2)
 - Recorder: `--bad-flaws`, new read-only tour and live safety recorders.
 - Three new live Sandbox runs for the video (50, 51, 52) and a new 2:54 demo video cut to the voice.
