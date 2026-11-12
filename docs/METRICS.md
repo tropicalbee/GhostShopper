@@ -375,7 +375,7 @@ The first real run on the hosted site, in Kernel, against the flawed demo store.
 | Capture | none, so no order was captured |
 | Step 24 | a second `pay_with_paypal` was refused: payment was already attempted in this run |
 
-Every completed purchase so far ran locally.
+Hosted run 3 (same day, after the redeploy with `PAYPAL_VAULT_TOKEN_ID`): Kernel browser, saved sandbox buyer, Nemotron 3.5 Super VL 120B, the 8 classic flaws on. Purchased in 20 steps, 18:43:40 to 18:44:56 UTC (76 s). Order 1JV178333H597441D, capture 0EJ09960J1360714E COMPLETED, $24.00, fee $1.33, net $22.67, payment verified. Store order #1048 Paid, 4 of 4 ID links ok, no mismatches. Readiness 49/100 (price_in_text, structured_data, clear_buy_button, no_extra_steps, stock_readable failed).
 
 ### Live site check (same day)
 

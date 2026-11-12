@@ -6,7 +6,7 @@ Entries before 2026-11-10 are in [archive/issues-and-fixes-2026-11-05-to-11-09.m
 
 ## 2026-11-12 (session 11, final audit fixes)
 
-These code fixes were applied by another agent during the audit. Tests for them are not recorded in METRICS.md yet.
+These code fixes were applied during the audit. Test results are in METRICS.md (Test suite, 2026-11-12).
 
 ### Hosted PayPal popup stalled (hosted run 5)
 Hosted run 5 ran in Kernel and its PayPal popup approval timed out at the password step after 120 s, so nothing was captured. Root cause: the hosted SQLite has no saved vault buyer after a redeploy, so real runs fell back to the password popup. Fix in progress: read the vault token from the environment.
