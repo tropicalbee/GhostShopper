@@ -317,8 +317,9 @@ class BrowserSession:
 
     def __init__(self, headless: bool = True, provider: str | None = None,
                  kernel: KernelBrowsers | None = None, kernel_timeout_s: int = KERNEL_TIMEOUT_S,
-                 politeness: Politeness | None = None, allow_private: bool = True):
+                 politeness: Politeness | None = None, allow_private: bool = True, launch_args: list[str] | None = None):
         self.headless = headless
+        self.launch_args = launch_args  # local Chromium only (e.g. --enable-features=WebMCP)
         self.provider = resolve_provider(provider) if kernel is None else "kernel"
         self._kernel = kernel
         self._kernel_timeout_s = kernel_timeout_s
@@ -343,7 +344,7 @@ class BrowserSession:
                 await self._open_kernel()
             else:
                 channel = os.getenv("PLAYWRIGHT_CHANNEL") or None  # e.g. "msedge" to use the installed Edge
-                self.browser = await self._pw.chromium.launch(headless=self.headless, channel=channel)
+                self.browser = await self._pw.chromium.launch(headless=self.headless, channel=channel, args=self.launch_args)
                 extra = {"user_agent": USER_AGENT} if self.politeness else {}
                 # Service workers would bypass or stall context.route(), so they are blocked (Playwright's advice).
                 self.context = await self.browser.new_context(viewport=VIEWPORT, service_workers="block", **extra)

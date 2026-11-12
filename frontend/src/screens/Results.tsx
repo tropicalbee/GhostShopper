@@ -9,7 +9,8 @@ import { ProductFeedLine } from "@/components/ProductFeedLine";
 import { MoneyPanel, ReadinessPanel } from "@/components/ReadinessPanels";
 import { HEAD, TraceTable, type Evidence } from "@/components/TraceTable";
 import { Button } from "@/components/ui/button";
-import { sameSeries, shotName, shotUrl, startCheck, type Health, type PlainFix, type Run, type RunSummary } from "@/lib/api";
+import { PathCompareTable, WebMCPPanels, WebMCPStrip } from "@/components/WebMCP";
+import { api, ApiError, sameSeries, shotName, shotUrl, startCheck, type Health, type PlainFix, type Run, type RunSummary } from "@/lib/api";
 import { fetchCompare } from "@/lib/compare";
 import { go, useCountUp, useFetch } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
@@ -188,6 +189,33 @@ function SafetyPanel({ run }: { run: Run }) {
   );
 }
 
+function TracePanel({ run, name, evidence, counts }: { run: Run; name: (sku: string) => string; evidence: Evidence[]; counts: (string | 0)[] }) {
+  return (
+      <section className="glass mt-5 overflow-hidden" aria-labelledby="trace-h">
+        <div className="panel-head max-md:flex-col max-md:items-start">
+          <div>
+            <h3 id="trace-h" className="text-[15px] font-medium tracking-[-0.02em]">
+              Purchase trace
+            </h3>
+            <p className="mt-0.5 text-[13px] text-faint">What happened to the purchase: five records of it, compared field by field.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-dim">
+            <span>
+              <b className="mr-1 font-medium text-muted-foreground">Unknown</b>the source doesn&apos;t show it
+            </span>
+            <span>
+              <b className="mr-1 font-medium text-muted-foreground">n/a</b>that record never has this field
+            </span>
+            {counts.length > 0 && <span className="rounded-full border border-[#262626] bg-[#141414] px-2.5 py-0.5 font-medium text-muted-foreground">{counts.join(" · ")}</span>}
+          </div>
+        </div>
+        <div className="relative py-5 md:px-5">
+          <TraceTable trace={run.trace} name={name} evidence={evidence} />
+        </div>
+      </section>
+  );
+}
+
 export function Results({ run, health, runs, wide }: { run: Run; health: Health; runs: RunSummary[]; wide: boolean }) {
   const card = run.scorecard;
   const [busy, setBusy] = useState(false);
@@ -196,11 +224,17 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
   // The before and after grid shows only when an earlier check of this store exists (the API answers 404 otherwise).
   const cmp = useFetch(() => (card && run.status === "completed" ? fetchCompare(run.id) : Promise.resolve(null)), [run.id, run.status, !!card]);
 
+  // The other shopper path's latest check of this store, when there is one (404 means there is none yet).
+  const pathCmp = useFetch(
+    () => (run.status === "completed" ? api.comparePath(run.id).catch((e) => (e instanceof ApiError && e.status === 404 ? null : Promise.reject(e))) : Promise.resolve(null)),
+    [run.id, run.status],
+  );
+
   const again = async () => {
     setBusy(true);
     setError(null);
     try {
-      const { run_id } = await startCheck(run.live ? run.store_url : null);
+      const { run_id } = await startCheck(run.live ? run.store_url : null, null, false, run.path === "webmcp" ? { store: run.webmcp?.external_demo ? "paypal_showcase" : "demo" } : undefined);
       go(`/run/${run_id}`);
     } catch (e) {
       setError((e as Error).message);
@@ -265,34 +299,24 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
         </p>
       )}
 
-      {card ? (
+      {run.path === "webmcp" ? (
+        <>
+          <div className="mt-6">
+            <WebMCPStrip run={run} />
+          </div>
+          <div className="mt-5">
+            <TracePanel run={run} name={name} evidence={evidence} counts={counts} />
+          </div>
+          <WebMCPPanels run={run} />
+          {pathCmp.data && <PathCompareTable data={pathCmp.data} className="mt-5" />}
+        </>
+      ) : card ? (
         <>
           <div className="mt-6">
             <Strip run={run} score={card.simple.score} cost={cost} />
           </div>
 
-          <section className="glass mt-5 overflow-hidden" aria-labelledby="trace-h">
-            <div className="panel-head max-md:flex-col max-md:items-start">
-              <div>
-                <h3 id="trace-h" className="text-[15px] font-medium tracking-[-0.02em]">
-                  Purchase trace
-                </h3>
-                <p className="mt-0.5 text-[13px] text-faint">What happened to the purchase: five records of it, compared field by field.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-dim">
-                <span>
-                  <b className="mr-1 font-medium text-muted-foreground">Unknown</b>the source doesn&apos;t show it
-                </span>
-                <span>
-                  <b className="mr-1 font-medium text-muted-foreground">n/a</b>that record never has this field
-                </span>
-                {counts.length > 0 && <span className="rounded-full border border-[#262626] bg-[#141414] px-2.5 py-0.5 font-medium text-muted-foreground">{counts.join(" · ")}</span>}
-              </div>
-            </div>
-            <div className="relative py-5 md:px-5">
-              <TraceTable trace={run.trace} name={name} evidence={evidence} />
-            </div>
-          </section>
+          <TracePanel run={run} name={name} evidence={evidence} counts={counts} />
 
           <div className="mt-5 grid items-start gap-5 lg:grid-cols-[1.15fr_0.85fr]">
             <ReadinessPanel run={run} card={card} score={score} showAll={wide} />
@@ -310,6 +334,7 @@ export function Results({ run, health, runs, wide }: { run: Run; health: Health;
       <SafetyPanel run={run} />
 
       {card && cmp.data && <CompareGrid data={cmp.data} className="mt-5" />}
+      {run.path !== "webmcp" && pathCmp.data && <PathCompareTable data={pathCmp.data} className="mt-5" />}
 
       {card && (
         <section className="mt-10" aria-labelledby="fix-first">

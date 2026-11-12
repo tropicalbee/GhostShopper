@@ -69,6 +69,7 @@ export function ModeLabels({ run, health }: { run: Run; health?: Health | null }
   if (run.example) labels.push("Example check, shared demo");
   if (run.llm === "scripted") labels.push("Practice run, scripted shopper");
   if (run.llm === "mock") labels.push("Practice run, replayed shopper");
+  if (run.model?.includes(" + vision ")) labels.push("Vision");
   if ((run.checkout && run.paypal_mode === "mock") || (!run.live && !run.checkout && health?.paypal_mode === "mock")) labels.push("Mock PayPal");
   if (!labels.length) return null;
   return (
@@ -287,7 +288,10 @@ export function hostOf(url: string): string {
   }
 }
 
-export const storeName = (run: Pick<Run, "live" | "store_url">) => (run.live ? hostOf(run.store_url) : "Fernhill Ceramics");
+// PayPal's own WebMCP demo store (backend/app/webmcp/tools.py), where a WebMCP check is an external demo.
+const SHOWCASE_HOST = "webmcp-store.paypal.com";
+export const storeName = (run: Pick<Run, "live" | "store_url">) =>
+  hostOf(run.store_url) === SHOWCASE_HOST ? "PayPal WebMCP showcase" : run.live ? hostOf(run.store_url) : "Fernhill Ceramics";
 
 // A demo-store URL as the store's own path ("Fernhill Ceramics /store/products/mug"), so recorded localhost hosts never show.
 export function shownUrl(run: Pick<Run, "live" | "store_url">, url: string): string {

@@ -1,4 +1,4 @@
-import { ArrowRight, CreditCard, FlaskConical, Globe, Store } from "lucide-react";
+import { ArrowRight, Bot, CreditCard, FlaskConical, Globe, Plug, Store } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 
 import { Logo } from "@/components/bits";
@@ -94,6 +94,11 @@ export function NewCheck({ yours }: { yours: boolean }) {
   const [budget, setBudget] = useState("");
   const [budgetError, setBudgetError] = useState<string | null>(null);
   const [realChoice, setReal] = useState<boolean | null>(null);
+  // Browser agent (reads the store's pages) or the store's WebMCP tools; the tools can also be PayPal's own showcase.
+  const [shopper, setShopper] = useState<"browser" | "webmcp">("browser");
+  const [mcpStore, setMcpStore] = useState<"demo" | "paypal_showcase">("demo");
+  const [vision, setVision] = useState(false);
+  const showcase = mode === "demo" && shopper === "webmcp" && mcpStore === "paypal_showcase";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const health = useFetch(api.health, []).data;
@@ -139,7 +144,8 @@ export function NewCheck({ yours }: { yours: boolean }) {
     setBudgetError(null);
     setBusy(true);
     try {
-      const { run_id } = await startCheck(storeUrl, storeUrl ? null : budget.trim().replace(/^\$/, ""), !storeUrl && real);
+      const webmcp = !storeUrl && shopper === "webmcp" ? { store: mcpStore } : undefined;
+      const { run_id } = await startCheck(storeUrl, storeUrl ? null : budget.trim().replace(/^\$/, ""), !storeUrl && real && !showcase, webmcp, !webmcp && vision);
       go(`/run/${run_id}`);
     } catch (err) {
       const message = (err as Error).message;
@@ -169,6 +175,38 @@ export function NewCheck({ yours }: { yours: boolean }) {
               </Option>
             </div>
           </Field>
+
+          {mode === "demo" && (
+            <Field title="Shopper path" help="The same shopping task, done two ways. Both end at PayPal's checkout and the same purchase trace.">
+              <div role="radiogroup" aria-label="Shopper path" className="mt-3.5 grid gap-3 sm:grid-cols-2">
+                <Option on={shopper === "browser"} onClick={() => setShopper("browser")} icon={<Bot />} title="Browser agent">
+                  Reads the store&apos;s pages and clicks, like a person would. Gets a readiness score.
+                </Option>
+                <Option on={shopper === "webmcp"} onClick={() => setShopper("webmcp")} icon={<Plug />} title="PayPal WebMCP tools">
+                  Uses the store&apos;s own shopping tools: search, product, checkout. No readiness score.
+                </Option>
+              </div>
+              {shopper === "webmcp" && (
+                <div role="radiogroup" aria-label="WebMCP store" className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Option on={mcpStore === "demo"} onClick={() => setMcpStore("demo")} icon={<Store />} title="Fernhill's tools">
+                    Our adapter on the demo store, with its store problems.
+                  </Option>
+                  <Option on={mcpStore === "paypal_showcase"} onClick={() => setMcpStore("paypal_showcase")} icon={<Globe />} title="PayPal's showcase">
+                    PayPal&apos;s own WebMCP demo store. An external demo, paid in the PayPal sandbox.
+                  </Option>
+                </div>
+              )}
+              {shopper === "browser" && health?.vision_available && (
+                <div className="mt-4 flex items-center gap-3.5">
+                  <div className="flex-1">
+                    <b className="block text-[13.5px] font-medium">Shopper can see images</b>
+                    <span className="mt-px block text-[12.5px] text-[#8a8a8a]">Uses a vision model to read the page, like a vision-capable AI agent. Slower; does not change the score.</span>
+                  </div>
+                  <Switch on={vision} disabled={busy} label="Shopper can see images" onChange={setVision} />
+                </div>
+              )}
+            </Field>
+          )}
 
           {mode === "live" ? (
             <>
@@ -201,6 +239,13 @@ export function NewCheck({ yours }: { yours: boolean }) {
                 </p>
               </Field>
             </>
+          ) : showcase ? (
+            <Field title="PayPal's showcase" last help="Externally demonstrated on PayPal's own WebMCP showcase. Not GhostShopper-integrated: PayPal's merchant, PayPal's tools.">
+              <p className="mt-3.5 flex items-start gap-2.5 rounded-[10px] border border-[#1f1f1f] bg-[#0c0c0c] px-3.5 py-3 text-[12.5px] leading-[18px] text-muted-foreground">
+                <CreditCard className="mt-px size-4 flex-none text-faint" aria-hidden />
+                The shopper buys a gift card in the PayPal sandbox. Order values come from the tool responses, so there is no store order to compare. This needs a Kernel browser and the sandbox buyer on the server.
+              </p>
+            </Field>
           ) : (
             <>
               <Field title="Product" help="Every demo check buys the same product, so before and after compare like for like.">

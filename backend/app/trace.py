@@ -27,6 +27,9 @@ COMPARED_FIELDS = ("product", "quantity", "amount", "currency")  # checked again
 
 PAY_TOOLS = ("pay_with_paypal", "pay_with_saved_paypal")
 READ_BACK_TOOL = "read_order_status"
+BUYER_APPROVAL_TOOL = "paypal_buyer_approval"  # WebMCP runs: the runtime approves the PayPal window as the sandbox buyer
+EXTERNAL_REASON = ("this purchase ran on PayPal's own WebMCP showcase: PayPal's merchant, so there is no store order "
+                   "record and no Orders v2 read-back with our credentials")
 SUCCESS = ("paid", "confirmed")  # what a store means by "your order went through"
 CAPTURED = "COMPLETED"
 
@@ -363,7 +366,10 @@ def build_trace(run: dict[str, Any], sku: str | None, store_orders: list[dict[st
     pay_step = next((s for s in steps if s["tool"] in PAY_TOOLS), None)
     read_step = next((s for s in steps if s["tool"] == READ_BACK_TOOL), None)
     stages = [_agent_wanted(run, sku, pay_step)]
-    if run.get("live"):
+    external = bool((run.get("webmcp") or {}).get("external_demo"))
+    if external:
+        stages += [_stage(k, None, _all(_unknown(EXTERNAL_REASON))) for k, _ in STAGES[1:]]
+    elif run.get("live"):
         stages.append(_stage("store_order", None, _all(_unknown("the store's order system is not visible to the shopper"))))
         stages += [_stage(k, None, _all(_not_reached("live stores are browse-only"))) for k in ("paypal_order", "paypal_capture", "store_says")]
     elif not store_orders:
@@ -372,11 +378,16 @@ def build_trace(run: dict[str, Any], sku: str | None, store_orders: list[dict[st
         stages += [_store_order(store_orders), _paypal_order(paypal), _paypal_capture(paypal), _store_says(read_step)]
     by_key = {s["key"]: s for s in stages}
     live = bool(run.get("live"))
-    links = _links(store_orders, paypal, live)
+    links = ([_link(k, None, None, NOT_APPLICABLE, "no store order on PayPal's showcase") for k, _, _ in LINKS] if external
+             else _links(store_orders, paypal, live))
     mismatches = _mismatches(by_key, store_orders, links) if store_orders and not live else []
     if mismatches:
         mismatches[0]["first"] = True
     unknown = sum(c["kind"] == UNKNOWN for s in stages for c in s["cells"].values())
     unknown += sum(link["kind"] == UNKNOWN for link in links)
-    return {"stages": stages, "links": links, "mismatches": mismatches, "first_mismatch": mismatches[0] if mismatches else None,
-            "counts": {"mismatch": len(mismatches), "unknown": unknown}}
+    trace = {"stages": stages, "links": links, "mismatches": mismatches,
+             "first_mismatch": mismatches[0] if mismatches else None,
+             "counts": {"mismatch": len(mismatches), "unknown": unknown}}
+    if external:  # nothing to reconcile against: what is checked instead is whether the tools quoted one price throughout
+        trace["price_consistency"] = (run["webmcp"] or {}).get("price_consistency")
+    return trace

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ store_name }}</title>
+</head>
+<body>
+<p id="webmcp-return">{% if cancelled %}Payment cancelled, you can close this window.{% else %}Payment approved, you can close this window.{% endif %}</p>
+<script>
+  // A cancelled payment is told to the store like the PayPal button's cancel is; then the window closes.
+  var token = new URLSearchParams(location.search).get('token');
+  var closeWindow = function () { window.close(); };
+  if ({{ 'true' if cancelled else 'false' }} && token) {
+    fetch('/api/paypal/orders/' + encodeURIComponent(token) + '/cancel', { method: 'POST' }).then(closeWindow, closeWindow);
+  } else {
+    closeWindow();
+  }
+</script>
+</body>
+</html>

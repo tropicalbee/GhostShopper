@@ -334,7 +334,7 @@ def test_store_responses_that_set_the_owner_cookie_are_never_cacheable(tmp_path)
 def test_health_keeps_its_keys(tmp_path):
     with client_for(create_app(access_settings(tmp_path)), None) as c:
         assert set(c.get("/api/health").json()) == {"status", "paypal_configured", "paypal_env", "paypal_mode",
-                                                    "llm_configured", "demo_admin_open", "retention_days",
+                                                    "llm_configured", "vision_available", "demo_admin_open", "retention_days",
                                                     "real_checkout_available", "real_checkout_missing",
                                                     "presenter_unlocked"}
 

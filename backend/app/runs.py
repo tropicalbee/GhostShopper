@@ -27,6 +27,8 @@ from .devsummary import developer_summary
 from .feed import feed_csv
 from .ratelimit import charge_daily_cap, rate_limit
 from .trace import build_trace
+from .webmcp.compare import PathCompareError, compare_paths, latest_of_path
+from .webmcp.service import SHOWCASE_TARGET
 from store import catalog
 from store.app import has_admin_cookie
 from store.orders import StoreOrders
@@ -57,6 +59,12 @@ class StartRun(BaseModel):
     # sandbox keys and a Kernel browser (else 400 RUN_CONFIG). A PayPal human check is only waited for when the
     # presenter is unlocked (nobody else can reach the live view). Demo store only.
     real_payment: bool | None = None
+    # Open to everyone. webmcp: the shopper uses the store's WebMCP tools instead of its web pages. paypal_showcase is
+    # PayPal's own WebMCP demo store: an external demo that pays in the PayPal sandbox like a real purchase (see real_payment).
+    path: Literal["browser", "webmcp"] | None = None
+    store: Literal["demo", "paypal_showcase"] | None = None
+    # Open to everyone when the server has VISION_MODEL: the shopper may look at pages (else 400 RUN_CONFIG).
+    vision: bool | None = None
 
 
 def _error(status: int, code: str, message: str) -> HTTPException:
@@ -113,15 +121,22 @@ async def start_run(body: StartRun, request: Request):
     state = request.app.state
     settings = state.settings
     rate_limit(request, "run_limiter", "runs", charge_cap=False)
-    chosen = body.model_fields_set - {"store_url", "budget", "real_payment"}
+    chosen = body.model_fields_set - {"store_url", "budget", "real_payment", "path", "store", "vision"}
     if chosen and not settings.dev_options:
         raise _error(400, "RUN_CONFIG", f"Only store_url can be set on this server (not {', '.join(sorted(chosen))}).")
+    webmcp = body.path == "webmcp"
+    external = webmcp and body.store == "paypal_showcase"
+    if body.store is not None and not webmcp:
+        raise _error(400, "RUN_CONFIG", "A store can only be chosen for WebMCP checks.")
+    if webmcp and body.store_url:
+        raise _error(400, "RUN_CONFIG", "WebMCP checks run on the demo store or PayPal's showcase, not on a pasted link.")
     demo = not body.store_url
-    real = bool(body.real_payment)
+    real = bool(body.real_payment) or external  # PayPal's showcase always pays in the sandbox, in a browser a person can reach
     if real:
         if not demo:
             raise _error(400, "RUN_CONFIG", "Real PayPal purchases only run on the GhostShopper demo store.")
-        missing = real_checkout_missing(settings.paypal_configured or "sandbox" in state.paypal_clients)
+        # The showcase is PayPal's merchant: our own PayPal keys are not needed for it.
+        missing = real_checkout_missing(settings.paypal_configured or "sandbox" in state.paypal_clients or external)
         if missing:
             raise _error(400, "RUN_CONFIG", f"The real PayPal sandbox option isn't set up on this server. Missing: {', '.join(missing)}.")
     req = RunRequest(
@@ -130,7 +145,7 @@ async def start_run(body: StartRun, request: Request):
         cassette=body.cassette,
         record=body.record,
         flaws=body.flaws or "keep",
-        checkout=True if real else (demo if body.checkout is None else body.checkout),
+        checkout=True if real or webmcp else (demo if body.checkout is None else body.checkout),
         paypal="sandbox" if real else (body.paypal or settings.paypal_mode),
         payment=body.payment or "popup",
         # A real purchase runs in a Kernel browser with headless off: its live view is how a person approves.
@@ -139,12 +154,16 @@ async def start_run(body: StartRun, request: Request):
         budget=body.budget,
         headless=False if real else not body.headed,
         human_wait=presenter_unlocked(request),
+        path="webmcp" if webmcp else "browser",
+        store="paypal_showcase" if external else "demo",
+        vision=bool(body.vision),
+        **({"target_product": SHOWCASE_TARGET} if external else {}),
     )
     # Both modes are served; the run is checked against the mode it asked for, not the server's default.
     server = ServerInfo(req.paypal, req.paypal in state.paypal_clients or settings.paypal_configured)
     try:
         target = await resolve_target(req, settings.app_base_url)  # friendly errors for links we can't check
-        live = not target.demo
+        live = not target.demo and not webmcp
         # Fail fast, before any run row. execute() builds its own, so close what this one built.
         probe_llm, probe_payment = prepare(req, target.url, settings.database_path, server, live=live)
     except RunConfigError as exc:
@@ -170,7 +189,7 @@ async def start_run(body: StartRun, request: Request):
                     started.set_exception(exc)
 
         # The store and the order endpoints use the run's PayPal mode while it runs, then go back to the default.
-        if req.checkout:
+        if req.checkout and not external:  # PayPal's showcase never touches this server's store
             state.paypal_active = req.paypal
         task = asyncio.create_task(worker())
 
@@ -313,7 +332,7 @@ def delete_run(run_id: int, request: Request):
     return Response(status_code=204)
 
 
-def _purchase_trace(db_path: Path, run: dict[str, Any]) -> dict[str, Any]:
+def purchase_trace(db_path: Path, run: dict[str, Any]) -> dict[str, Any]:
     """The run's purchase trace, from the store's orders and PayPal's stored records for this run."""
     store_orders = StoreOrders(db_path).for_run(run["id"])
     paypal = None
@@ -327,10 +346,31 @@ def _purchase_trace(db_path: Path, run: dict[str, Any]) -> dict[str, Any]:
     return build_trace(run, product.sku if product else None, store_orders, paypal)
 
 
+@router.get("/{run_id}/compare-path")
+def compare_path(run_id: int, request: Request, other: int | None = Query(None, ge=1)):
+    """This check against one of the other path (browser agent vs WebMCP tools) on the same store by the same browser.
+    Without `other`: the latest finished check of the other path. None answers 404."""
+    path = request.app.state.settings.database_path
+    run = _readable(request, run_id)
+    if other is None:
+        other = latest_of_path(path, run, "webmcp" if run["path"] == "browser" else "browser")
+        if other is None:
+            raise _error(404, "NO_OTHER_PATH", "Run the same check with the other shopper path to compare them.")
+    second = _readable(request, other)
+    if second["owner_hash"] != run["owner_hash"] or second["store_url"] != run["store_url"]:
+        raise _error(400, "COMPARE", "Only two checks of the same store can be compared.")
+    if "running" in (run["status"], second["status"]) or "awaiting_human" in (run["status"], second["status"]):
+        raise _error(404, "COMPARE", "Both checks need to be finished before they can be compared.")
+    try:
+        return compare_paths({**run, "trace": purchase_trace(path, run)}, {**second, "trace": purchase_trace(path, second)})
+    except PathCompareError as exc:
+        raise _error(400, "COMPARE", str(exc)) from exc
+
+
 @router.get("/{run_id}")
 def get_run(run_id: int, request: Request):
     run = _readable(request, run_id)
-    run["trace"] = _purchase_trace(request.app.state.settings.database_path, run)
+    run["trace"] = purchase_trace(request.app.state.settings.database_path, run)
     if run.get("awaiting") and not presenter_unlocked(request):
         # The live view is a browser that has just typed the operator's sandbox buyer login: presenter only.
         run["awaiting"] = {k: v for k, v in run["awaiting"].items() if k != "live_view_url"}

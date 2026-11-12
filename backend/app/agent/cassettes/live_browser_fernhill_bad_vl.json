@@ -1,0 +1,141 @@
+{
+  "recorded_from": "nvidia:nvidia/nemotron-3.5-super-vl-120b-a12b",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-c5478e5f-24c8-48e6-9447-7362265f3f78",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"http://localhost:8000/store/\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-c1ab825a-2a55-400f-8401-5ef2bad43b2c",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        },
+        {
+          "id": "call-94602cfa-d99a-4393-891c-cb37fa9f6638",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-bf27afe7-52f6-43cc-8d5d-d6c0f937d01b",
+          "type": "function",
+          "function": {
+            "name": "open_page",
+            "arguments": "{\"url\":\"http://localhost:8000/store/products/speckled-stoneware-mug\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-eb6ec768-f2cb-4e1b-bb72-9b5516b2d811",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        },
+        {
+          "id": "call-45f60ffd-1434-428e-827c-78a1eb77c6d3",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "I'm on the product page for the Speckled Stoneware Mug. I can see the product details but the price and stock status aren't explicitly shown in the text. Let me click \"Buy now\" to proceed to checkout where I should find pricing and stock information.\n",
+      "tool_calls": [
+        {
+          "id": "call-bc933d35-2c94-487f-a848-5e6c2274ff3e",
+          "type": "function",
+          "function": {
+            "name": "click",
+            "arguments": "{\"element_id\":\"e10\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-4881328c-d810-4d0a-b709-8093ac59d377",
+          "type": "function",
+          "function": {
+            "name": "read_text",
+            "arguments": "{}"
+          }
+        },
+        {
+          "id": "call-3b6fcd6d-1fdb-4a3c-93ba-1d34ef53d6d6",
+          "type": "function",
+          "function": {
+            "name": "find_elements",
+            "arguments": "{\"kind\":\"all\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "I'm on the checkout page. I can see the Speckled Stoneware Mug (qty 1) in the order summary, but the price and total fields appear blank, and stock status isn't explicitly stated. Let me proceed with payment using the saved PayPal account as instructed.\n",
+      "tool_calls": [
+        {
+          "id": "call-3088cfc1-b0b9-4cc4-ae05-fd3aef72d5c7",
+          "type": "function",
+          "function": {
+            "name": "pay_with_saved_paypal",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-24b03ca6-78c5-4aa5-9d05-dc27e13cbd51",
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "arguments": "{\"outcome\":\"purchased\",\"summary\":\"Successfully purchased one Speckled Stoneware Mug from Fernhill Ceramics. The product page did not explicitly display a price or stock status, but the checkout page showed the item in the order summary (qty 1). Payment was completed via saved PayPal account. Order number: 9DJ12040FM159434X. Amount charged: 24.00 USD (PayPal fee 1.33, net 22.67). Payment status: COMPLETED and verified.\",\"price\":\"24.00 USD\",\"in_stock\":\"in stock (purchase completed successfully)\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

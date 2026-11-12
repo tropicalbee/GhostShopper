@@ -74,10 +74,11 @@ class PayPalClient:
             raise PayPalError(resp.status_code, body)
         return body
 
-    async def create_order(self, purchase_unit: dict[str, Any]) -> dict[str, Any]:
+    async def create_order(self, purchase_unit: dict[str, Any], payment_source: dict[str, Any] | None = None) -> dict[str, Any]:
+        """payment_source (WebMCP checkout): payment_source.paypal.experience_context, so the order has a payer-action link."""
         return await self._post(
             "/v2/checkout/orders",
-            {"intent": "CAPTURE", "purchase_units": [purchase_unit]},
+            {"intent": "CAPTURE", "purchase_units": [purchase_unit], **({"payment_source": payment_source} if payment_source else {})},
             # A fresh key per call: every call makes a new order. (Capture and refund use stable keys.)
             {"PayPal-Request-Id": str(uuid.uuid4())},
         )

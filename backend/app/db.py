@@ -71,6 +71,8 @@ CREATE TABLE IF NOT EXISTS runs (
     budget          TEXT,                   -- spending limit in USD ("30.00"), NULL = none
     product_snapshot TEXT,                  -- JSON: what the shopper read on the product page (feeds the product feed)
     agent_safety    TEXT,                   -- JSON: text aimed at AI agents the shopper met (agent/injection.py). Not scored.
+    path            TEXT NOT NULL DEFAULT 'browser',  -- browser | webmcp: how the shopper used the store
+    webmcp          TEXT,                   -- JSON (webmcp runs): discovery, tool calls, hand-off, completion, external demo label
     error           TEXT,
     owner_hash      TEXT                    -- SHA-256 of the browser's owner token; NULL = shared example
 );
@@ -146,7 +148,8 @@ ADDED_COLUMNS = {
                "refund_currency": "TEXT", "refunded_at": "TEXT", "order_response": "TEXT", "capture_error": "TEXT"},
     "runs": {"end_reason": "TEXT", "awaiting": "TEXT", "live": "INTEGER NOT NULL DEFAULT 0", "platform": "TEXT",
              "platform_evidence": "TEXT", "owner_hash": "TEXT", "paypal_readiness": "TEXT", "budget": "TEXT",
-             "product_snapshot": "TEXT", "agent_safety": "TEXT"},
+             "product_snapshot": "TEXT", "agent_safety": "TEXT", "path": "TEXT NOT NULL DEFAULT 'browser'",
+             "webmcp": "TEXT"},
     "checks": {"code": "TEXT", "cause": "TEXT"},
     "scores": {"possible": "INTEGER", "outcome": "INTEGER", "excluded": "TEXT"},
 }

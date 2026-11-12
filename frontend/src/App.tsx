@@ -57,7 +57,7 @@ function RunScreen({ id, advanced }: { id: number; advanced: boolean }) {
   }
   if (!run.data || !health.data) return <RunSkeleton />;
   if (isRunning(run.data)) return <Live run={run.data} />;
-  if (advanced && wide)
+  if (advanced && wide && run.data.path !== "webmcp")
     return (
       <Suspense fallback={<RunSkeleton />}>
         <Advanced run={run.data} runs={runs.data} health={health.data} />

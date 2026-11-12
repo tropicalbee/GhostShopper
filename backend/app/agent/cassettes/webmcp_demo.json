@@ -1,0 +1,15 @@
+{
+  "recorded_from": "hand-written (mock LLM, WebMCP path)",
+  "responses": [
+    {"role": "assistant", "content": "Search the store's tools for the mug.",
+     "tool_calls": [{"id": "call_01", "type": "function", "function": {"name": "shopping__searchProducts", "arguments": "{\"query\": \"Speckled Stoneware Mug\"}"}}]},
+    {"role": "assistant", "content": "Read the product to confirm the price.",
+     "tool_calls": [{"id": "call_02", "type": "function", "function": {"name": "shopping__getProduct", "arguments": "{\"product_id\": \"FH-MUG-01\"}"}}]},
+    {"role": "assistant", "content": "Start checkout; the buyer approves at PayPal.",
+     "tool_calls": [{"id": "call_03", "type": "function", "function": {"name": "shopping__initiateCheckout", "arguments": "{\"product_id\": \"FH-MUG-01\", \"quantity\": 1, \"requires_user_approval\": true}"}}]},
+    {"role": "assistant", "content": "The buyer approved, so complete the checkout.",
+     "tool_calls": [{"id": "call_04", "type": "function", "function": {"name": "shopping__completeCheckout", "arguments": "{}"}}]},
+    {"role": "assistant", "content": "Done.",
+     "tool_calls": [{"id": "call_05", "type": "function", "function": {"name": "finish", "arguments": "{\"outcome\": \"purchased\", \"summary\": \"Bought one Speckled Stoneware Mug through the store's WebMCP tools.\", \"price\": \"24.00\", \"order\": \"see completeCheckout result\"}"}}]}
+  ]
+}

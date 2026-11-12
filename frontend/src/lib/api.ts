@@ -6,6 +6,7 @@ export type Health = {
   paypal_configured: boolean;
   paypal_mode: "mock" | "sandbox";
   llm_configured: boolean;
+  vision_available?: boolean;
   demo_admin_open: boolean;
   retention_days: number;
   real_checkout_available: boolean; // a run may pay with the real PayPal sandbox (needs keys and a Kernel browser)
@@ -115,6 +116,7 @@ export type Trace = {
   links?: TraceLink[];
   first_mismatch: TraceMismatch | null;
   counts: { mismatch: number; unknown: number };
+  price_consistency?: WebMCPReport["price_consistency"] | null; // WebMCP checks on PayPal's showcase, which has no store order to compare
 };
 
 // Shape follows backend/app/agent/injection.py and loop.py (SafetyLog). The shopper never follows them.
@@ -197,6 +199,43 @@ export type ProductFeed = {
   source_url: string | null;
 };
 
+export type WebMCPTool = { name: string; description: string; read_only: boolean; input_schema: { properties?: Record<string, unknown> } };
+
+// Deterministic checklist of how the store's WebMCP tools worked in one check (backend/app/webmcp/checks.py). Not a score.
+export type ToolCheck = { key: string; label: string; status: "pass" | "fail" | "not_tested"; evidence: string };
+
+// Shape follows backend/app/webmcp/shopper.py (the run's `webmcp` JSON). null on browser-agent checks.
+export type WebMCPReport = {
+  discovery: { source: string | null; tools: WebMCPTool[]; paypal_sdk_v6: boolean; webmcp_script: boolean; context: Record<string, unknown> | null } | null;
+  tool_calls: { step: number; tool: string; ok: boolean; duration_ms: number; via?: string; invocation_id?: string; status?: string }[];
+  llm_turns: number;
+  handoff: { approved: boolean; approved_by: string | null; problem: string | null; approval_url_host?: string; cart_id?: string | null } | null;
+  completion: { status?: string; order_id?: string; capture_id?: string | null; amount?: { value: string; currency_code: string } | null } | null;
+  price_consistency: { unit_prices: Record<string, string | null>; consistent: boolean | null; quantity: number };
+  external_demo: boolean;
+  label: string | null;
+  tool_checks?: ToolCheck[];
+};
+
+export type PathSide = {
+  run_id: number;
+  path: "browser" | "webmcp";
+  outcome: string | null;
+  steps: number;
+  agent_steps: number;
+  llm_turns: number | null; // the browser path does not record its turns
+  tool_calls: Record<string, number>;
+  duration_s: number | null;
+  product: { target: string; bought: string | null };
+  price: { catalog: string | null; captured: string | null };
+  handoff: string;
+  final: { trace_overall: string; first_mismatch: { stage: string; field: string; actual: string } | null; store_order_status: string | null; links_ok: number; links_total: number };
+  tool_checks: ToolCheck[] | null;
+  score: number | null; // the readiness score rates the page path only
+};
+
+export type PathCompare = { browser: PathSide; webmcp: PathSide; verdict: string; warnings: string[] };
+
 export type Run = {
   id: number;
   status: "running" | "awaiting_human" | "completed" | "error";
@@ -224,6 +263,8 @@ export type Run = {
   product_feed: ProductFeed | null; // null when no product page was read, and on checks made before this existed
   trace: Trace;
   agent_safety: AgentSafety;
+  path: "browser" | "webmcp"; // how the shopper used the store; webmcp checks have no readiness score
+  webmcp: WebMCPReport | null;
   mine: boolean; // started from this browser
   example: boolean; // a shared example check, readable by everyone
 };
@@ -234,6 +275,7 @@ export type RunSummary = {
   status: string;
   outcome: string | null;
   live: number;
+  path: "browser" | "webmcp";
   store_url: string;
   score: number | null;
   score_possible: number | null;
@@ -297,6 +339,8 @@ export const api = {
   },
   run: (id: number) => request<Run>(`/api/runs/${id}`),
   compareFor: (id: number) => request<Compare>(`/api/runs/${id}/compare`),
+  // The other path's latest finished check of the same store; 404 (NO_OTHER_PATH) when there is none.
+  comparePath: (id: number) => request<PathCompare>(`/api/runs/${id}/compare-path`),
   deleteRun: (id: number) => request<null>(`/api/runs/${id}`, { method: "DELETE" }),
   devSummary: (id: number) => request<{ markdown: string }>(`/api/runs/${id}/developer-summary`),
   market: (sku: string) => request<Market>(`/api/market/${sku}`),
@@ -310,8 +354,11 @@ export const api = {
 // on the demo store, the PayPal purchase. A visitor chooses a store link and, optionally, a spending limit.
 // A spending limit only matters where the shopper pays, which is the demo store.
 // realPayment asks for the real PayPal sandbox on the demo store; without it the server's default applies.
-export function startCheck(storeUrl: string | null, budget?: string | null, realPayment?: boolean) {
+// webmcp: the shopper uses the store's WebMCP tools instead of its web pages; "paypal_showcase" is PayPal's own demo store.
+export function startCheck(storeUrl: string | null, budget?: string | null, realPayment?: boolean, webmcp?: { store: "demo" | "paypal_showcase" }, vision?: boolean) {
   return api.start({
+    ...(webmcp ? { path: "webmcp", store: webmcp.store } : {}),
+    ...(vision ? { vision: true } : {}),
     ...(storeUrl ? { store_url: storeUrl } : {}),
     ...(budget ? { budget } : {}),
     ...(realPayment ? { real_payment: true } : {}),

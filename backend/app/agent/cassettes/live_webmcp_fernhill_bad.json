@@ -1,0 +1,75 @@
+{
+  "recorded_from": "nvidia:nvidia/nemotron-3.5-super-vl-120b-a12b",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-6fb5133c-c05b-4493-a00f-6dbd2c864364",
+          "type": "function",
+          "function": {
+            "name": "shopping__searchProducts",
+            "arguments": "{\"query\":\"Speckled Stoneware Mug\",\"max_results\":10}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-2361800d-2a51-493c-94f6-274f77fd907c",
+          "type": "function",
+          "function": {
+            "name": "shopping__getProduct",
+            "arguments": "{\"product_id\":\"FH-MUG-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-8cb33199-ed37-4918-9d78-d561dc6b1efc",
+          "type": "function",
+          "function": {
+            "name": "shopping__initiateCheckout",
+            "arguments": "{\"product_id\":\"FH-MUG-01\",\"quantity\":1,\"requires_user_approval\":true}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-b8ae7bcc-5b43-4e98-9b3d-8dfecf53e64a",
+          "type": "function",
+          "function": {
+            "name": "shopping__completeCheckout",
+            "arguments": "{\"cart_id\":\"1075\",\"token\":\"3W730149V79009730\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-69ad168c-7f29-4a79-ab79-f3cfa5382449",
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "arguments": "{\"outcome\":\"purchased\",\"summary\":\"Purchased one Speckled Stoneware Mug (FH-MUG-01) for $24.00 USD. Buyer approved at PayPal and checkout completed successfully. Order ID: 3W730149V79009730, store order number: 1075.\",\"price\":\"24.00 USD\",\"order\":\"3W730149V79009730\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

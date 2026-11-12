@@ -133,6 +133,10 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _popup_done(popup: Page, done_origin: str | None) -> bool:
+    return popup.is_closed() or (done_origin is not None and _origin(popup.url) == done_origin)
+
+
 async def popup_state(popup: Page) -> str:
     """error | blocker | approve | password | email | unknown_form | loading. Blockers win over every form:
     if PayPal asks for a human check we never try to continue around it."""
@@ -373,23 +377,10 @@ class PayPalCheckout:
         rec.record_check("popup_opened", True, "PayPal window opened from the button click.", evidence)
 
         # 3. Log in and approve; hand over to a human if PayPal asks for a check we must not automate.
-        try:
-            approved_by = await self._login_and_approve(popup, rec, tools)
-        except _Stuck as exc:
-            await self._close(popup)
-            return await self._fail(rec, tools, "payment_approved", "approval_timeout",
-                                    f"Approval did not complete within {t.approval_s:.0f}s (stuck {exc}).",
-                                    {"url": page.url})
-        except _ErrorPage as exc:
-            await self._close(popup)
-            hint = ERROR_PAGE_HINTS.get(exc.issue)
-            return await self._fail(rec, tools, "payment_approved", "paypal_error_page",
-                                    f"PayPal showed its error page ({exc.issue})." + (f" {hint}" if hint else ""),
-                                    {"url": page.url, "issue": exc.issue})
-        if approved_by == "human_timeout":
-            return await self._fail(rec, tools, "payment_approved", "human_approval_timeout",
-                                    f"PayPal asked for a human check and nobody completed it within {t.human_s:.0f}s.",
-                                    {"url": page.url})
+        approved_by, failure = await self.approve_popup(popup, rec, tools)
+        if failure:
+            code, reason, extra = failure
+            return await self._fail(rec, tools, "payment_approved", code, reason, {"url": page.url, **extra})
 
         # 4. The store captures on approval and shows a confirmation, or an error / cancellation.
         result, detail = await self._wait_for_result(page, t.capture_s)
@@ -403,7 +394,27 @@ class PayPalCheckout:
         captured = Decimal(str(order.get("gross_amount") or order.get("amount")))
         return {"limit": f"{budget:.2f}", "captured": f"{captured:.2f}", "within": captured <= budget}
 
-    async def _login_and_approve(self, popup: Page, rec: RunRecorder, tools: PageTools) -> str:
+    async def approve_popup(self, popup: Page, rec: RunRecorder, tools: PageTools,
+                            done_origin: str | None = None) -> tuple[str, tuple[str, str, dict[str, Any]] | None]:
+        """Approve a PayPal window as the sandbox buyer (the pay button's popup, or the one a WebMCP checkout opens).
+        The window is done when it closes or, with done_origin, when it is back on that origin (PayPal's redirect to
+        the merchant's return_url). Returns (approved_by, None), or (approved_by, (failure code, reason, evidence))."""
+        try:
+            approved_by = await self._login_and_approve(popup, rec, tools, done_origin)
+        except _Stuck as exc:
+            await self._close(popup)
+            return "stuck", ("approval_timeout", f"Approval did not complete within {self.timeouts.approval_s:.0f}s (stuck {exc}).", {})
+        except _ErrorPage as exc:
+            await self._close(popup)
+            hint = ERROR_PAGE_HINTS.get(exc.issue)
+            return "error_page", ("paypal_error_page", f"PayPal showed its error page ({exc.issue})." + (f" {hint}" if hint else ""),
+                                  {"issue": exc.issue})
+        if approved_by == "human_timeout":
+            return approved_by, ("human_approval_timeout",
+                                 f"PayPal asked for a human check and nobody completed it within {self.timeouts.human_s:.0f}s.", {})
+        return approved_by, None
+
+    async def _login_and_approve(self, popup: Page, rec: RunRecorder, tools: PageTools, done_origin: str | None = None) -> str:
         """Returns 'agent' | 'human' | 'human_timeout'. Raises _Stuck on approval timeout, _ErrorPage if
         PayPal shows its error page."""
         deadline = time.monotonic() + self.timeouts.approval_s
@@ -411,7 +422,7 @@ class PayPalCheckout:
         state = "loading"
         unknown_since: float | None = None
         while True:
-            if popup.is_closed():
+            if _popup_done(popup, done_origin):
                 return "agent"
             state = await popup_state(popup)
             if state == "error":
@@ -422,11 +433,11 @@ class PayPalCheckout:
                 await self._popup_shot(tools, popup, "paypal-popup-needs-human.png")
                 reason = ("PayPal is asking for a CAPTCHA or extra verification." if state == "blocker"
                           else "PayPal showed a page the agent does not recognize.")
-                return await self._await_human(popup, rec, tools, state, reason)
+                return await self._await_human(popup, rec, tools, state, reason, done_origin)
             if state == "approve":
                 await self._click_first(popup, "approve")
                 # Poll rather than wait for close: PayPal may answer the approval with its error page.
-                while not popup.is_closed():
+                while not _popup_done(popup, done_origin):
                     issue = error_page_issue(popup.url)
                     if issue:
                         raise _ErrorPage(issue)
@@ -454,7 +465,8 @@ class PayPalCheckout:
             except PlaywrightError:
                 return "agent"  # the buyer cancelled and the window closed while waiting
 
-    async def _await_human(self, popup: Page, rec: RunRecorder, tools: PageTools, stage: str, reason: str) -> str:
+    async def _await_human(self, popup: Page, rec: RunRecorder, tools: PageTools, stage: str, reason: str,
+                           done_origin: str | None = None) -> str:
         if self.timeouts.human_s <= 0:  # no human can be reached: fail the step now (a 0 timeout would mean wait forever)
             await self._close(popup)
             return "human_timeout"
@@ -474,7 +486,13 @@ class PayPalCheckout:
                     self._hook_tasks.add(task)
                     task.add_done_callback(self._hook_tasks.discard)
             try:
-                if not popup.is_closed():
+                if done_origin is not None:
+                    deadline = time.monotonic() + self.timeouts.human_s
+                    while not _popup_done(popup, done_origin):
+                        if time.monotonic() > deadline:
+                            raise PlaywrightTimeout("human approval timed out")
+                        await popup.wait_for_timeout(250)
+                elif not popup.is_closed():
                     await popup.wait_for_event("close", timeout=self.timeouts.human_s * 1000)
             except PlaywrightTimeout:
                 await self._close(popup)

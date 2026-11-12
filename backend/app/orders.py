@@ -106,8 +106,10 @@ async def _read_back_order(paypal: PayPalClient, db_path, order_id: str) -> None
         log.warning("could not read PayPal order %s back: %s", order_id, getattr(exc, "name", type(exc).__name__))
 
 
-@router.post("/orders", status_code=201)
-async def create_order(body: BrowserOrderRequest, request: Request, paypal: PayPalClient = Depends(get_paypal)):
+async def place_order(body: BrowserOrderRequest, request: Request, paypal: PayPalClient,
+                      payment_source: dict[str, Any] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Open the store's order and PayPal's, linked by custom_id. The browser checkout and the WebMCP checkout both
+    come through here. Returns PayPal's create response and the summary the checkout page gets."""
     rate_limit(request, "api_limiter", "orders", charge_cap=False)  # each call creates a PayPal sandbox order
     product, unit, flaws = _purchase_unit_for(body, request)
     charge_daily_cap(request, "orders")  # after validation: a bad sku must not spend the shared daily budget
@@ -119,7 +121,7 @@ async def create_order(body: BrowserOrderRequest, request: Request, paypal: PayP
                              currency=product.currency, retry_of=body.store_order, flaws=flaws)
     unit["custom_id"] = str(store_order["number"])
     try:
-        order = await paypal.create_order(unit)
+        order = await paypal.create_order(unit, **({"payment_source": payment_source} if payment_source else {}))
     except PayPalError as exc:
         failure = _paypal_http_error(exc)
         failure.detail["store_order"] = store_order["number"]  # stays awaiting payment: nothing was charged
@@ -135,8 +137,13 @@ async def create_order(body: BrowserOrderRequest, request: Request, paypal: PayP
         status=order["status"],
     )
     store.attach_paypal(store_order["number"], order["id"])
-    return {"id": order["id"], "status": order["status"], "amount": unit["amount"]["value"],
-            "currency": product.currency, "store_order": store_order["number"]}
+    return order, {"id": order["id"], "status": order["status"], "amount": unit["amount"]["value"],
+                   "currency": product.currency, "store_order": store_order["number"]}
+
+
+@router.post("/orders", status_code=201)
+async def create_order(body: BrowserOrderRequest, request: Request, paypal: PayPalClient = Depends(get_paypal)):
+    return (await place_order(body, request, paypal))[1]
 
 
 class AgentOrderRequest(CreateOrderRequest):

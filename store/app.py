@@ -234,6 +234,11 @@ def create_store_app(*, db_path: Path, paypal_client_id: str, paypal_sdk_url: st
         return render(request, "order.html", placed=placed, product=catalog.get_by_sku(placed["sku"]),
                       status_label=STATUS_LABELS[placed["status"]])
 
+    @app.get("/webmcp/return", response_class=HTMLResponse)
+    def webmcp_return(request: Request, cancelled: bool = False):
+        """Where PayPal sends the buyer's approval window after a WebMCP checkout."""
+        return render(request, "webmcp_return.html", cancelled=cancelled)
+
     @app.get("/newsletter", response_class=HTMLResponse)
     def newsletter(request: Request):
         return render(request, "newsletter.html")

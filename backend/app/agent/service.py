@@ -10,11 +10,12 @@ import httpx
 
 from store.flaws import CLASSIC_FLAWS, FLAW_KEYS
 
-from ..config import sandbox_buyer
+from ..config import sandbox_buyer, vision_model
+from ..webmcp.tools import PAYPAL_SHOWCASE_URL
 from .browser import BrowserConfigError, resolve_provider
 from .llm import CASSETTE_DIR, LLMConfigError, close_llm, make_llm
 from .loop import DEFAULT_TARGET, PaymentHandler, RunConfig, run_shopper
-from .site import SiteError, Target, preflight
+from .site import SiteError, Target, origin_of, preflight
 
 FlawMode = Literal["on", "off", "keep"]
 
@@ -39,6 +40,9 @@ class RunRequest:
     browser: str | None = None  # local | kernel; None = BROWSER_PROVIDER (default local)
     budget: str | None = None  # spending limit in USD, e.g. "30.00"; None = no limit. See parse_budget.
     human_wait: bool = True  # False: a PayPal human check fails the run at once (nobody can reach its browser)
+    path: Literal["browser", "webmcp"] = "browser"  # webmcp: the shopper uses the page's WebMCP tools (webmcp/shopper.py)
+    store: Literal["demo", "paypal_showcase"] = "demo"  # webmcp only: PayPal's own showcase is an external demo
+    vision: bool = False  # browser path: the shopper may look at pages (look_at_page); needs VISION_MODEL
 
 
 MAX_BUDGET = Decimal("10000")
@@ -144,6 +148,8 @@ def build_payment(req: RunRequest, store_url: str, server: ServerInfo | None = N
 
 async def resolve_target(req: RunRequest, app_base_url: str) -> Target:
     """Which store this run visits. A pasted link gets a polite preflight with a friendly error."""
+    if req.path == "webmcp" and req.store == "paypal_showcase":
+        return Target(PAYPAL_SHOWCASE_URL, origin_of(PAYPAL_SHOWCASE_URL), False)
     if not req.store_url:
         return Target(f"{app_base_url}/store/", f"{app_base_url}", True)
     try:
@@ -159,6 +165,15 @@ async def resolve_target(req: RunRequest, app_base_url: str) -> Target:
 def prepare(req: RunRequest, store_url: str, db_path: Path, server: ServerInfo | None = None,
             on_awaiting_human: Callable | None = None, live: bool = False):
     """Validate everything that can fail before a run row exists. Raises RunConfigError."""
+    if req.vision and req.path == "webmcp":
+        raise RunConfigError("Vision is for the browser shopper; the WebMCP shopper has no page to look at.")
+    if req.vision and not vision_model():
+        raise RunConfigError("The shopper can only see images when VISION_MODEL is set on the server "
+                             "(a vision model id on the same provider as LLM_MODEL).")
+    if req.path == "webmcp":
+        from ..webmcp.service import prepare_webmcp
+
+        return prepare_webmcp(req, store_url, server, on_awaiting_human)
     if live and req.checkout:
         raise RunConfigError("Purchases only run on the GhostShopper demo store.")
     if live and req.llm == "mock":
@@ -198,6 +213,10 @@ async def execute(
     owner_hash: str | None = None,
     runs_dir: Path | None = None,
 ) -> int:
+    if req.path == "webmcp":
+        from ..webmcp.service import execute_webmcp
+
+        return await execute_webmcp(req, store_url, db_path, on_start, server, on_awaiting_human, owner_hash, runs_dir)
     llm, payment = prepare(req, store_url, db_path, server, on_awaiting_human, live=live)
     flaws = None if live else await apply_flaws(store_url, req.flaws)
     cfg = RunConfig(
@@ -214,6 +233,7 @@ async def execute(
         browser=req.browser,
         owner_hash=owner_hash,
         budget=parse_budget(req.budget) if req.checkout else None,
+        vision=req.vision,
         **({"runs_dir": runs_dir} if runs_dir else {}),
     )
     try:

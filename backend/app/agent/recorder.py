@@ -76,16 +76,17 @@ class RunRecorder:
         live: bool = False,
         owner_hash: str | None = None,  # the browser that started it; None = shared example (CLI, seed)
         budget: str | None = None,  # spending limit in USD, e.g. "30.00"
+        path: str = "browser",  # browser | webmcp
     ) -> "RunRecorder":
         db.init_db(db_path)
         redact = Redactor(secrets)
         with db.connect(db_path) as conn:
             cur = conn.execute(
                 "INSERT INTO runs (started_at, status, browser, store_url, goal, target_product, checkout,"
-                " paypal_mode, flaws_snapshot, llm, model, live, owner_hash, budget)"
-                " VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " paypal_mode, flaws_snapshot, llm, model, live, owner_hash, budget, path)"
+                " VALUES (?, 'running', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (_now(), browser, store_url, redact(goal), target_product or "", int(checkout), paypal_mode,
-                 json.dumps(flaws) if flaws is not None else None, llm, model, int(live), owner_hash, budget),
+                 json.dumps(flaws) if flaws is not None else None, llm, model, int(live), owner_hash, budget, path),
             )
             run_id = cur.lastrowid
         return cls(db_path, run_id, redact)
@@ -186,6 +187,10 @@ class RunRecorder:
         with db.connect(self.db_path) as conn:
             conn.execute("UPDATE runs SET agent_safety = ? WHERE id = ?",
                          (self._redact.json(findings) if findings else None, self.run_id))
+
+    def set_webmcp(self, report: dict[str, Any]) -> None:
+        with db.connect(self.db_path) as conn:
+            conn.execute("UPDATE runs SET webmcp = ? WHERE id = ?", (self._redact.json(report), self.run_id))
 
     def set_awaiting(self, info: dict[str, Any] | None) -> None:
         """Pause marker for human approval; None resumes the run."""
@@ -300,7 +305,7 @@ def _build_run(db_path: Path, run_id: int) -> dict[str, Any] | None:
         checks = conn.execute("SELECT * FROM checks WHERE run_id = ? ORDER BY id", (run_id,)).fetchall()
         score = conn.execute("SELECT * FROM scores WHERE run_id = ?", (run_id,)).fetchone()
     out = dict(run)
-    for key in ("flaws_snapshot", "agent_report", "awaiting", "platform_evidence", "paypal_readiness"):
+    for key in ("flaws_snapshot", "agent_report", "awaiting", "platform_evidence", "paypal_readiness", "webmcp"):
         out[key] = _loads(out.get(key))
     # The guards in loop.py and browser.py refuse every action an injected instruction could ask for, so `followed`
     # is false by construction; the findings are what the shopper met.
@@ -335,7 +340,7 @@ def list_runs(db_path: Path, limit: int = 50, visible_to: str | None = None,
     with db.connect(db_path) as conn:
         rows = conn.execute(
             "SELECT r.id, r.started_at, r.finished_at, r.status, r.outcome, r.end_reason, r.llm, r.browser, r.live,"
-            " r.store_url, r.platform,"
+            " r.store_url, r.platform, r.path,"
             " r.checkout, r.paypal_mode, r.flaws_snapshot, r.step_count, r.order_id, s.total AS score,"
             " s.possible AS score_possible, r.owner_hash"
             f" FROM runs r LEFT JOIN scores s ON s.run_id = r.id{where} ORDER BY r.id DESC LIMIT ?",

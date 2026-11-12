@@ -1,0 +1,75 @@
+{
+  "recorded_from": "nvidia:nvidia/nemotron-3.5-super-vl-120b-a12b",
+  "responses": [
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-3e61b074-3d05-49d3-9416-27dfe0f95013",
+          "type": "function",
+          "function": {
+            "name": "shopping__searchProducts",
+            "arguments": "{\"query\":\"gift card\",\"max_results\":20}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-89530b79-f45b-4210-8269-11e8db05b97d",
+          "type": "function",
+          "function": {
+            "name": "shopping__getProduct",
+            "arguments": "{\"product_id\":\"454003717558758613_7e5c38be501851add604e15de1d5628e_2dfe397cdb57a72433d856f2c0db9685\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "The search returned two products: Nordstrom ($150.00) and Starbucks Gift Card ($25.00). The cheapest is the Starbucks Gift Card at $25.00 USD. I've read its details. Now I'll start checkout for one unit.\n",
+      "tool_calls": [
+        {
+          "id": "call-454536a3-06dd-483c-ae43-379c397bf854",
+          "type": "function",
+          "function": {
+            "name": "shopping__initiateCheckout",
+            "arguments": "{\"product_id\":\"454003717558758613_7e5c38be501851add604e15de1d5628e_2dfe397cdb57a72433d856f2c0db9685\",\"quantity\":1,\"requires_user_approval\":true}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "The buyer has approved the PayPal checkout. Now I'll complete the purchase.\n",
+      "tool_calls": [
+        {
+          "id": "call-54ae57b9-a84a-4213-9495-687af5fcb3a5",
+          "type": "function",
+          "function": {
+            "name": "shopping__completeCheckout",
+            "arguments": "{\"cart_id\":\"cart_02fdc994bdbd4f9b8106e8ff\",\"token\":\"7V301708TJ983173T\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call-740240ea-716d-418b-9ee9-154b2ee1e402",
+          "type": "function",
+          "function": {
+            "name": "finish",
+            "arguments": "{\"outcome\":\"purchased\",\"summary\":\"Purchased one Starbucks Gift Card ($25.00 USD) from the PayPal Digital Gifts store. The product was found via search (cheapest match among two results), its price was read as $25.00, checkout was initiated with buyer approval, and the PayPal checkout completed successfully with status COMPLETED. Cart ID: cart_02fdc994bdbd4f9b8106e8ff; order token: 7V301708TJ983173T.\",\"price\":\"25.00 USD\",\"order\":\"cart_02fdc994bdbd4f9b8106e8ff\"}"
+          }
+        }
+      ]
+    }
+  ]
+}

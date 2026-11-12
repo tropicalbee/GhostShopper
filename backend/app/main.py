@@ -15,7 +15,8 @@ from store.app import create_store_app
 from . import db
 from .agent.llm import live_llm_configured
 from .agent.service import real_checkout_missing
-from .config import PAYPAL_MODES, PAYPAL_SDK_URL, Settings, get_settings
+from .catalog_readiness import router as catalog_router
+from .config import PAYPAL_MODES, PAYPAL_SDK_URL, Settings, get_settings, vision_model
 from .examples import load_examples
 from .ledger import router as ledger_router
 from .market import MarketError, market_check
@@ -27,6 +28,7 @@ from .ratelimit import RateLimiter, client_ip, rate_limit
 from .runs import presenter_unlocked
 from .runs import router as runs_router
 from .scoring import CHECKS, RULES_VERSION, STAGES
+from .webmcp.rpc import router as webmcp_router
 
 log = logging.getLogger(__name__)
 
@@ -121,6 +123,8 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
     app.include_router(orders_router)
     app.include_router(runs_router)
     app.include_router(ledger_router)
+    app.include_router(catalog_router)
+    app.include_router(webmcp_router)  # before the /store mount below, which would otherwise answer /store/webmcp/rpc
     app.include_router(mock_router(clients["mock"]))
 
     @app.get("/api/health")
@@ -136,6 +140,7 @@ def create_app(settings: Settings | None = None, paypal: PayPalClient | FakePayP
             "real_checkout_missing": real_missing,
             "presenter_unlocked": presenter_unlocked(request),  # this browser may change the store's flaws
             "llm_configured": live_llm_configured(),
+            "vision_available": live_llm_configured() and bool(vision_model()),  # the shopper can be given eyes
             "demo_admin_open": settings.dev_options,
             "retention_days": settings.retention_days,
         }

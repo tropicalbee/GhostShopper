@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
@@ -79,10 +80,18 @@ class FakePayPalClient:
     async def aclose(self) -> None:
         pass
 
-    async def create_order(self, purchase_unit: dict[str, Any]) -> dict[str, Any]:
+    async def create_order(self, purchase_unit: dict[str, Any], payment_source: dict[str, Any] | None = None) -> dict[str, Any]:
         order_id = "MOCK" + uuid.uuid4().hex[:13].upper()
         self.orders[order_id] = {"purchase_unit": purchase_unit, "status": "CREATED"}
-        return {"id": order_id, "status": "CREATED"}
+        if payment_source is None:
+            return {"id": order_id, "status": "CREATED"}
+        # Like PayPal with payment_source.paypal.experience_context: the buyer approves at a payer-action link, which
+        # sends them back to return_url (or cancel_url).
+        context = payment_source["paypal"]["experience_context"]
+        self.orders[order_id]["experience_context"] = context
+        origin = "{0.scheme}://{0.netloc}".format(urlparse(context["return_url"]))
+        return {"id": order_id, "status": "PAYER_ACTION_REQUIRED", "links": [
+            {"rel": "payer-action", "method": "GET", "href": f"{origin}/mock-paypal/checkout?token={order_id}"}]}
 
     async def create_setup_token(self, return_url: str, cancel_url: str) -> dict[str, Any]:
         token = "MOCKSETUP" + uuid.uuid4().hex[:10].upper()
@@ -348,8 +357,19 @@ button{{width:100%;padding:12px;margin-top:8px;border:0;border-radius:20px;backg
 <script>
   var orderId = {order_id_json};
   var scenario = {scenario_json};
+  var returnUrls = {return_urls_json};
   function show(id) {{ document.querySelectorAll('.step').forEach(function (s) {{ s.classList.toggle('on', s.id === id); }}); }}
-  function send(action) {{ window.opener.postMessage({{type: 'mock-paypal', action: action, orderId: orderId}}, location.origin); window.close(); }}
+  function send(action) {{
+    var target = returnUrls && (action === 'approve' ? returnUrls.return_url : returnUrls.cancel_url);
+    if (target) {{
+      var u = new URL(target);
+      u.searchParams.set('token', orderId);
+      if (action === 'approve') u.searchParams.set('PayerID', 'MOCKPAYER');
+      location.href = u.href;
+      return;
+    }}
+    window.opener.postMessage({{type: 'mock-paypal', action: action, orderId: orderId}}, location.origin); window.close();
+  }}
   show(scenario === 'captcha' ? 'step-captcha' : 'step-email');
   document.getElementById('captchaContinue').onclick = function () {{ if (document.getElementById('captchaCheck').checked) show('step-email'); }};
   document.getElementById('btnNext').onclick = function () {{ if (document.getElementById('email').value.trim()) show('step-password'); }};
@@ -392,7 +412,8 @@ def mock_router(fake: FakePayPalClient) -> APIRouter:
             action = '<button id="payment-submit-btn" type="button">Complete Purchase</button>'
         return POPUP_HTML.format(amount=html.escape(amount["value"]), currency=html.escape(amount["currency_code"]),
                                  review_action=action, order_id_json=json.dumps(token),
-                                 scenario_json=json.dumps(fake.scenario), error_code=SELLER_LOGIN_ERROR_CODE)
+                                 scenario_json=json.dumps(fake.scenario), error_code=SELLER_LOGIN_ERROR_CODE,
+                                 return_urls_json=json.dumps(order.get("experience_context")))
 
     @router.get("/checkoutweb/genericError", response_class=HTMLResponse)
     def error_page():
