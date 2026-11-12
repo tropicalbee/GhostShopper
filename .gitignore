@@ -29,6 +29,7 @@ runs/
 .impeccable/hook.cache.json
 
 # Editors / OS
+.claude/
 .vscode/
 .idea/
 .DS_Store
