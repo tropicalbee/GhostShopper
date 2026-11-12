@@ -80,9 +80,9 @@ In live run 50 the shopper paid $24.00 through the Vault and PayPal captured it,
 
 ## See it
 
-The demo video tells the run 50 and 51 story above. These three screenshots are from the earlier live runs 31 and 34 (2026-11-11), on the demo store Fernhill Ceramics.
+The demo video tells the run 50 and 51 story above. The last two screenshots are from the live runs 31 and 34 (2026-11-11) on the demo store Fernhill Ceramics. The first is a practice check (mock PayPal, 2026-11-10) that failed the same five checks and scored the same 49/100.
 
-**Before: the flawed store scores 49/100 (run 31).** Each lost point names the fix.
+**Before: the flawed store scores 49/100.** Each lost point names the fix.
 
 <img src="docs/screenshots/2026-11-11/bad-store-score-49.png" alt="Readiness score 49 out of 100 with the failed checks and their fixes, next to the PayPal money panel" width="720">
 
