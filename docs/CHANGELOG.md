@@ -2,6 +2,11 @@
 
 Everything below was built during the PayPal AI Hackathon 2026.
 
+## 2026-11-12 (video v2)
+- Recorder: `--bad-flaws`, new read-only tour and live safety recorders.
+- Three new live Sandbox runs for the video (50, 51, 52) and a new 2:54 demo video cut to the voice.
+
+
 ## 2026-11-05 (Day 1)
 - Project scaffold: FastAPI backend, React + Vite + TS frontend, demo store, MIT license, env template.
 - Demo store "Fernhill Ceramics" with 4 products and 4 switchable flaws: price only in an image, missing structured data, ambiguous buy buttons, an extra checkout step.

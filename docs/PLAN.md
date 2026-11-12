@@ -109,6 +109,6 @@ Deadline Nov 12, 12:00pm PT. We aim to submit on Nov 11.
 
 ## D7 (Nov 11): video and submit
 - [x] docs/VIDEO_SCRIPT.md (3 minutes) and seed command for the demo state
-- [ ] Record the demo video (under 3 minutes)
+- [x] Record the demo video (under 3 minutes): v2, 2:54, live runs 50, 51 and 52
 - [ ] Devpost description, with the built-during-the-hackathon section from CHANGELOG.md
 - [ ] Submit

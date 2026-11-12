@@ -1,43 +1,52 @@
-# Video script (about 2:45, AI voiceover, screen only)
+# Video script v3 (2:50 to 2:55)
 
-Style: a YC product demo. The problem in one breath, then the real product on screen, then the result. No face, quiet music under the voice, no third-party store or brand other than the sponsors. Every number below comes from the video take of Nov 11: run 47 (bad store, 18) and run 48 (fixed store, 100), both on NVIDIA Nemotron 3.5 Lightning with real PayPal Sandbox calls. Runs 31 and 34 in METRICS.md tell the older 49 to 100 story on the 120B model.
+The story is the payment. PayPal says the money arrived, the store says it's still waiting, and GhostShopper finds out why. The agent struggling with the store is the setup.
 
-Voice: Mako in Google AI Studio, recorded as one file (`demo-video/live/voice/Generated Audio November 12, 2026 - 2_56AM.wav`) and cut into `row01` to `row11` on word timestamps. The ending below is the user's recorded wording. Paste the voiceover text as it is. The tags in angle brackets are Mako expressions; leave them in for AI Studio and strip them for the Kokoro backup.
+Style: calm and plain. Real footage only, no captions. A few motion pieces in GhostShopper's own style (never PayPal's look): the opening cards, the five-station tracker and the end card. A soft ambient pad, made for this video, drops out on the reveal. The "I'm Shibangi" line comes at the end.
 
-The edit lives in `video/` (Remotion). Rows run longer when their clip needs more time, so a timing fix only means a new clip.
+Voice: Kokoro "Heart" (open model from Hugging Face), one file, timed per line. Shibangi can record over the same lines later.
+
+## Footage (all live: PayPal Sandbox, real LLM calls, vault payment)
+
+| Run | Store | Result |
+|---|---|---|
+| 50 | price as image, no product data, never marks paid | purchased, 65/100, PayPal capture COMPLETED $24.00 (fee $1.33, net $22.67), store order #1071 still "Awaiting payment", first mismatch at the store order, 4 of 4 ID links ok |
+| 51 | every flaw off | purchased, 100/100, store order #1072 Paid, 4 of 4 ID links ok |
+| 52 | hidden instructions for AI agents | purchased at $24.00, the hidden line flagged "Hidden from people", the shopper didn't follow it |
+
+Plus a read-only tour of the landing page, the New check page and the demo store.
 
 ## Script
 
-| Time | On screen | Voiceover |
+| # | On screen | Voiceover |
 |---|---|---|
-| 0:00-0:08 | The Fernhill Ceramics product page, the camera eases in on the price. | "This mug costs twenty-four dollars. A person can buy it in about twenty seconds. Can an AI agent?" |
-| 0:08-0:18 | The GhostShopper live view starts: the agent's browser and its step feed. | "Here's an AI shopping agent on the same store. It reads the page the way an agent does, and it decides every click itself." |
-| 0:18-0:30 | The agent sped up, going round in circles between the mug, another product and the newsletter page. | "The price is a picture, so it can't read it. It clicks Continue and lands on a different product. Proceed opens a newsletter. The real buy button just says Go. <breath> After twenty-five steps, it gives up." |
-| 0:30-0:52 | The landing page with the PayPal benchmark caption, the title card, then a card with two questions: "Can an AI agent buy from your store?" and "Does the payment match the order?" | "AI agents are starting to shop for people. On PayPal's own test storefront, structured tools let an agent buy in three calls instead of thirty-plus page steps. Most small stores don't have those tools, so agents use the page. And reaching checkout is only half the job. The payment also has to match the merchant's order. GhostShopper tests both." |
-| 0:52-1:15 | Results of the bad store: score 18, then the AG Grid failures table, labelled in a caption. | "Eighteen out of a hundred. In this run the agent never reached checkout, so nothing was paid. The score comes from code that checks each page. The AI never grades itself. Every failure lands in an AG Grid table, ranked by points, with what the agent saw, the fix for the merchant, and a screenshot." |
-| 1:15-1:25 | The fix list, ordered by points. | "Fixes are ranked by how much they're worth. Put the price in text. Add product data and stock status. Use one clear Buy button." |
-| 1:25-1:35 | `/store/admin`: untick the four flaws, save. | "The merchant applies the fixes." |
-| 1:35-2:00 | The rerun, sped up: product page, Buy now, checkout, paid. | "Same agent, same rules. Eleven steps. It finds the mug, reads the price, and pays with the buyer's saved PayPal account. Real Orders API calls in the PayPal Sandbox, with no popup and no password." |
-| 2:00-2:25 | The purchase trace, then the ID links. | "<breath> But a captured payment doesn't prove the order is right. A store can take the money and still show the order as pending, or charge twice on a retry. GhostShopper links the store order, the PayPal order and the capture by their IDs, and checks that they agree. All four links match. Twenty-four dollars captured, twenty-two sixty-seven net." |
-| 2:25-2:35 | Score card counting 18 up to 100, then a pass over the market check. | "Eighteen to a hundred, and the payment matches the order. Channel3 adds market context." |
-| 2:35-2:47 | End card: tagline, hosted URL, GitHub, built with, and a thank-you to PayPal for the hackathon. | "From finding the product to verifying the payment, GhostShopper shows merchants where AI shopping works and where it breaks. GhostShopper: see your store through an AI shopper's eyes. Thank you, PayPal, for this opportunity." |
+| 1 Hook | Two cards on black: "PayPal capture: COMPLETED, $24.00" and "Store order #1071: Awaiting payment". | "The money arrived. So why does the store still say it's waiting?" |
+| 2 Mystery | Run 50 live view, sped up, zoomed on the agent's browser and the receipt printing beside it: home, the product page, checkout with the PayPal button, order #1071. | "An AI shopping agent just bought a mug from this small store. The price was a picture, so it couldn't read it. There was no product data. It still found checkout, and paid with a saved PayPal account. So... did the sale go through?" |
+| 3 Reveal | The five-stage tracker in the trace's real order: 01 Agent wanted, 02 Store order, 03 PayPal order, 04 PayPal capture, 05 Store says. The $24 dot lights each one, because every record exists. 03 and 04 show COMPLETED. The camera moves to 02, whose status turns to "Awaiting payment" with FIRST MISMATCH. Hard cut to run 50's results, the real "Awaiting payment" cell and the first mismatch row. Music out, a held silence. | "GhostShopper follows the money, through five records of the same purchase. What the agent wanted. The store's order. PayPal's order. PayPal's capture. And what the store says afterwards. PayPal's side is clean. Twenty-four dollars, captured. Now look at the status on the store's own order. It still says... awaiting payment. The order may never ship. And the buyer may pay twice." |
+| 4 Why it matters | Landing hero, then the "Then it follows the money" section. | "This is the problem we built for. AI agents are starting to shop on people's behalf. But when they pay, the merchant's order still needs to reflect that payment. And a small merchant can't see what an agent sees. A broken page loses the sale. A broken order record is worse. The money moves, and nobody notices." |
+| 5 How it works | New check page with the flaw switches, run 50's step feed, the landing's step-by-step section, the Advanced view's AG Grid failures table, the 65/100 score, the summary strip (Paid with Mismatch next to Readiness 65), then "What to fix first". | "GhostShopper is a mystery shopper for the AI era. Pick a store, switch on real problems, and watch a real tool-calling AI agent shop it, click by click. It supports OpenAI-compatible model endpoints. After every step, code checks what the browser saw, so the AI never grades itself. Every failure lands in an AG Grid table, with a screenshot and the fix. This store scored sixty-five out of a hundred. Payment-state mismatches are reported separately from the readiness score. Fixes come ranked by points, in plain words, with a screenshot of what the shopper saw." |
+| 6 Payment safety | New check page: payment and the spending limit field. | "The agent pays with a saved PayPal account, through the Vault. The payment token never reaches the model, and an optional spending limit is checked before PayPal is called." |
+| 7 Resolution | Store admin, the flaws switched off. Run 51 sped up: price readable, checkout, order #1072. The four "Linked" rows, the Money panel ($24.00, fee -$1.33, you keep $22.67, PayPal sandbox), then before and after 65 to 100. | "The merchant makes the fixes, and runs the same agent again. This time it reads the price, pays through PayPal's Orders API in the sandbox, and the five-stage trace shows no mismatches. All four ID links match. Twenty-four dollars captured. Twenty-two sixty-seven kept, after PayPal's fee. Sixty-five, to a hundred. These results come from two live runs, in PayPal's sandbox." |
+| 8 It also guards the agent | Run 52 live, then its results: the "Instructions aimed at AI shoppers" panel ("Hidden from people", "did not follow"). Then the landing's "What it catches" grid. | "It also guards the agent. In another live run, the store hid a message for AI agents inside a review, asking for the customer's email. GhostShopper flagged it, and the agent ignored it, and paid the normal price. The trace also checks for an order marked paid after a declined payment, a thank-you page after a cancel, and a second order on a retry." |
+| 9 Where it runs | The landing's closing call to action and the footer's "Built with" list. | "Run it locally with Playwright, or use Kernel's cloud browser on the hosted Render demo. Channel3 adds market context. And it's all open source." |
+| 10 Identity | End card: logo, GhostShopper, the tagline, ghostshopper.onrender.com, github.com/tropicalbee/GhostShopper, built with PayPal Orders v2, JS SDK v6, Vault, AG Grid, Kernel, Channel3, Render. | "I'm Shibangi, and I built GhostShopper, so small merchants can see their store through an AI shopper's eyes, before an agent tries to buy. Thank you, PayPal." |
 
-## What each section earns
+## Checked against the code and the runs
 
-- 0:00 to 0:30 shows the problem on screen before any explanation (Presentation, Potential Impact).
-- 0:30 to 0:52 states the PayPal problem early: an agent purchase has two halves, buying and a payment that matches the order. The benchmark is PayPal's own small test, quoted as that and not as a general result. GhostShopper does not test WebMCP, so the video doesn't show or imply it.
-- 0:52 to 1:25 shows the AI and the deterministic checks (Technological Implementation, Design).
-- 1:35 to 2:25 is the agent paying with a saved PayPal account and the ID checks behind it (Innovation, Best Use of PayPal + AI).
-- The AG Grid table, Channel3, Kernel and Render each appear once, so the sponsor prizes can see them.
+- The first mismatch is at the store order (`backend/app/trace.py:333-340`), and "may never ship, and the buyer may pay twice" is the trace's own wording (`trace.py:63`).
+- The mismatch doesn't cost score points. Run 50's 65 comes from the price (12), product data (12) and stock (4) checks.
+- The vault token never reaches the model, and the spending limit is checked by the store's endpoint before PayPal is called (`backend/app/agent/vault_flow.py`).
+- Hidden instructions: `agent/injection.py` scans hidden text, and run 52's safety report lists the finding with `hidden: true`.
+- Declined then paid, success after cancel and duplicate on retry are detected by the trace (`store/flaws.py` PURCHASE_FLAWS, `backend/tests/test_trace_matrix.py`). They're tested against mock PayPal only, so the video names them without numbers and without footage that pretends to be live.
+- Any OpenAI-compatible model works through `LLM_PROVIDER`. The takes used NVIDIA Nemotron, as METRICS.md records.
 
-## Making the video
+## What the video doesn't claim
 
-1. Server: `PAYPAL_MODE=mock LLM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b .venv\Scripts\python -m uvicorn backend.app.main:app --port 8000`. The vault payment needs a saved sandbox buyer once (`python -m backend.app.vault setup`, then `finish`).
-2. Take: `.venv\Scripts\python scripts\video\record_demo.py --mode live --out demo-video\live`. It writes `raw-demo.mp4` and `markers.json` (scenes and zoom targets).
-3. Voice: clips go in `demo-video\live\voice\row01.wav` to `row11.wav` (mp3 or m4a work too). Music goes in `demo-video\live\music.mp3`.
-4. Preview with `cd video && npm run studio`, render with `npm run render`. The mp4 lands in `video\out\`.
-5. Upload to YouTube as Public at least 2 hours before the deadline (12:00 PT, Nov 12). Paste the link into the README `<!-- VIDEO_URL -->` marker and the Devpost form.
+No WebMCP, Agent Ready, ACP or UCP. No real merchants or revenue. No benchmark numbers.
 
-## Backup
+## Making it
 
-`npm run studio:dry` previews the edit on the mock take in `demo-video\dry-run`. If a live take fails on the day, the mock take renders the same way; say in the voiceover that the payment is the practice PayPal, and leave the sandbox numbers out.
+1. Server in sandbox mode, vault saved once.
+2. `record_demo.py --mode live --bad-flaws price_as_image,no_structured_data,never_marks_paid --out demo-video\v2`, then `record_safety.py --mode live` and `record_tour.py`.
+3. Voice and music go in `demo-video\v2-public`, edit in `video\` (Remotion), render to `video\out\`.
+4. Upload to YouTube as Public before 11:30 PM IST Nov 12. Paste the link into the README and Devpost.

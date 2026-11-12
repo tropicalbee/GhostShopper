@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-11-12, session 8 (video v2)
+
+### Done
+- New video story: "Paid, but your store doesn't know." Three live Sandbox runs on the vault payment: 50 (PayPal captured $24.00, store order #1071 still Awaiting payment, 65/100), 51 (fixed, 100/100, #1072 Paid), 52 (hidden instructions for agents flagged, not followed).
+- `record_demo.py --bad-flaws` picks the bad store's flaws; the admin scene unticks exactly those and fails if any flaw stays on. New `record_tour.py` (read-only site tour) and `record_safety.py` (one live run with hidden instructions, flaws restored after).
+- Script v3 in VIDEO_SCRIPT.md, checked against the code and the runs. No mock numbers, no model named in the voice.
+- Edit rebuilt as `video/src/V2.tsx` (Remotion): shots anchored to voice lines, zooms on recorded focus boxes, no captions, a five-stage tracker in the trace's real order, end card. Voice: Kokoro "Heart" from Hugging Face, local ONNX. Music: an original pad.
+
+### Next
+1. Watch `video/out/ghostshopper-v2.mp4`, then upload to YouTube as Public before 11:30 PM IST.
+2. Paste the link into the README `<!-- VIDEO_URL -->` marker and Devpost.
+3. Optional: Shibangi records the same script in their own voice and it replaces `voice-fit.wav`.
+
+### Blockers
+- None.
+
+
 ## 2026-11-12, session 7 (demo video)
 
 ### Done

@@ -2,6 +2,21 @@
 
 What broke, why, and what we did about it. Newest first.
 
+## 2026-11-12 (session 8)
+
+### First video edit judged choppy and off-message
+Too many row cuts, caption pills and a story where the agent never paid, so PayPal barely showed. Fix: a new story built on run 50's real payment mismatch, one continuous voice, shots anchored to voice lines, no captions.
+
+### The tour recorder couldn't encode its frames
+A relative output path broke ffmpeg's concat list. Fix: resolve the output path in `record_tour.py`.
+
+### Old fixed run kept the PayPal option flaws on
+The admin scene only unticked the agent flaws. Fix: it now unticks exactly the bad-run flaws and checks that every flaw is off.
+
+### Landing page example disagrees with the code
+The landing's sample score lists "Order never marked paid -13", but the trace never changes the score. Not fixed yet; the video leaves that section out.
+
+
 ## 2026-11-12 (session 7)
 
 ### Live take stopped at a PayPal page the agent didn't know
