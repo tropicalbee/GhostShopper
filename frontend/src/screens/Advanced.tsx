@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { Label, ScoreFigure, ShopperPath, StatusLine } from "@/components/bits";
+import { CatalogReadiness } from "@/components/CatalogReadiness";
 import { DeveloperDialog } from "@/components/dialogs";
 import { FailuresGrid } from "@/components/FailuresGrid";
 import { PayPalReadiness } from "@/components/PayPalReadiness";
@@ -272,6 +273,7 @@ export function Advanced({ run, runs, health }: { run: Run; runs: RunSummary[] |
             ["steps", "Agent steps", run.steps.length],
             ["paypal", "PayPal readiness", null],
             ["feed", "Product feed", null],
+            ["catalog", "Catalog readiness", null],
             ["history", "History", null],
             ["market", "Market", null],
             ["fault", "Not the store's fault", notFault],
@@ -293,6 +295,9 @@ export function Advanced({ run, runs, health }: { run: Run; runs: RunSummary[] |
         </TabsContent>
         <TabsContent value="feed" className="mt-4">
           <ProductFeed run={run} />
+        </TabsContent>
+        <TabsContent value="catalog" className="mt-4">
+          <CatalogReadiness run={run} />
         </TabsContent>
         <TabsContent value="history" className="mt-4">
           <History run={run} runs={runs} />
