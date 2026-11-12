@@ -21,7 +21,7 @@ A model could call the vision tool on every step. Fix: at most 5 calls per run.
 The capture was saved under a key the scorecard does not read. Fix: it is saved as `screenshot`, and no path is stored when the capture failed.
 
 ### Order read and verify endpoints accepted any id
-`GET /orders/{id}` and `/orders/{id}/verify` accepted any string as an id. Fix: the same `ORDER_ID_RE` check as refund (400 `BAD_ORDER_ID`). They still have no owner check, because the agent reads its own order over plain HTTP without the owner cookie; PayPal order ids are hard to guess.
+`GET /orders/{id}` and `/orders/{id}/verify` accepted any string as an id. Fix: the same `ORDER_ID_RE` check as refund (400 `BAD_ORDER_ID`). Both routes are now agent-only: the server makes a random key at startup, in-process runs get it from memory and CLI runs from data/.internal_key; anyone else gets a 404.
 
 ### A run with no LLM configured silently used the rule-based navigator
 Fix: the request now fails with 400 `RUN_CONFIG` unless developer options are on.

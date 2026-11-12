@@ -21,6 +21,15 @@ erDiagram
     text store_url
     text order_id
     text agent_safety
+    text path
+    text platform
+  }
+  vault_tokens {
+    int id PK
+    text paypal_mode
+    text payment_token_id
+    text customer_id
+    text created_at
   }
   steps {
     int id PK

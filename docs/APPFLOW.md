@@ -31,21 +31,31 @@ sequenceDiagram
   participant API as FastAPI
   participant A as Shopper agent
   participant L as LLM
+  participant V as Vision model (optional)
   participant B as Browser
   participant S as Store
   participant P as PayPal
   M->>API: POST /api/runs
-  API->>A: start the run
-  loop until finish, loop, 25 steps or error
+  API->>A: start the run (400 RUN_CONFIG if no LLM)
+  loop until finish, loop, 25 steps (default) or error
     A->>L: goal, page content as data, tools
     L-->>A: tool call
     A->>B: run the tool
     B->>S: page request
+    opt look_at_page, store pages only, max 5 per run
+      A->>V: screenshot and question
+      V-->>A: answer, never scored
+    end
     A->>A: code records checks and safety findings
   end
-  A->>P: pay with PayPal
-  P-->>S: approved
-  S->>P: capture the order
+  alt pay_with_paypal (popup)
+    A->>P: click the PayPal button
+    P-->>S: buyer approves in the popup
+    S->>P: capture the order
+  else pay_with_saved_paypal (vault, no popup)
+    A->>S: pay with the saved buyer
+    S->>P: create and capture with the saved token
+  end
   A->>S: read the order page back
   API->>API: score, trace, safety report
   M->>API: GET /api/runs/id
@@ -65,7 +75,7 @@ The LLM chooses every action. Code evaluates the checks, never the LLM.
 2. Start the run: insert a `runs` row and open the browser (local Playwright, or Kernel over CDP).
 3. Prompt the LLM with the rules and the goal: find the mug, read its price and stock, get to checkout, and in checkout runs pay with PayPal. A spending limit, if the user set one, is run config; the LLM does not enforce it.
 3b. Page content is framed as data in the system prompt, with hard limits: no other hosts, no downloads, no password or card fields. `agent/injection.py` flags text aimed at AI agents and the findings go into `agent_safety` on the run. This never changes the score.
-4. Call the LLM with the tools: `open_page`, `find_elements`, `read_text`, `click`, `fill_form`, `take_screenshot`, `finish`, plus `pay_with_paypal` in checkout runs (or `pay_with_saved_paypal` with `--payment vault`: no popup or password, the store creates and captures an order paid with the buyer's saved PayPal token). `click` refuses the PayPal button.
+4. Call the LLM with the tools: `open_page`, `find_elements`, `read_text`, `click`, `fill_form`, `take_screenshot`, `finish`, plus `look_at_page` when the run has a vision model (at most 5 looks per run), plus `pay_with_paypal` in checkout runs (or `pay_with_saved_paypal` with `--payment vault`: no popup or password, the store creates and captures an order paid with the buyer's saved PayPal token). `click` refuses the PayPal button.
 5. Run each tool call with a time limit (30 s, longer for paying), screenshot the page, and save a `steps` row. If the agent repeats the same action on the same page, it gets a warning the second time and the run stops the third time.
 6. Detect (`engine.py`, `checks.py`). Collect facts from the DOM and record checks. On the product page: product_found and the eight product checks (price, currency, JSON-LD, stock, stock consistency, photo alt text, sale claims, buy button and whether it's covered). On checkout: checkout_reached, no_extra_steps and price_consistent. Every failed check gets a code, a cause, a full-page screenshot, a selector and a reason.
 7. Add the observation to the conversation and go back to 4. Stop on `finish`, a loop, three timeouts in a row, 25 steps, or an error.

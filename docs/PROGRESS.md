@@ -6,14 +6,14 @@ Entries before 2026-11-11 are in [archive/PROGRESS-2026-11-05-to-11-10.md](archi
 
 ### Done
 - README intro shortened to two sentences.
-- Code fixes from the audit (applied by another agent): catalog time bound and daily cap, 5 `look_at_page` calls per run, popup screenshot key, id validation on order read and verify, 400 `RUN_CONFIG` with no LLM, localhost origins hidden in every failure column, one-time log for short `X-Forwarded-For`.
+- Code fixes from the audit (applied by another agent): catalog time bound and daily cap, 5 `look_at_page` calls per run, popup screenshot key, id validation on order read and verify (both now agent-only behind an internal key), vault buyer from the environment for hosted real runs, banner without run numbers, architecture and data-model diagrams and the mermaid blocks updated, docs/REPRODUCE.md, 400 `RUN_CONFIG` with no LLM, localhost origins hidden in every failure column, one-time log for short `X-Forwarded-For`.
 - Docs: PRD flaw table now has all 20 flaws; SCHEMA has the missing `runs` columns; VIDEO_SCRIPT matches cut v2; README model attribution follows the local database; test count, Impact bullets, Kernel and hosted-purchase lines state the evidence; TRD, APPFLOW, CHANGELOG, PLAN and DECISIONS updated.
 - Hosted run 5 (Kernel, sandbox, popup): 41/75, blocked at step_limit, popup approval timed out at the password step after 120 s, no capture. Numbers in METRICS.md.
 - Frontend files with no importers, left in place (the build leaves them out, so the shipped app is unaffected): `frontend/src/components/MoneyFlow.tsx`, `MoneyHero.tsx`, `Nav.tsx`, `Walkthrough.tsx`, `ShopperFlow.tsx`, `frontend/src/screens/Home.tsx`, `frontend/src/components/ui/{badge,card,separator,sonner,tooltip}.tsx`, `frontend/src/assets/walkthrough/`.
 
 ### Not verified
 - Full suite: 646 of 657 passed; the 11 failures were test setups (no LLM configured, old health keys), fixed and rerun green (59 passed). The whole suite was not rerun after that fix.
-- The hosted vault purchase: needs the redeploy with `PAYPAL_VAULT_TOKEN_ID` and `PAYPAL_VAULT_CUSTOMER_ID`.
+- The hosted vault purchase: needs the redeploy with `PAYPAL_VAULT_TOKEN_ID` and `PAYPAL_VAULT_CUSTOMER_ID`. The same path worked on a local server in the hosted configuration (run 61: purchased, $24.00 captured, store order #1079 Paid, 4 of 4 links ok).
 - The live-site latency figures came from the hosted check.
 
 ### Next

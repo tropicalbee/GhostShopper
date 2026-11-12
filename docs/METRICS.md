@@ -385,6 +385,15 @@ Every completed purchase so far ran locally.
 | `POST /api/runs` | 202 in 0.88 s |
 | `/api/catalog` | 2.6 s |
 
+### Local server in the hosted configuration, runs 60 and 61 (2026-11-12)
+
+The server ran with `PAYPAL_MODE=mock` as its default, like the hosted one, and each run was started through `POST /api/runs` with only `{"real_payment": true}`, the way a visitor starts one.
+
+| Run | Setup | Outcome |
+|---|---|---|
+| 60 | before the fix: a real run always used Kernel | Kernel's cloud browser could not reach `localhost:8000` (`ERR_CONNECTION_REFUSED` three times), gave up after 4 steps. Led to the fix: only popup payments need Kernel's live view |
+| 61 | after the fix: saved sandbox buyer (vault), local Chromium, Nemotron 3.5 Super VL 120B, flaws price_as_image and no_structured_data | purchased in 12 steps, 35 s. PayPal order 5K109393AM6709716, capture COMPLETED $24.00, fee $1.33, net $22.67, payment verified through the agent-only verify route. Store order #1079 Paid, 4 of 4 ID links ok, no mismatches. Readiness 65/100 (price as text 12, structured data 12, stock readable 4 lost) |
+
 ### Test suite (2026-11-12)
 
 Full run after the audit fixes, `pytest -q`: 657 tests, 646 passed, 11 failed, 779.5 s. The 11 failures were test setups only: 10 started a run on a server with no LLM (now a 400 `RUN_CONFIG` by design) and 1 listed the health keys without the new `vault_ready`. After fixing them, `test_budget.py` and `test_server_hardening.py` pass (59 passed, 63.8 s). Frontend `npm run build` passes.

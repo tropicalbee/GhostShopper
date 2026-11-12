@@ -96,9 +96,9 @@ The demo video tells the run 50 and 51 story above. These three screenshots are 
 
 ## How it works
 
-<img src="docs/diagrams/architecture.png" alt="Simplified architecture: the merchant's browser, the FastAPI app with the shopper agent and demo store, and PayPal, Kernel, Channel3 and the LLM" width="820">
+<img src="docs/diagrams/architecture.png" alt="Simplified architecture: the merchant's browser, the FastAPI app with the shopper agent and demo store, and the LLM, optional vision model, browser, PayPal's WebMCP showcase and PayPal sandbox (popup or saved buyer)" width="820">
 
-The detailed version, with every file and twelve numbered steps, is in [docs/diagrams/architecture-detailed.png](docs/diagrams/architecture-detailed.png).
+The detailed version, with every file and twelve numbered steps, is in [docs/diagrams/architecture-detailed.png](docs/diagrams/architecture-detailed.png). It is a sketch from 2026-11-11 and predates the WebMCP path, the vision model and the saved-PayPal default on the hosted server, so use the simplified diagram above for those.
 
 **One check, end to end**
 

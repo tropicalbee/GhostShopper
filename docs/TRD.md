@@ -23,10 +23,13 @@ flowchart LR
   F --> D[(SQLite)]
   F --> ST[Demo store]
   F --> AG[Shopper agent]
-  AG --> LLM[LLM: Nemotron or Groq]
-  AG --> BR[Playwright or Kernel browser]
+  AG --> LLM[LLM: Nemotron, any OpenAI-compatible, required]
+  AG -.-> VL[Vision model, optional]
+  AG -- acts, or calls WebMCP tools --> BR[Playwright or Kernel browser]
+  BR -. WebMCP .-> SH[PayPal WebMCP showcase, external]
   BR --> ST
-  ST --> PP[PayPal sandbox]
+  ST -- creates and captures orders --> PP[PayPal sandbox: popup or saved buyer]
+  BR -. popup .-> PP
   F --> PP
   F --> CH[Channel3]
 ```

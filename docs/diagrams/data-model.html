@@ -23,11 +23,11 @@
 <body>
   <div class="frame">
     <h1>What GhostShopper stores</h1>
-    <p>One SQLite file. A run owns its steps, its checks and its score. PayPal’s orders and the demo store’s own orders are kept apart, because the trace compares them. Selected fields only; the full list is in SCHEMA.md.</p>
+    <p>One SQLite file. A run owns its steps, its checks and its score. PayPal’s orders and the demo store’s own orders are kept apart, because the trace compares them. The saved PayPal buyer’s token sits on its own, linked to no run. Selected fields only; the full list is in SCHEMA.md.</p>
     <div class="diagram-container">
       <svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="data-model-title data-model-desc">
         <title id="data-model-title">What GhostShopper stores</title>
-        <desc id="data-model-desc">A run has many steps and checks and one score; a run links to PayPal orders and to the demo store’s own orders; each store order is paid with one PayPal order.</desc>
+        <desc id="data-model-desc">A run has many steps and checks and one score; a run links to PayPal orders and to the demo store’s own orders; each store order is paid with one PayPal order; a saved PayPal buyer’s token is stored on its own.</desc>
         <rect width="100%" height="100%" fill="#0a0a0a"/>
 
         <!-- relationships (drawn before entities) -->
@@ -58,7 +58,7 @@
           <text x="404" y="139" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">runs</text>
           <text x="404" y="166" fill="#ededed"># id</text>
           <text x="404" y="182">store_url</text><text x="404" y="198">status, outcome</text><text x="404" y="214">paypal_mode</text>
-          <text x="404" y="230">flaws_snapshot</text><text x="404" y="246">owner_hash</text><text x="404" y="262">end_reason</text>
+          <text x="404" y="230">flaws_snapshot</text><text x="404" y="246">owner_hash, end_reason</text><text x="404" y="262">path, platform, webmcp</text>
 
           <!-- steps -->
           <rect x="40" y="40" width="220" height="152" rx="6" fill="#111111" stroke="#2e2e2e"/>
@@ -73,6 +73,13 @@
           <text x="54" y="279" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">checks</text>
           <text x="54" y="306" fill="#ededed"># id</text><text x="54" y="322">→ run_id</text><text x="54" y="338">check_key, passed</text>
           <text x="54" y="354">code, cause</text><text x="54" y="370">reason</text><text x="54" y="386">evidence</text><text x="54" y="402">fix</text>
+
+                    <!-- vault_tokens -->
+          <rect x="40" y="428" width="220" height="60" rx="6" fill="#111111" stroke="#2e2e2e"/>
+          <line x1="40" y1="452" x2="260" y2="452" stroke="#2e2e2e"/>
+          <text x="54" y="445" fill="#ededed" font-family="'Geist', system-ui, sans-serif" font-size="12" font-weight="600">vault_tokens</text>
+          <text x="54" y="468" fill="#ededed"># id</text><text x="84" y="468">paypal_mode</text>
+          <text x="54" y="481">payment_token_id, customer_id</text>
 
           <!-- scores -->
           <rect x="740" y="40" width="220" height="120" rx="6" fill="#111111" stroke="#2e2e2e"/>

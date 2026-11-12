@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 1040 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="architecture-title architecture-desc" id="architecture-root">
+<svg viewBox="0 0 1040 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="architecture-title architecture-desc" id="architecture-root">
         <title id="architecture-title">How GhostShopper is wired</title>
-        <desc id="architecture-desc">The dashboard calls the API, which starts the shopper agent; the agent asks the language model for its next tool and drives a browser that shops the demo store or a live store; the buyer approves payment in PayPal’s popup; the demo store’s checkout API creates and captures the PayPal order; the agent, the API and the store share one SQLite database.</desc>
+        <desc id="architecture-desc">The dashboard calls the API, which starts the shopper agent; the agent asks the required language model for its next tool and can ask an optional vision model to look at a store page; it drives a browser that shops the demo store or a live store, or calls the store’s WebMCP tools through that browser, and the browser can also reach PayPal’s external WebMCP showcase; the demo store’s checkout API creates and captures the PayPal sandbox order, and the buyer approves either in PayPal’s popup or, with a saved PayPal buyer, with no popup; the agent, the API and the store share one SQLite database, which also holds the saved buyer’s token.</desc>
         <defs>
       <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
       #architecture-root { --paper: #0a0a0a; --ink: #ededed; --muted: #8f8f8f; --font-sans: 'Geist', system-ui, sans-serif; }
@@ -17,11 +17,11 @@
 
         <!-- zones -->
         <g font-family="'Geist', system-ui, sans-serif" font-size="10" fill="#8f8f8f">
-          <rect x="24" y="150" width="192" height="144" rx="8" fill="#ededed" stroke="#ededed" stroke-width="0.8" fill-opacity="0.02" stroke-opacity="0.10"/>
+          <rect x="24" y="150" width="192" height="144" rx="8" fill="rgba(237,237,237,0.02)" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
           <text x="40" y="172">Merchant’s browser</text>
-          <rect x="272" y="64" width="396" height="372" rx="8" fill="#ededed" stroke="#ededed" stroke-width="0.8" fill-opacity="0.02" stroke-opacity="0.10"/>
+          <rect x="272" y="64" width="396" height="372" rx="8" fill="rgba(237,237,237,0.02)" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
           <text x="288" y="86">GhostShopper server, one FastAPI process</text>
-          <rect x="744" y="40" width="232" height="472" rx="8" fill="#ededed" stroke="#ededed" stroke-width="0.8" fill-opacity="0.02" stroke-opacity="0.10"/>
+          <rect x="744" y="40" width="232" height="594" rx="8" fill="rgba(237,237,237,0.02)" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
           <text x="760" y="62">Outside services and stores</text>
         </g>
 
@@ -30,21 +30,24 @@
           <path d="M200,222 H237 Q245,222 245,214 V150 Q245,142 253,142 H290" stroke="#7a7a7a" marker-end="url(#architecture-arrow)"/>
           <line x1="450" y1="142" x2="500" y2="142" stroke="#ededed" marker-end="url(#architecture-arrow-accent)"/>
           <line x1="650" y1="122" x2="760" y2="122" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
-          <path d="M650,158 H697 Q705,158 705,166 V214 Q705,222 713,222 H760" stroke="#ededed" marker-end="url(#architecture-arrow-accent)"/>
-          <path d="M760,238 H583 Q575,238 575,246 V350" stroke="#ededed" marker-end="url(#architecture-arrow-accent)"/>
-          <line x1="860" y1="254" x2="860" y2="300" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
-          <path d="M960,222 H980 Q988,222 988,230 V434 Q988,442 980,442 H960" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
-          <path d="M650,398 H697 Q705,398 705,406 V418 Q705,426 713,426 H760" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
+          <path d="M650,146 H697 Q705,146 705,154 V194 Q705,202 713,202 H760" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
+          <path d="M650,166 H682 Q690,166 690,174 V284 Q690,292 698,292 H760" stroke="#ededed" marker-end="url(#architecture-arrow-accent)"/>
+          <path d="M760,308 H583 Q575,308 575,316 V350" stroke="#ededed" marker-end="url(#architecture-arrow-accent)"/>
+          <line x1="860" y1="324" x2="860" y2="350" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
+          <path d="M760,320 H730 Q722,320 722,328 V464 Q722,472 730,472 H760" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
+          <path d="M960,292 H980 Q988,292 988,300 V554 Q988,562 980,562 H960" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
+          <path d="M650,398 H697 Q705,398 705,406 V554 Q705,562 713,562 H760" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
           <path d="M500,166 H483 Q475,166 475,174 V358 Q475,366 467,366 H450" stroke="#7a7a7a" marker-end="url(#architecture-arrow)"/>
           <line x1="370" y1="174" x2="370" y2="350" stroke="#7a7a7a" marker-end="url(#architecture-arrow)"/>
           <line x1="500" y1="398" x2="450" y2="398" stroke="#7a7a7a" marker-end="url(#architecture-arrow)"/>
         </g>
         <g font-family="'Geist Mono', ui-monospace, monospace" font-size="9" fill="#8f8f8f" text-anchor="middle">
           <rect x="681" y="101" width="48" height="12" rx="2" fill="#0a0a0a"/><text x="705" y="110">next tool</text>
-          <rect x="713" y="182" width="28" height="12" rx="2" fill="#0a0a0a"/><text x="727" y="191">acts</text>
-          <rect x="612" y="217" width="36" height="12" rx="2" fill="#0a0a0a"/><text x="630" y="226">shops</text>
-          <rect x="868" y="271" width="44" height="12" rx="2" fill="#0a0a0a"/><text x="890" y="280">browses</text>
-          <rect x="994" y="323" width="40" height="12" rx="2" fill="#0a0a0a"/><text x="1014" y="332">popup</text>
+          <rect x="716" y="184" width="34" height="12" rx="2" fill="#0a0a0a"/><text x="733" y="193">looks</text>
+          <rect x="652" y="219" width="76" height="24" rx="2" fill="#0a0a0a"/><text x="690" y="228">acts, or calls</text><text x="690" y="239">webmcp tools</text>
+          <rect x="612" y="302" width="36" height="12" rx="2" fill="#0a0a0a"/><text x="630" y="311">shops</text>
+          <rect x="868" y="331" width="44" height="12" rx="2" fill="#0a0a0a"/><text x="890" y="340">browses</text>
+          <rect x="994" y="423" width="40" height="12" rx="2" fill="#0a0a0a"/><text x="1014" y="432">popup</text>
           <rect x="654" y="377" width="40" height="12" rx="2" fill="#0a0a0a"/><text x="674" y="386">orders</text>
           <rect x="437" y="253" width="30" height="12" rx="2" fill="#0a0a0a"/><text x="452" y="262">logs</text>
           <rect x="378" y="253" width="34" height="12" rx="2" fill="#0a0a0a"/><text x="395" y="262">reads</text>
@@ -66,42 +69,50 @@
 
           <rect x="290" y="350" width="160" height="64" rx="6" fill="#111111" stroke="#2e2e2e"/>
           <text x="370" y="378" fill="#ededed" font-size="12" font-weight="600">SQLite</text>
-          <text x="370" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">runs, steps, orders</text>
+          <text x="370" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">runs, steps, orders, vault</text>
 
           <rect x="500" y="350" width="150" height="64" rx="6" fill="#111111" stroke="#2e2e2e"/>
           <text x="575" y="378" fill="#ededed" font-size="12" font-weight="600">Demo store</text>
-          <text x="575" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">/store + /api/paypal</text>
+          <text x="575" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">/store, checkout, webmcp</text>
 
           <rect x="760" y="80" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
           <text x="860" y="108" fill="#ededed" font-size="12" font-weight="600">Language model</text>
-          <text x="860" y="126" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">nemotron or groq, optional</text>
+          <text x="860" y="126" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">required, any OpenAI-compatible</text>
 
-          <rect x="760" y="190" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
-          <text x="860" y="218" fill="#ededed" font-size="12" font-weight="600">Browser</text>
-          <text x="860" y="236" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">playwright, or kernel when hosted</text>
+          <rect x="760" y="170" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="860" y="198" fill="#ededed" font-size="12" font-weight="600">Vision model</text>
+          <text x="860" y="216" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">optional, never scored</text>
 
-          <rect x="760" y="300" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
-          <text x="860" y="328" fill="#ededed" font-size="12" font-weight="600">Your store</text>
-          <text x="860" y="346" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">any link, browse only</text>
+          <rect x="760" y="260" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="860" y="288" fill="#ededed" font-size="12" font-weight="600">Browser</text>
+          <text x="860" y="306" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">playwright, or kernel when hosted</text>
 
-          <rect x="760" y="410" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
-          <text x="860" y="438" fill="#ededed" font-size="12" font-weight="600">PayPal</text>
-          <text x="860" y="456" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">sandbox, or mock in practice</text>
+          <rect x="760" y="350" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="860" y="378" fill="#ededed" font-size="12" font-weight="600">Your store</text>
+          <text x="860" y="396" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">any link, browse only</text>
+
+          <rect x="760" y="440" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="860" y="468" fill="#ededed" font-size="12" font-weight="600">PayPal’s WebMCP showcase</text>
+          <text x="860" y="486" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">external store, sandbox pay</text>
+
+          <rect x="760" y="530" width="200" height="64" rx="6" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="860" y="558" fill="#ededed" font-size="12" font-weight="600">PayPal</text>
+          <text x="860" y="576" fill="#8f8f8f" font-size="9" font-family="'Geist Mono', ui-monospace, monospace">sandbox, popup or saved buyer</text>
         </g>
 
         <!-- legend -->
-        <line x1="24" y1="530" x2="1016" y2="530" stroke="#ededed" stroke-width="0.8" stroke-opacity="0.10"/>
+        <line x1="24" y1="660" x2="1016" y2="660" stroke="rgba(237,237,237,0.10)" stroke-width="0.8"/>
         <g font-family="'Geist', system-ui, sans-serif" font-size="10" fill="#8f8f8f">
-          <text x="24" y="560">Legend</text>
-          <rect x="90" y="550" width="22" height="14" rx="3" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
-          <text x="120" y="560">decides the outcome</text>
-          <rect x="250" y="550" width="22" height="14" rx="3" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
-          <text x="280" y="560">outside GhostShopper</text>
-          <line x1="410" y1="556" x2="438" y2="556" stroke="#ededed" stroke-width="1.2" marker-end="url(#architecture-arrow-accent)"/>
-          <text x="446" y="560">the shopping path</text>
-          <line x1="560" y1="556" x2="588" y2="556" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
-          <text x="596" y="560">call to an outside service or store</text>
-          <line x1="780" y1="556" x2="808" y2="556" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#architecture-arrow)"/>
-          <text x="816" y="560">internal call</text>
+          <text x="24" y="690">Legend</text>
+          <rect x="90" y="680" width="22" height="14" rx="3" fill="#181818" stroke="#ededed" stroke-width="1.2"/>
+          <text x="120" y="690">decides the outcome</text>
+          <rect x="250" y="680" width="22" height="14" rx="3" fill="#111111" stroke="#2e2e2e" stroke-dasharray="4,3"/>
+          <text x="280" y="690">outside GhostShopper</text>
+          <line x1="410" y1="686" x2="438" y2="686" stroke="#ededed" stroke-width="1.2" marker-end="url(#architecture-arrow-accent)"/>
+          <text x="446" y="690">the shopping path</text>
+          <line x1="560" y1="686" x2="588" y2="686" stroke="#7a7a7a" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#architecture-arrow)"/>
+          <text x="596" y="690">call to an outside service or store</text>
+          <line x1="780" y1="686" x2="808" y2="686" stroke="#7a7a7a" stroke-width="1.2" marker-end="url(#architecture-arrow)"/>
+          <text x="816" y="690">internal call</text>
         </g>
       </svg>

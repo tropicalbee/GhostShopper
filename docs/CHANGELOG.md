@@ -5,10 +5,14 @@ Everything below was built during the PayPal AI Hackathon 2026.
 ## 2026-11-12 (final audit fixes)
 - `/api/catalog` has a total time bound and a daily cap (`CATALOG_DAILY_CAP`, default 100). `look_at_page` is capped at 5 per run.
 - The stuck PayPal popup screenshot is saved as `screenshot`, so the scorecard shows it, and no path is stored when the capture failed.
-- `GET /orders/{id}` and `/orders/{id}/verify` validate the id like refund (400 `BAD_ORDER_ID`).
+- `GET /orders/{id}` and `/orders/{id}/verify` validate the id like refund (400 `BAD_ORDER_ID`), and are agent-only: the server makes a random key at startup (`backend/app/internal_key.py`), in-process runs get it from memory and CLI runs from `data/.internal_key`; anyone else gets a 404.
+- Only popup payments are forced into Kernel (its live view is how a person approves); saved-buyer payments use the server's `BROWSER_PROVIDER`, so a local server's real check no longer sends Kernel to an unreachable `localhost` (run 60 before, run 61 after).
+- Real runs on the hosted server pay with a saved sandbox buyer from `PAYPAL_VAULT_TOKEN_ID` and `PAYPAL_VAULT_CUSTOMER_ID` (seeded at startup, `vault_ready` in health).
+- Banner without hard-coded run numbers. Architecture diagram redrawn for the required model, vision, WebMCP through the browser and the saved-buyer payment; data model adds `vault_tokens`; TRD, APPFLOW and SCHEMA mermaid updated.
+- `docs/REPRODUCE.md`: every README result, from the hosted demo, a local clone with no keys, or your own free sandbox keys.
 - A run with no LLM configured returns 400 `RUN_CONFIG` unless developer options are on, instead of silently using the rule-based navigator.
 - Localhost origins are hidden in every failure text column. A one-time log line when `X-Forwarded-For` has fewer entries than `TRUSTED_PROXY_HOPS`.
-- Hosted real run 5 recorded in METRICS.md. The vault token from the environment is in progress.
+- Hosted real run 5 recorded in METRICS.md.
 - Docs: PRD lists all 20 store flaws, SCHEMA has `runs.live`, `platform` and `platform_evidence`, README states what the hosted and local evidence shows.
 
 ## 2026-11-12 (final audit)
