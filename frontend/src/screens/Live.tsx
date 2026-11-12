@@ -1,7 +1,7 @@
 import { CircleAlert, CircleCheck, Hand, Info, Loader2, Lock } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 
-import { hostOf, Logo, ModeLabels, storeName } from "@/components/bits";
+import { Logo, ModeLabels, shownUrl, storeName } from "@/components/bits";
 import { shotName, shotUrl, type FeedLine, type Run, type TraceStage } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -114,7 +114,7 @@ export function Live({ run }: { run: Run }) {
             <span className="size-[7px] rounded-full bg-foreground shadow-[0_0_0_4px_rgba(255,255,255,0.08)]" aria-hidden />
             {clock(elapsed)}
           </span>
-          <span>· {hostOf(run.store_url)}</span>
+          <span>· {storeName(run)}</span>
           <span>· step {run.steps.length}</span>
           <ModeLabels run={run} />
         </div>
@@ -131,7 +131,7 @@ export function Live({ run }: { run: Run }) {
               </span>
               <span className="num flex h-[30px] min-w-0 flex-1 items-center gap-2 rounded-lg border border-[#1f1f1f] bg-[#0b0b0b] px-3 text-[12.5px] text-muted-foreground">
                 <Lock className="size-[13px] shrink-0 text-dim" aria-hidden />
-                <span className="truncate">{url}</span>
+                <span className="truncate">{shownUrl(run, url)}</span>
               </span>
               <span className="num hidden text-xs text-faint sm:block">live view · step {withShot?.idx ?? 0}</span>
             </div>

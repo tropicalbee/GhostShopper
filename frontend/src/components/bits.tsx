@@ -289,5 +289,16 @@ export function hostOf(url: string): string {
 
 export const storeName = (run: Pick<Run, "live" | "store_url">) => (run.live ? hostOf(run.store_url) : "Fernhill Ceramics");
 
+// A demo-store URL as the store's own path ("Fernhill Ceramics /store/products/mug"), so recorded localhost hosts never show.
+export function shownUrl(run: Pick<Run, "live" | "store_url">, url: string): string {
+  if (run.live) return url;
+  try {
+    const u = new URL(url);
+    return u.pathname.startsWith("/store") ? `${storeName(run)} ${u.pathname}${u.search}` : url;
+  } catch {
+    return url;
+  }
+}
+
 export const checkedAt = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
